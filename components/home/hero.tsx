@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 const carouselItems = [
   {
-    image: "/images/categories/art.jpeg",
+    image: "/images/categories/homepage/home_page_art.jpeg",
     title: "Luxury Collectibles",
     description: "Access invaluable expertise, bespoke AI-powered guidance, and exclusive connections, all meticulously curated to enhance and refine your collecting experience."
   },

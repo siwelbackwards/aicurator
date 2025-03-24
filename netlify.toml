@@ -5,6 +5,15 @@
 [build.environment]
   NEXT_TELEMETRY_DISABLED = "1"
   NODE_VERSION = "18"
+  NEXT_PUBLIC_SUPABASE_URL = "your-supabase-url"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "your-supabase-anon-key"
 
 [[plugins]]
-  package = "@netlify/plugin-nextjs" 
+  package = "@netlify/plugin-nextjs"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff" 
