@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 
 const carouselItems = [
   {
-    image: "https://s3-alpha-sig.figma.com/img/7b02/bcd3/201ac4886d1756b3a3480f026737b155?Expires=1733097600&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=k25qe0TLX0A0yJct5Myp7xMTHyd1R9NZ1u2TRhNJCTvl35qW41T4cCjzQzvMofkMsKHQgjeCE1cS6l4eMgHRgJOzbchSjEpkcQXyagViuSFcuYVT72tRsIrNx5umjfTkexFoCYOcdeAAIjMt0JSdGj57yvG-KRcsYmFk8kt5eeG1u5lfTf0G74Z3m-KCvFegxS1GDd6cLcOlNofzuA~uoFNHbrc9RtD9WCw4oqiSiwfDIKrQqsYU0o303W-qYCO-16jUNzEl0tnUf5rYidu1i-Kye6QBhHyuEQWkYKe1RQFyp~JZ7R-IjFxRco4CVt-5MG90NMHrXtL6AwVCTgQHkw__",
-    title: "Luxury Collectables",
-    description: "Discover a dynamic platform for collectors powered by cutting-edge AI technology! Whether you're a seasoned collector or just starting, this vibrant community offers tools and insights to elevate your collecting experience. Join us in transforming the way you connect with your passion."
+    image: "/images/categories/art.jpeg",
+    title: "Luxury Collectibles",
+    description: "Access invaluable expertise, bespoke AI-powered guidance, and exclusive connections, all meticulously curated to enhance and refine your collecting experience."
   },
   {
     image: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80",
