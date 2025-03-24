@@ -7,19 +7,19 @@ const services = [
   {
     title: 'Discover Future Master',
     description: 'Let our AI identify emerging artists with exceptional potential',
-    image: 'https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?auto=format&fit=crop&q=80',
+    image: '/images/services/future-master.jpg',
     link: '/future-masters'
   },
   {
     title: 'Find My Best Match',
     description: 'Get personalized recommendations based on your taste',
-    image: 'https://images.unsplash.com/photo-1579783901586-d88db74b4fe4?auto=format&fit=crop&q=80',
+    image: '/images/services/best-match.jpg',
     link: '/best-matches'
   },
   {
     title: 'Bid for AI Curated Private Collection',
     description: 'Access exclusive collections curated by our AI',
-    image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80',
+    image: '/images/services/private-collection.jpg',
     link: '/auction'
   }
 ];

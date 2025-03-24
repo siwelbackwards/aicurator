@@ -5,27 +5,27 @@ import { useRouter } from 'next/navigation';
 const categories = [
   {
     title: 'Art',
-    image: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80',
+    image: '/images/categories/art.jpg',
     description: 'Discover unique pieces from emerging and established artists'
   },
   {
     title: 'Sculpture',
-    image: 'https://images.unsplash.com/photo-1638186824584-6d6367254927?auto=format&fit=crop&q=80',
+    image: '/images/categories/sculpture.jpg',
     description: 'Explore three-dimensional masterpieces'
   },
   {
     title: 'Accessories',
-    image: 'https://images.unsplash.com/photo-1611085583191-a3b181a88401?auto=format&fit=crop&q=80',
+    image: '/images/categories/accessories.jpg',
     description: 'Find the perfect complement to your collection'
   },
   {
     title: 'Consumables',
-    image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&q=80',
+    image: '/images/categories/consumables.jpg',
     description: 'Premium collectible consumables'
   },
   {
     title: 'Others',
-    image: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&q=80',
+    image: '/images/categories/others.jpg',
     description: 'Unique items that defy categorization'
   }
 ];
