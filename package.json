@@ -11,7 +11,6 @@
   "dependencies": {
     "@headlessui/react": "^1.7.18",
     "@next/swc-wasm-nodejs": "13.5.1",
-    "@netlify/plugin-nextjs": "^4.41.3",
     "@supabase/supabase-js": "^2.39.8",
     "@types/node": "20.6.2",
     "@types/react": "18.2.22",
