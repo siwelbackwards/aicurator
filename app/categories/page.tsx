@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 const categories = [
   {
     title: 'Art',
-    image: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80',
+    image: '/images/categories/art.jpg',
     description: 'Discover unique pieces from emerging and established artists',
     extendedDescription: 'Immerse yourself in a world of artistic excellence. Our curated art collection spans from contemporary masterpieces to timeless classics, featuring paintings, digital art, and mixed media works that push the boundaries of creative expression.',
     stats: {
@@ -16,7 +16,7 @@ const categories = [
   },
   {
     title: 'Sculpture',
-    image: 'https://images.unsplash.com/photo-1638186824584-6d6367254927?auto=format&fit=crop&q=80',
+    image: '/images/categories/sculpture.jpg',
     description: 'Explore three-dimensional masterpieces',
     extendedDescription: 'Experience the power of form and space through our exceptional sculpture collection. From classical marble works to contemporary installations, each piece tells a unique story through its three-dimensional presence.',
     stats: {
@@ -27,7 +27,7 @@ const categories = [
   },
   {
     title: 'Accessories',
-    image: 'https://images.unsplash.com/photo-1611085583191-a3b181a88401?auto=format&fit=crop&q=80',
+    image: '/images/categories/accessories.jpg',
     description: 'Find the perfect complement to your collection',
     extendedDescription: 'Elevate your collection with our premium selection of accessories. Each piece is carefully chosen for its craftsmanship, historical significance, and potential for appreciation, offering both aesthetic and investment value.',
     stats: {
@@ -38,7 +38,7 @@ const categories = [
   },
   {
     title: 'Consumables',
-    image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&q=80',
+    image: '/images/categories/consumables.jpg',
     description: 'Premium collectible consumables',
     extendedDescription: 'Indulge in our exclusive range of collectible consumables. From rare vintage wines to limited-edition spirits, each item represents the pinnacle of its category, carefully preserved and authenticated for discerning collectors.',
     stats: {
@@ -49,7 +49,7 @@ const categories = [
   },
   {
     title: 'Others',
-    image: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&q=80',
+    image: '/images/categories/others.jpg',
     description: 'Unique items that defy categorization',
     extendedDescription: 'Explore our most intriguing offerings that transcend traditional categories. This carefully curated selection features one-of-a-kind pieces that represent the intersection of art, innovation, and collectible value.',
     stats: {
@@ -78,7 +78,7 @@ export default function CategoriesPage() {
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80')`,
+            backgroundImage: `url('/images/categories/art.jpg')`,
             filter: "brightness(0.7)",
           }}
         />
