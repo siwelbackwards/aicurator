@@ -7,19 +7,19 @@ const services = [
   {
     title: 'Discover Future Master',
     description: 'Let our AI identify emerging artists with exceptional potential',
-    image: '/images/services/future-master.jpg',
+    image: '/images/services/future-master.webp',
     link: '/future-masters'
   },
   {
     title: 'Find My Best Match',
     description: 'Get personalized recommendations based on your taste',
-    image: '/images/services/best-match.jpg',
+    image: '/images/services/best-match.webp',
     link: '/best-matches'
   },
   {
     title: 'Bid for AI Curated Private Collection',
     description: 'Access exclusive collections curated by our AI',
-    image: '/images/services/private-collection.jpg',
+    image: '/images/services/private-collection.webp',
     link: '/auction'
   }
 ];

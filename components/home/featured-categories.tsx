@@ -5,27 +5,27 @@ import { useRouter } from 'next/navigation';
 const categories = [
   {
     title: 'Art',
-    image: '/images/categories/art.jpg',
+    image: '/images/categories/art.webp',
     description: 'Discover unique pieces from emerging and established artists'
   },
   {
     title: 'Sculpture',
-    image: '/images/categories/sculpture.jpg',
+    image: '/images/categories/sculpture.webp',
     description: 'Explore three-dimensional masterpieces'
   },
   {
     title: 'Accessories',
-    image: '/images/categories/accessories.jpg',
+    image: '/images/categories/accessories.webp',
     description: 'Find the perfect complement to your collection'
   },
   {
     title: 'Consumables',
-    image: '/images/categories/consumables.jpg',
+    image: '/images/categories/consumables.webp',
     description: 'Premium collectible consumables'
   },
   {
     title: 'Others',
-    image: '/images/categories/others.jpg',
+    image: '/images/categories/others.webp',
     description: 'Unique items that defy categorization'
   }
 ];

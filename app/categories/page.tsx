@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 const categories = [
   {
     title: 'Art',
-    image: '/images/categories/art.jpg',
+    image: '/images/categories/art.webp',
     description: 'Discover unique pieces from emerging and established artists',
     extendedDescription: 'Immerse yourself in a world of artistic excellence. Our curated art collection spans from contemporary masterpieces to timeless classics, featuring paintings, digital art, and mixed media works that push the boundaries of creative expression.',
     stats: {
@@ -16,7 +16,7 @@ const categories = [
   },
   {
     title: 'Sculpture',
-    image: '/images/categories/sculpture.jpg',
+    image: '/images/categories/sculpture.webp',
     description: 'Explore three-dimensional masterpieces',
     extendedDescription: 'Experience the power of form and space through our exceptional sculpture collection. From classical marble works to contemporary installations, each piece tells a unique story through its three-dimensional presence.',
     stats: {
@@ -27,7 +27,7 @@ const categories = [
   },
   {
     title: 'Accessories',
-    image: '/images/categories/accessories.jpg',
+    image: '/images/categories/accessories.webp',
     description: 'Find the perfect complement to your collection',
     extendedDescription: 'Elevate your collection with our premium selection of accessories. Each piece is carefully chosen for its craftsmanship, historical significance, and potential for appreciation, offering both aesthetic and investment value.',
     stats: {
@@ -38,7 +38,7 @@ const categories = [
   },
   {
     title: 'Consumables',
-    image: '/images/categories/consumables.jpg',
+    image: '/images/categories/consumables.webp',
     description: 'Premium collectible consumables',
     extendedDescription: 'Indulge in our exclusive range of collectible consumables. From rare vintage wines to limited-edition spirits, each item represents the pinnacle of its category, carefully preserved and authenticated for discerning collectors.',
     stats: {
@@ -49,7 +49,7 @@ const categories = [
   },
   {
     title: 'Others',
-    image: '/images/categories/others.jpg',
+    image: '/images/categories/others.webp',
     description: 'Unique items that defy categorization',
     extendedDescription: 'Explore our most intriguing offerings that transcend traditional categories. This carefully curated selection features one-of-a-kind pieces that represent the intersection of art, innovation, and collectible value.',
     stats: {
