@@ -78,7 +78,7 @@ export default function CategoriesPage() {
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `url('/images/categories/art.jpg')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80')`,
             filter: "brightness(0.7)",
           }}
         />
