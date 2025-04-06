@@ -81,7 +81,7 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{
-              backgroundImage: `url('https://s3-alpha-sig.figma.com/img/7b02/bcd3/201ac4886d1756b3a3480f026737b155?Expires=1733097600&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=k25qe0TLX0A0yJct5Myp7xMTHyd1R9NZ1u2TRhNJCTvl35qW41T4cCjzQzvMofkMsKHQgjeCE1cS6l4eMgHRgJOzbchSjEpkcQXyagViuSFcuYVT72tRsIrNx5umjfTkexFoCYOcdeAAIjMt0JSdGj57yvG-KRcsYmFk8kt5eeG1u5lfTf0G74Z3m-KCvFegxS1GDd6cLcOlNofzuA~uoFNHbrc9RtD9WCw4oqiSiwfDIKrQqsYU0o303W-qYCO-16jUNzEl0tnUf5rYidu1i-Kye6QBhHyuEQWkYKe1RQFyp~JZ7R-IjFxRco4CVt-5MG90NMHrXtL6AwVCTgQHkw__')`
+              backgroundImage: `url('/images/categories/art.webp')`
             }}
           />
           <div className="absolute inset-0 bg-black/50" />
@@ -141,25 +141,19 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `url('https://s3-alpha-sig.figma.com/img/7b02/bcd3/201ac4886d1756b3a3480f026737b155?Expires=1733097600&Key-Pair-Id=APKAQ4GOSFWCVNEHN3O4&Signature=k25qe0TLX0A0yJct5Myp7xMTHyd1R9NZ1u2TRhNJCTvl35qW41T4cCjzQzvMofkMsKHQgjeCE1cS6l4eMgHRgJOzbchSjEpkcQXyagViuSFcuYVT72tRsIrNx5umjfTkexFoCYOcdeAAIjMt0JSdGj57yvG-KRcsYmFk8kt5eeG1u5lfTf0G74Z3m-KCvFegxS1GDd6cLcOlNofzuA~uoFNHbrc9RtD9WCw4oqiSiwfDIKrQqsYU0o303W-qYCO-16jUNzEl0tnUf5rYidu1i-Kye6QBhHyuEQWkYKe1RQFyp~JZ7R-IjFxRco4CVt-5MG90NMHrXtL6AwVCTgQHkw__')`
+            backgroundImage: `url('/images/categories/art.webp')`
           }}
         />
         <div className="absolute inset-0 bg-black/50" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <h2 className="text-2xl font-bold text-white">
-            {userType === 'buyer' ? 'Buyer Registration' : 'Seller Registration'}
-          </h2>
-        </div>
       </div>
-
-      <div className="p-6">
+      <div className="px-6 pb-6">
+        <h2 className="text-2xl font-bold mb-4">Create an account</h2>
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+            {error}
+          </div>
+        )}
         <form onSubmit={handleSignUp} className="space-y-4">
-          {error && (
-            <div className="p-3 text-sm text-red-500 bg-red-50 rounded-lg">
-              {error}
-            </div>
-          )}
-
           <div>
             <Input
               type="email"

@@ -8,6 +8,7 @@ import { Menu } from '@headlessui/react';
 import { Button } from '@/components/ui/button';
 import AuthDialog from '@/components/auth/auth-dialog';
 import { supabase } from '@/lib/supabase';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -218,10 +219,12 @@ export default function Navbar() {
         </div>
       )}
 
-      <AuthDialog 
-        isOpen={authDialogOpen} 
-        onClose={() => setAuthDialogOpen(false)} 
-      />
+      <ErrorBoundary>
+        <AuthDialog
+          isOpen={authDialogOpen}
+          onClose={() => setAuthDialogOpen(false)}
+        />
+      </ErrorBoundary>
     </header>
   );
 }
