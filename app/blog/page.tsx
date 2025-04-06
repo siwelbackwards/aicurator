@@ -66,72 +66,62 @@ const blogs = [
 ];
 
 export default function BlogPage() {
+  const blogPosts = [
+    {
+      title: "The Rise of AI-Generated Art in Modern Collections",
+      date: "March 15, 2024",
+      excerpt: "Exploring how artificial intelligence is transforming the art world and creating new opportunities for collectors and creators alike.",
+      author: "Sarah Chen",
+      readTime: "5 min read"
+    },
+    {
+      title: "Collecting Digital Art: A Beginner's Guide",
+      date: "March 10, 2024",
+      excerpt: "Everything you need to know about starting your digital art collection, from authentication to storage and display.",
+      author: "Michael Roberts",
+      readTime: "8 min read"
+    },
+    {
+      title: "The Future of Luxury Collectibles",
+      date: "March 5, 2024",
+      excerpt: "How technology is changing the way we think about and collect luxury items, from digital art to virtual experiences.",
+      author: "Emma Thompson",
+      readTime: "6 min read"
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section */}
-      <div className="relative h-[300px] -mx-4 sm:-mx-6 lg:-mx-8 mb-12">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80')`,
-            filter: "brightness(0.7)",
-          }}
-        />
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="relative h-full flex items-center">
-          <div className="max-w-4xl mx-auto px-4 text-center">
-            <h1 className="text-7xl font-serif font-bold mb-6 text-white tracking-wide">Blog</h1>
-            <p className="text-lg text-gray-200 max-w-3xl mx-auto leading-relaxed">
-              Explore expert insights, market trends, and collecting wisdom from industry leaders.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Blog Grid */}
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {blogs.map((blog) => (
-            <div key={blog.id} className="group">
-              <div className="relative aspect-[16/9] overflow-hidden rounded-xl mb-4">
-                <div
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                  style={{ backgroundImage: `url(${blog.image})` }}
-                />
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors duration-300" />
-                <div className="absolute top-4 left-4">
-                  <span className="px-3 py-1 bg-white/90 rounded-full text-sm font-medium">
-                    {blog.category}
-                  </span>
-                </div>
+      <div className="max-w-4xl mx-auto px-4 py-16">
+        <h1 className="text-4xl font-serif font-bold mb-8">AI Curator Blog</h1>
+        
+        <div className="space-y-12">
+          {blogPosts.map((post, index) => (
+            <article key={index} className="border-b border-gray-200 pb-8">
+              <h2 className="text-2xl font-bold mb-2 hover:text-primary cursor-pointer">
+                {post.title}
+              </h2>
+              <div className="flex items-center text-sm text-gray-500 mb-4">
+                <span>{post.date}</span>
+                <span className="mx-2">•</span>
+                <span>{post.author}</span>
+                <span className="mx-2">•</span>
+                <span>{post.readTime}</span>
               </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {blog.date}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {blog.readTime}
-                  </div>
-                </div>
-
-                <h2 className="text-xl font-bold group-hover:text-primary transition-colors duration-300">
-                  {blog.title}
-                </h2>
-                
-                <p className="text-gray-600 line-clamp-2">
-                  {blog.excerpt}
-                </p>
-
-                <div className="pt-2">
-                  <span className="text-sm text-gray-600">By {blog.author}</span>
-                </div>
-              </div>
-            </div>
+              <p className="text-gray-600 mb-4">
+                {post.excerpt}
+              </p>
+              <button className="text-primary font-medium hover:underline">
+                Read more
+              </button>
+            </article>
           ))}
+        </div>
+
+        <div className="mt-12 text-center">
+          <button className="bg-primary text-white px-6 py-2 rounded-full hover:bg-primary/90">
+            Load More Posts
+          </button>
         </div>
       </div>
     </div>
