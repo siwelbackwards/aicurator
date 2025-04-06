@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
-import Image from 'next/image';
 
 interface Product {
   id: string;
@@ -16,23 +15,23 @@ interface Product {
   images: { url: string; is_primary: boolean; }[];
 }
 
-const ITEMS_PER_PAGE = 4;
+const VISIBLE_ITEMS = 4;
 
 export default function TrendingProducts() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(0);
+  const [startIndex, setStartIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
     const fetchProducts = async () => {
-      // First, fetch artworks
       const { data: artworks, error: artworksError } = await supabase
         .from('artworks')
         .select('*')
         .eq('status', 'approved')
         .order('created_at', { ascending: false })
-        .limit(12); // Fetch more items for pagination
+        .limit(12);
 
       if (artworksError) {
         console.error('Error fetching artworks:', artworksError);
@@ -44,13 +43,8 @@ export default function TrendingProducts() {
         return;
       }
 
-      console.log('Raw artworks data:', artworks);
-
-      // Then fetch images for each artwork
       const productsWithImages = await Promise.all(
         artworks.map(async (artwork) => {
-          console.log('Processing artwork:', artwork.id, artwork.title, artwork.image_url);
-          
           const { data: images, error: imagesError } = await supabase
             .from('artwork_images')
             .select('url, is_primary')
@@ -60,8 +54,6 @@ export default function TrendingProducts() {
             console.error(`Error fetching images for artwork ${artwork.id}:`, imagesError);
           }
 
-          console.log(`Images for artwork ${artwork.id}:`, images);
-
           return {
             ...artwork,
             images: images || [],
@@ -70,7 +62,6 @@ export default function TrendingProducts() {
         })
       );
 
-      console.log('Final products with images:', productsWithImages);
       setProducts(productsWithImages);
       setLoading(false);
     };
@@ -82,22 +73,24 @@ export default function TrendingProducts() {
     router.push(`/product/${id}`);
   };
 
-  const nextPage = () => {
-    if ((currentPage + 1) * ITEMS_PER_PAGE < products.length) {
-      setCurrentPage(prev => prev + 1);
-    }
+  const slideNext = () => {
+    if (isAnimating || startIndex >= products.length - VISIBLE_ITEMS) return;
+    setIsAnimating(true);
+    setStartIndex(prev => prev + 1);
+    setTimeout(() => setIsAnimating(false), 500); // Match this with CSS transition duration
   };
 
-  const previousPage = () => {
-    if (currentPage > 0) {
-      setCurrentPage(prev => prev - 1);
-    }
+  const slidePrevious = () => {
+    if (isAnimating || startIndex <= 0) return;
+    setIsAnimating(true);
+    setStartIndex(prev => prev - 1);
+    setTimeout(() => setIsAnimating(false), 500); // Match this with CSS transition duration
   };
 
-  // Get current page items
-  const currentProducts = products.slice(
-    currentPage * ITEMS_PER_PAGE,
-    (currentPage + 1) * ITEMS_PER_PAGE
+  // Get visible items plus one extra on each side for smooth animation
+  const visibleProducts = products.slice(
+    Math.max(0, startIndex),
+    Math.min(startIndex + VISIBLE_ITEMS, products.length)
   );
 
   if (loading) {
@@ -130,61 +123,61 @@ export default function TrendingProducts() {
             <Button 
               variant="outline" 
               size="icon"
-              onClick={previousPage}
-              disabled={currentPage === 0}
+              onClick={slidePrevious}
+              disabled={startIndex === 0}
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <Button 
               variant="outline" 
               size="icon"
-              onClick={nextPage}
-              disabled={(currentPage + 1) * ITEMS_PER_PAGE >= products.length}
+              onClick={slideNext}
+              disabled={startIndex >= products.length - VISIBLE_ITEMS}
             >
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {currentProducts.map((product) => {
-            const imageUrl = product.image_url || 
-              (product.images && product.images.length > 0
-                ? (product.images.find(img => img.is_primary)?.url || product.images[0]?.url)
-                : '/images/placeholder.webp');
+        <div className="relative overflow-hidden">
+          <div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 transition-transform duration-500 ease-in-out"
+            style={{
+              transform: `translateX(0px)`,
+              width: '100%'
+            }}
+          >
+            {visibleProducts.map((product) => {
+              const imageUrl = product.image_url || 
+                (product.images && product.images.length > 0
+                  ? (product.images.find(img => img.is_primary)?.url || product.images[0]?.url)
+                  : '/images/placeholder.webp');
 
-            console.log('Rendering product:', {
-              id: product.id,
-              title: product.title,
-              imageUrl,
-              rawImageUrl: product.image_url,
-              images: product.images
-            });
-
-            return (
-              <div 
-                key={product.id} 
-                className="group cursor-pointer"
-                onClick={() => handleProductClick(product.id)}
-              >
-                <div className="relative aspect-square overflow-hidden rounded-lg mb-4 bg-gray-100">
-                  <img
-                    src={imageUrl}
-                    alt={product.title}
-                    className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-110"
-                    onError={(e) => {
-                      console.error('Image failed to load:', imageUrl);
-                      const img = e.target as HTMLImageElement;
-                      img.src = '/images/placeholder.webp';
-                    }}
-                  />
+              return (
+                <div 
+                  key={product.id} 
+                  className="group cursor-pointer transition-all duration-500 ease-in-out"
+                  onClick={() => handleProductClick(product.id)}
+                >
+                  <div className="relative aspect-square overflow-hidden rounded-lg mb-4 bg-gray-100">
+                    <img
+                      src={imageUrl}
+                      alt={product.title}
+                      className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-110"
+                      onError={(e) => {
+                        console.error('Image failed to load:', imageUrl);
+                        const img = e.target as HTMLImageElement;
+                        img.src = '/images/placeholder.webp';
+                      }}
+                    />
+                  </div>
+                  <h3 className="font-medium text-lg mb-2">{product.title}</h3>
+                  <p className="text-sm text-gray-600 mb-2">By: {product.artist_name}</p>
+                  <p className="text-green-600 font-bold">${product.price.toLocaleString()}</p>
                 </div>
-                <h3 className="font-medium text-lg mb-2">{product.title}</h3>
-                <p className="text-sm text-gray-600 mb-2">By: {product.artist_name}</p>
-                <p className="text-green-600 font-bold">${product.price.toLocaleString()}</p>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>
