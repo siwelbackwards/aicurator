@@ -4,10 +4,12 @@ import { ThemeProvider } from '@/components/theme-provider';
 import Navbar from '@/components/layout/navbar';
 import Footer from '@/components/layout/footer';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { Toaster } from "@/components/ui/toaster";
+import type { Metadata } from "next";
 
 const inter = Inter({ subsets: ['latin'] });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'AI Curator - Luxury Marketplace',
   description: 'AI-powered marketplace for luxury collectibles',
 };
@@ -32,6 +34,7 @@ export default function RootLayout({
               <main className="flex-grow container mx-auto">{children}</main>
               <Footer />
             </div>
+            <Toaster />
           </ThemeProvider>
         </ErrorBoundary>
       </body>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState } from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
 
 interface SignInProps {
   onModeChange: () => void;
@@ -12,16 +13,15 @@ interface SignInProps {
 }
 
 export default function SignIn({ onModeChange, onClose }: SignInProps) {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const supabase = createClientComponentClient();
+  const { toast } = useToast();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -29,85 +29,67 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
         password,
       });
 
-      if (error) throw error;
-      
-      onClose();
-      router.refresh();
-    } catch (error: any) {
-      setError(error.message);
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Error signing in",
+          description: error.message,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "You have been signed in successfully.",
+        });
+        onClose();
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div>
-      <div className="relative h-40 -mx-6 -mt-6 mb-6">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url('/images/categories/art.webp')`
-          }}
+    <form onSubmit={handleSignIn} className="space-y-4 py-2 pb-4">
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="Enter your email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
         />
-        <div className="absolute inset-0 bg-black/50" />
       </div>
-      <div className="px-6 pb-6">
-        <h2 className="text-2xl font-bold mb-4">Welcome back</h2>
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-            {error}
-          </div>
-        )}
-        <form onSubmit={handleSignIn} className="space-y-4">
-          <div>
-            <Input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2"
-              required
-            />
-          </div>
-
-          <div>
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2"
-              required
-            />
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              className="text-sm text-primary hover:underline"
-              onClick={() => {/* Handle forgot password */}}
-            >
-              Forgot password?
-            </button>
-          </div>
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
-          </Button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
-            <button
-              onClick={onModeChange}
-              className="text-primary hover:underline font-medium"
-            >
-              Get Started
-            </button>
-          </p>
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          placeholder="Enter your password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
       </div>
-    </div>
+      <div className="flex flex-col space-y-2 pt-4">
+        <Button type="submit" disabled={loading}>
+          {loading ? "Signing in..." : "Sign In"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onModeChange}
+          disabled={loading}
+        >
+          Don't have an account? Sign up
+        </Button>
+      </div>
+    </form>
   );
 }

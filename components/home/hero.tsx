@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AuthDialog from "@/components/auth/auth-dialog";
 
 const carouselItems = [
   {
@@ -17,7 +18,7 @@ const carouselItems = [
     description: "Explore our curated collection of rare and unique art pieces from emerging and established artists around the globe."
   },
   {
-    image: "https://images.unsplash.com/photo-1611085583191-a3b181a88401?auto=format&fit=crop&q=80",
+    image: "/images/categories/home page/home_page_accessories.webp",
     title: "Premium Accessories",
     description: "Browse our selection of high-end accessories and collectibles, each piece carefully selected for its uniqueness and value."
   }
@@ -28,6 +29,7 @@ export default function Hero() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,6 +126,21 @@ export default function Hero() {
           </button>
         ))}
       </div>
+
+      <Button
+        variant="default"
+        size="lg"
+        className="mt-8"
+        onClick={() => setIsAuthDialogOpen(true)}
+      >
+        Get Started
+      </Button>
+
+      <AuthDialog
+        isOpen={isAuthDialogOpen}
+        onClose={() => setIsAuthDialogOpen(false)}
+        initialMode="signup"
+      />
     </section>
   );
 }
