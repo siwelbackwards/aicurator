@@ -113,30 +113,30 @@ export default function TrendingProducts() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {products.map((product) => (
-            <div 
-              key={product.id} 
-              className="group cursor-pointer"
-              onClick={() => handleProductClick(product.id)}
-            >
-              <div className="relative aspect-square overflow-hidden rounded-lg mb-4">
-                <div
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                  style={{ 
-                    backgroundImage: `url(${
-                      product.image_url || // Try the direct image URL first
-                      (product.images && product.images.length > 0
-                        ? (product.images.find(img => img.is_primary)?.url || product.images[0]?.url)
-                        : '/images/placeholder.webp')
-                    })` 
-                  }}
-                />
+          {products.map((product) => {
+            const imageUrl = product.image_url || 
+              (product.images && product.images.length > 0
+                ? (product.images.find(img => img.is_primary)?.url || product.images[0]?.url)
+                : '/images/placeholder.webp');
+
+            return (
+              <div 
+                key={product.id} 
+                className="group cursor-pointer"
+                onClick={() => handleProductClick(product.id)}
+              >
+                <div className="relative aspect-square overflow-hidden rounded-lg mb-4 bg-gray-100">
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                    style={{ backgroundImage: `url(${imageUrl})` }}
+                  />
+                </div>
+                <h3 className="font-medium text-lg mb-2">{product.title}</h3>
+                <p className="text-sm text-gray-600 mb-2">By: {product.artist_name}</p>
+                <p className="text-green-600 font-bold">${product.price.toLocaleString()}</p>
               </div>
-              <h3 className="font-medium text-lg mb-2">{product.title}</h3>
-              <p className="text-sm text-gray-600 mb-2">By: {product.artist_name}</p>
-              <p className="text-green-600 font-bold">${product.price.toLocaleString()}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

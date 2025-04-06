@@ -259,16 +259,16 @@ export default function SearchResults({ query, category }: SearchProps) {
             className="flex gap-6 bg-white p-6 shadow-sm cursor-pointer hover:shadow-md transition-shadow duration-200 rounded-lg"
             onClick={() => router.push(`/product/${result.id}`)}
           >
-            <div className="w-48 h-48 flex-shrink-0">
+            <div className="relative w-48 h-48 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
               <div
                 className="absolute inset-0 bg-cover bg-center"
                 style={{ 
                   backgroundImage: `url(${
-                    result.image_url || // Try the direct image URL first
+                    result.image_url || 
                     (result.images && result.images.length > 0
                       ? (result.images.find(img => img.is_primary)?.url || result.images[0]?.url)
                       : '/images/placeholder.webp')
-                  })` 
+                  })`
                 }}
               />
             </div>
