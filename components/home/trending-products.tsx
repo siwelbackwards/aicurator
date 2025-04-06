@@ -16,10 +16,13 @@ interface Product {
   images: { url: string; is_primary: boolean; }[];
 }
 
+const ITEMS_PER_PAGE = 4;
+
 export default function TrendingProducts() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(0);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -29,7 +32,7 @@ export default function TrendingProducts() {
         .select('*')
         .eq('status', 'approved')
         .order('created_at', { ascending: false })
-        .limit(4);
+        .limit(12); // Fetch more items for pagination
 
       if (artworksError) {
         console.error('Error fetching artworks:', artworksError);
@@ -62,7 +65,7 @@ export default function TrendingProducts() {
           return {
             ...artwork,
             images: images || [],
-            image_url: artwork.image_url // Keep the direct image URL if it exists
+            image_url: artwork.image_url
           };
         })
       );
@@ -78,6 +81,24 @@ export default function TrendingProducts() {
   const handleProductClick = (id: string) => {
     router.push(`/product/${id}`);
   };
+
+  const nextPage = () => {
+    if ((currentPage + 1) * ITEMS_PER_PAGE < products.length) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  const previousPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(prev => prev - 1);
+    }
+  };
+
+  // Get current page items
+  const currentProducts = products.slice(
+    currentPage * ITEMS_PER_PAGE,
+    (currentPage + 1) * ITEMS_PER_PAGE
+  );
 
   if (loading) {
     return (
@@ -106,17 +127,27 @@ export default function TrendingProducts() {
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-4xl font-serif">Trending Products</h2>
           <div className="flex gap-2">
-            <Button variant="outline" size="icon">
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={previousPage}
+              disabled={currentPage === 0}
+            >
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <Button variant="outline" size="icon">
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={nextPage}
+              disabled={(currentPage + 1) * ITEMS_PER_PAGE >= products.length}
+            >
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {products.map((product) => {
+          {currentProducts.map((product) => {
             const imageUrl = product.image_url || 
               (product.images && product.images.length > 0
                 ? (product.images.find(img => img.is_primary)?.url || product.images[0]?.url)
