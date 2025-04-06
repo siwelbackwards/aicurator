@@ -64,98 +64,45 @@ export default function SearchResults({ query, category }: SearchProps) {
       setError(null);
       
       try {
+        let searchQuery = supabase
+          .from('artworks')
+          .select('*')
+          .eq('status', 'approved');
+
         if (query) {
-          // Vector similarity search
-          const searchEmbedding = await generateEmbedding(query);
-          
-          const { data: similarItems, error } = await supabase
-            .rpc('match_artworks', {
-              query_embedding: searchEmbedding,
-              match_threshold: 0.5,
-              match_count: 20
-            });
-
-          if (error) {
-            console.error('Search error:', error);
-            throw new Error('Failed to perform similarity search');
-          }
-
-          // Transform the data to include images
-          const itemsWithImages = await Promise.all(
-            (similarItems || []).map(async (item: any) => {
-              const { data: images } = await supabase
-                .from('artwork_images')
-                .select('url, is_primary')
-                .eq('artwork_id', item.id);
-              
-              return {
-                ...item,
-                images: images || [],
-                image_url: item.image_url // Keep the direct image URL if it exists
-              };
-            })
+          searchQuery = searchQuery.or(
+            `title.ilike.%${query}%,description.ilike.%${query}%,artist_name.ilike.%${query}%`
           );
-
-          // Filter and sort results
-          let filteredResults = itemsWithImages;
-          
-          if (category !== 'All') {
-            filteredResults = filteredResults.filter(
-              (item: SearchResult) => item.category.toLowerCase() === category.toLowerCase()
-            );
-          }
-
-          // Sort by similarity and then by price
-          filteredResults.sort((a: SearchResult, b: SearchResult) => {
-            const similarityA = typeof a.similarity === 'number' ? a.similarity : 0;
-            const similarityB = typeof b.similarity === 'number' ? b.similarity : 0;
-            
-            if (similarityA === similarityB) {
-              return a.price - b.price;
-            }
-            return similarityB - similarityA;
-          });
-
-          setResults(filteredResults);
-        } else {
-          // Fetch recent items
-          const { data: artworks, error } = await supabase
-            .from('artworks')
-            .select('*')
-            .eq('status', 'approved')
-            .order('created_at', { ascending: false })
-            .limit(20);
-
-          if (error) {
-            throw new Error('Failed to fetch recent items');
-          }
-
-          // Transform the data to include images
-          const itemsWithImages = await Promise.all(
-            (artworks || []).map(async (artwork) => {
-              const { data: images } = await supabase
-                .from('artwork_images')
-                .select('url, is_primary')
-                .eq('artwork_id', artwork.id);
-              
-              return {
-                ...artwork,
-                images: images || [],
-                image_url: artwork.image_url // Keep the direct image URL if it exists
-              };
-            })
-          );
-
-          let filteredResults = itemsWithImages;
-          
-          if (category !== 'All') {
-            filteredResults = filteredResults.filter(
-              item => item.category.toLowerCase() === category.toLowerCase()
-            );
-          }
-
-          setResults(filteredResults);
         }
+
+        if (category && category !== 'All') {
+          searchQuery = searchQuery.eq('category', category.toLowerCase());
+        }
+
+        const { data: artworks, error: searchError } = await searchQuery
+          .order('created_at', { ascending: false });
+
+        if (searchError) {
+          throw new Error('Failed to search items');
+        }
+
+        // Transform the data to include images
+        const itemsWithImages = await Promise.all(
+          (artworks || []).map(async (artwork) => {
+            const { data: images } = await supabase
+              .from('artwork_images')
+              .select('url, is_primary')
+              .eq('artwork_id', artwork.id);
+            
+            return {
+              ...artwork,
+              images: images || [],
+              image_url: artwork.image_url
+            };
+          })
+        );
+
+        setResults(itemsWithImages);
       } catch (error) {
         console.error('Search error:', error);
         setError(error instanceof Error ? error.message : 'An unexpected error occurred');
@@ -296,12 +243,6 @@ export default function SearchResults({ query, category }: SearchProps) {
                   <div className="text-sm text-gray-600">Year:</div>
                   <div className="font-medium">{result.year}</div>
                 </div>
-                {typeof result.similarity === 'number' && (
-                  <div>
-                    <div className="text-sm text-gray-600">Match:</div>
-                    <div className="font-medium">{Math.round(result.similarity * 100)}%</div>
-                  </div>
-                )}
               </div>
             </div>
             <div className="flex flex-col items-end justify-between">

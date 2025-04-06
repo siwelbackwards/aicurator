@@ -133,12 +133,6 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
 
   return (
     <form onSubmit={handleSignUp} className="space-y-4">
-      <div className="text-center mb-6">
-        <h3 className="text-lg font-medium">
-          {userType === "buyer" ? "Buyer" : "Seller"} Registration
-        </h3>
-      </div>
-
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
