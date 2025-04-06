@@ -260,15 +260,19 @@ export default function SearchResults({ query, category }: SearchProps) {
             onClick={() => router.push(`/product/${result.id}`)}
           >
             <div className="relative w-48 h-48 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-              <div
-                className="absolute inset-0 bg-cover bg-center"
-                style={{ 
-                  backgroundImage: `url(${
-                    result.image_url || 
-                    (result.images && result.images.length > 0
-                      ? (result.images.find(img => img.is_primary)?.url || result.images[0]?.url)
-                      : '/images/placeholder.webp')
-                  })`
+              <img
+                src={
+                  result.image_url || 
+                  (result.images && result.images.length > 0
+                    ? (result.images.find(img => img.is_primary)?.url || result.images[0]?.url)
+                    : '/images/placeholder.webp')
+                }
+                alt={result.title}
+                className="absolute inset-0 w-full h-full object-cover object-center"
+                onError={(e) => {
+                  console.error('Image failed to load:', result.image_url);
+                  const img = e.target as HTMLImageElement;
+                  img.src = '/images/placeholder.webp';
                 }}
               />
             </div>

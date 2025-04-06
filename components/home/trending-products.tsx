@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
+import Image from 'next/image';
 
 interface Product {
   id: string;
@@ -40,11 +41,13 @@ export default function TrendingProducts() {
         return;
       }
 
-      console.log('Fetched artworks:', artworks);
+      console.log('Raw artworks data:', artworks);
 
       // Then fetch images for each artwork
       const productsWithImages = await Promise.all(
         artworks.map(async (artwork) => {
+          console.log('Processing artwork:', artwork.id, artwork.title, artwork.image_url);
+          
           const { data: images, error: imagesError } = await supabase
             .from('artwork_images')
             .select('url, is_primary')
@@ -64,7 +67,7 @@ export default function TrendingProducts() {
         })
       );
 
-      console.log('Products with images:', productsWithImages);
+      console.log('Final products with images:', productsWithImages);
       setProducts(productsWithImages);
       setLoading(false);
     };
@@ -119,6 +122,14 @@ export default function TrendingProducts() {
                 ? (product.images.find(img => img.is_primary)?.url || product.images[0]?.url)
                 : '/images/placeholder.webp');
 
+            console.log('Rendering product:', {
+              id: product.id,
+              title: product.title,
+              imageUrl,
+              rawImageUrl: product.image_url,
+              images: product.images
+            });
+
             return (
               <div 
                 key={product.id} 
@@ -126,9 +137,15 @@ export default function TrendingProducts() {
                 onClick={() => handleProductClick(product.id)}
               >
                 <div className="relative aspect-square overflow-hidden rounded-lg mb-4 bg-gray-100">
-                  <div 
-                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                    style={{ backgroundImage: `url(${imageUrl})` }}
+                  <img
+                    src={imageUrl}
+                    alt={product.title}
+                    className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-110"
+                    onError={(e) => {
+                      console.error('Image failed to load:', imageUrl);
+                      const img = e.target as HTMLImageElement;
+                      img.src = '/images/placeholder.webp';
+                    }}
                   />
                 </div>
                 <h3 className="font-medium text-lg mb-2">{product.title}</h3>
