@@ -92,7 +92,9 @@ export default function TrendingProducts() {
                   className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
                   style={{ 
                     backgroundImage: `url(${
-                      product.images.find(img => img.isPrimary)?.url || product.images[0]?.url
+                      (product.images && Array.isArray(product.images) && product.images.length > 0)
+                        ? (product.images.find(img => img.isPrimary)?.url || product.images[0]?.url)
+                        : '/images/placeholder.webp'
                     })` 
                   }}
                 />

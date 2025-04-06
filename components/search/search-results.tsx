@@ -89,7 +89,7 @@ export default function SearchResults({ query, category }: SearchProps) {
           }
 
           // Sort by similarity and then by price
-          filteredResults.sort((a, b) => {
+          filteredResults.sort((a: SearchResult, b: SearchResult) => {
             const similarityA = typeof a.similarity === 'number' ? a.similarity : 0;
             const similarityB = typeof b.similarity === 'number' ? b.similarity : 0;
             
@@ -238,10 +238,12 @@ export default function SearchResults({ query, category }: SearchProps) {
           >
             <div className="w-48 h-48 flex-shrink-0">
               <div
-                className="w-full h-full bg-cover bg-center rounded-lg"
+                className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
                 style={{ 
                   backgroundImage: `url(${
-                    result.images.find(img => img.isPrimary)?.url || result.images[0]?.url
+                    (result.images && Array.isArray(result.images) && result.images.length > 0)
+                      ? (result.images.find(img => img.isPrimary)?.url || result.images[0]?.url)
+                      : '/images/placeholder.webp'
                   })` 
                 }}
               />
