@@ -75,8 +75,8 @@ export default function SearchResults({ query, category }: SearchProps) {
           );
         }
 
-        if (category && category !== 'All') {
-          searchQuery = searchQuery.eq('category', category.toLowerCase());
+        if (category && category !== 'all') {
+          searchQuery = searchQuery.eq('category', category);
         }
 
         const { data: artworks, error: searchError } = await searchQuery
