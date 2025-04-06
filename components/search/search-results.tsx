@@ -14,7 +14,8 @@ interface SearchResult {
   description: string;
   artist_name: string;
   category: string;
-  images: { url: string; isPrimary: boolean; }[];
+  image_url: string;
+  images: { url: string; is_primary: boolean; }[];
   price: number;
   similarity?: number;
   created_at: string;
@@ -79,8 +80,24 @@ export default function SearchResults({ query, category }: SearchProps) {
             throw new Error('Failed to perform similarity search');
           }
 
+          // Transform the data to include images
+          const itemsWithImages = await Promise.all(
+            (similarItems || []).map(async (item: any) => {
+              const { data: images } = await supabase
+                .from('artwork_images')
+                .select('url, is_primary')
+                .eq('artwork_id', item.id);
+              
+              return {
+                ...item,
+                images: images || [],
+                image_url: item.image_url // Keep the direct image URL if it exists
+              };
+            })
+          );
+
           // Filter and sort results
-          let filteredResults = similarItems || [];
+          let filteredResults = itemsWithImages;
           
           if (category !== 'All') {
             filteredResults = filteredResults.filter(
@@ -102,7 +119,7 @@ export default function SearchResults({ query, category }: SearchProps) {
           setResults(filteredResults);
         } else {
           // Fetch recent items
-          const { data, error } = await supabase
+          const { data: artworks, error } = await supabase
             .from('artworks')
             .select('*')
             .eq('status', 'approved')
@@ -113,23 +130,29 @@ export default function SearchResults({ query, category }: SearchProps) {
             throw new Error('Failed to fetch recent items');
           }
 
-          let filteredResults = data || [];
+          // Transform the data to include images
+          const itemsWithImages = await Promise.all(
+            (artworks || []).map(async (artwork) => {
+              const { data: images } = await supabase
+                .from('artwork_images')
+                .select('url, is_primary')
+                .eq('artwork_id', artwork.id);
+              
+              return {
+                ...artwork,
+                images: images || [],
+                image_url: artwork.image_url // Keep the direct image URL if it exists
+              };
+            })
+          );
+
+          let filteredResults = itemsWithImages;
           
           if (category !== 'All') {
             filteredResults = filteredResults.filter(
               item => item.category.toLowerCase() === category.toLowerCase()
             );
           }
-
-          // Sort by date and price
-          filteredResults.sort((a, b) => {
-            const dateA = new Date(a.created_at).getTime();
-            const dateB = new Date(b.created_at).getTime();
-            if (dateA === dateB) {
-              return a.price - b.price;
-            }
-            return dateB - dateA;
-          });
 
           setResults(filteredResults);
         }
@@ -238,12 +261,13 @@ export default function SearchResults({ query, category }: SearchProps) {
           >
             <div className="w-48 h-48 flex-shrink-0">
               <div
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                className="absolute inset-0 bg-cover bg-center"
                 style={{ 
                   backgroundImage: `url(${
-                    (result.images && Array.isArray(result.images) && result.images.length > 0)
-                      ? (result.images.find(img => img.isPrimary)?.url || result.images[0]?.url)
-                      : '/images/placeholder.webp'
+                    result.image_url || // Try the direct image URL first
+                    (result.images && result.images.length > 0
+                      ? (result.images.find(img => img.is_primary)?.url || result.images[0]?.url)
+                      : '/images/placeholder.webp')
                   })` 
                 }}
               />

@@ -11,7 +11,8 @@ interface Product {
   title: string;
   artist_name: string;
   price: number;
-  images: { url: string; isPrimary: boolean; }[];
+  image_url: string;
+  images: { url: string; is_primary: boolean; }[];
 }
 
 export default function TrendingProducts() {
@@ -21,19 +22,50 @@ export default function TrendingProducts() {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      const { data, error } = await supabase
+      // First, fetch artworks
+      const { data: artworks, error: artworksError } = await supabase
         .from('artworks')
         .select('*')
         .eq('status', 'approved')
         .order('created_at', { ascending: false })
         .limit(4);
 
-      if (error) {
-        console.error('Error fetching products:', error);
+      if (artworksError) {
+        console.error('Error fetching artworks:', artworksError);
         return;
       }
 
-      setProducts(data);
+      if (!artworks) {
+        console.error('No artworks found');
+        return;
+      }
+
+      console.log('Fetched artworks:', artworks);
+
+      // Then fetch images for each artwork
+      const productsWithImages = await Promise.all(
+        artworks.map(async (artwork) => {
+          const { data: images, error: imagesError } = await supabase
+            .from('artwork_images')
+            .select('url, is_primary')
+            .eq('artwork_id', artwork.id);
+
+          if (imagesError) {
+            console.error(`Error fetching images for artwork ${artwork.id}:`, imagesError);
+          }
+
+          console.log(`Images for artwork ${artwork.id}:`, images);
+
+          return {
+            ...artwork,
+            images: images || [],
+            image_url: artwork.image_url // Keep the direct image URL if it exists
+          };
+        })
+      );
+
+      console.log('Products with images:', productsWithImages);
+      setProducts(productsWithImages);
       setLoading(false);
     };
 
@@ -92,16 +124,17 @@ export default function TrendingProducts() {
                   className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
                   style={{ 
                     backgroundImage: `url(${
-                      (product.images && Array.isArray(product.images) && product.images.length > 0)
-                        ? (product.images.find(img => img.isPrimary)?.url || product.images[0]?.url)
-                        : '/images/placeholder.webp'
+                      product.image_url || // Try the direct image URL first
+                      (product.images && product.images.length > 0
+                        ? (product.images.find(img => img.is_primary)?.url || product.images[0]?.url)
+                        : '/images/placeholder.webp')
                     })` 
                   }}
                 />
               </div>
               <h3 className="font-medium text-lg mb-2">{product.title}</h3>
               <p className="text-sm text-gray-600 mb-2">By: {product.artist_name}</p>
-              <p className="text-green-600 font-bold">${product.price}</p>
+              <p className="text-green-600 font-bold">${product.price.toLocaleString()}</p>
             </div>
           ))}
         </div>
