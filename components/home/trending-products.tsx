@@ -26,44 +26,34 @@ export default function TrendingProducts() {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      const { data: artworks, error: artworksError } = await supabase
-        .from('artworks')
-        .select('*')
-        .eq('status', 'approved')
-        .order('created_at', { ascending: false })
-        .limit(12);
+      try {
+        // Fetch artworks with their images in a single query using Supabase's foreign key relationships
+        const { data: artworks, error: artworksError } = await supabase
+          .from('artworks')
+          .select(`
+            *,
+            images:artwork_images(url, is_primary)
+          `)
+          .eq('status', 'approved')
+          .order('created_at', { ascending: false })
+          .limit(12);
 
-      if (artworksError) {
-        console.error('Error fetching artworks:', artworksError);
-        return;
+        if (artworksError) {
+          console.error('Error fetching artworks:', artworksError);
+          return;
+        }
+
+        if (!artworks) {
+          console.error('No artworks found');
+          return;
+        }
+
+        setProducts(artworks);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error:', error);
+        setLoading(false);
       }
-
-      if (!artworks) {
-        console.error('No artworks found');
-        return;
-      }
-
-      const productsWithImages = await Promise.all(
-        artworks.map(async (artwork) => {
-          const { data: images, error: imagesError } = await supabase
-            .from('artwork_images')
-            .select('url, is_primary')
-            .eq('artwork_id', artwork.id);
-
-          if (imagesError) {
-            console.error(`Error fetching images for artwork ${artwork.id}:`, imagesError);
-          }
-
-          return {
-            ...artwork,
-            images: images || [],
-            image_url: artwork.image_url
-          };
-        })
-      );
-
-      setProducts(productsWithImages);
-      setLoading(false);
     };
 
     fetchProducts();
@@ -77,17 +67,16 @@ export default function TrendingProducts() {
     if (isAnimating || startIndex >= products.length - VISIBLE_ITEMS) return;
     setIsAnimating(true);
     setStartIndex(prev => prev + 1);
-    setTimeout(() => setIsAnimating(false), 500); // Match this with CSS transition duration
+    setTimeout(() => setIsAnimating(false), 500);
   };
 
   const slidePrevious = () => {
     if (isAnimating || startIndex <= 0) return;
     setIsAnimating(true);
     setStartIndex(prev => prev - 1);
-    setTimeout(() => setIsAnimating(false), 500); // Match this with CSS transition duration
+    setTimeout(() => setIsAnimating(false), 500);
   };
 
-  // Get visible items plus one extra on each side for smooth animation
   const visibleProducts = products.slice(
     Math.max(0, startIndex),
     Math.min(startIndex + VISIBLE_ITEMS, products.length)
@@ -139,45 +128,35 @@ export default function TrendingProducts() {
           </div>
         </div>
         
-        <div className="relative overflow-hidden">
-          <div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 transition-transform duration-500 ease-in-out"
-            style={{
-              transform: `translateX(0px)`,
-              width: '100%'
-            }}
-          >
-            {visibleProducts.map((product) => {
-              const imageUrl = product.image_url || 
-                (product.images && product.images.length > 0
-                  ? (product.images.find(img => img.is_primary)?.url || product.images[0]?.url)
-                  : '/images/placeholder.webp');
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {visibleProducts.map((product) => {
+            const primaryImage = product.images?.find(img => img.is_primary);
+            const imageUrl = primaryImage?.url || product.image_url || '/images/placeholder.webp';
 
-              return (
-                <div 
-                  key={product.id} 
-                  className="group cursor-pointer transition-all duration-500 ease-in-out"
-                  onClick={() => handleProductClick(product.id)}
-                >
-                  <div className="relative aspect-square overflow-hidden rounded-lg mb-4 bg-gray-100">
-                    <img
-                      src={imageUrl}
-                      alt={product.title}
-                      className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-110"
-                      onError={(e) => {
-                        console.error('Image failed to load:', imageUrl);
-                        const img = e.target as HTMLImageElement;
-                        img.src = '/images/placeholder.webp';
-                      }}
-                    />
-                  </div>
-                  <h3 className="font-medium text-lg mb-2">{product.title}</h3>
-                  <p className="text-sm text-gray-600 mb-2">By: {product.artist_name}</p>
-                  <p className="text-green-600 font-bold">${product.price.toLocaleString()}</p>
+            return (
+              <div 
+                key={product.id} 
+                className="group cursor-pointer"
+                onClick={() => handleProductClick(product.id)}
+              >
+                <div className="relative aspect-square overflow-hidden rounded-lg mb-4 bg-gray-100">
+                  <img
+                    src={imageUrl}
+                    alt={product.title}
+                    className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-110"
+                    onError={(e) => {
+                      console.error('Image failed to load:', imageUrl);
+                      const img = e.target as HTMLImageElement;
+                      img.src = '/images/placeholder.webp';
+                    }}
+                  />
                 </div>
-              );
-            })}
-          </div>
+                <h3 className="font-medium text-lg mb-2">{product.title}</h3>
+                <p className="text-sm text-gray-600 mb-2">By: {product.artist_name}</p>
+                <p className="text-green-600 font-bold">£{product.price.toLocaleString()}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
