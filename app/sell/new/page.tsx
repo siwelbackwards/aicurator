@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ interface FormData {
 export default function NewItemPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const [images, setImages] = useState<ImageFile[]>([]);
   const [formData, setFormData] = useState<FormData>({
     title: '',
@@ -45,6 +46,19 @@ export default function NewItemPage() {
     year: '',
     provenance: ''
   });
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/auth?redirect=/sell/new');
+        return;
+      }
+      setAuthLoading(false);
+    };
+
+    checkAuth();
+  }, [router]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -100,77 +114,95 @@ export default function NewItemPage() {
     setLoading(true);
 
     try {
-      // 1. Get current session
+      // Get current session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (!session) throw new Error('No session found');
 
-      // 2. Upload images
+      // Upload images
       const uploadedImages = await Promise.all(
         images.map(async (img) => ({
           url: await uploadImage(img.file),
-          isPrimary: img.primary
+          is_primary: img.primary
         }))
       );
 
-      // 3. Prepare artwork data
-      const artworkData = {
-        user_id: session.user.id,
-        title: formData.title,
-        category: formData.category,
-        artist_name: formData.artistName,
-        description: formData.description,
-        price: parseFloat(formData.price),
-        location: formData.location,
-        dimensions: {
-          width: parseFloat(formData.width),
-          height: parseFloat(formData.height),
-          depth: parseFloat(formData.depth),
-          unit: 'cm'
-        },
-        year: parseInt(formData.year),
-        provenance: formData.provenance,
-        status: 'approved',
-        images: uploadedImages,
-      };
-
-      // 4. Insert artwork
-      const { data, error: insertError } = await supabase
+      // Insert artwork
+      const { data: artwork, error: artworkError } = await supabase
         .from('artworks')
-        .insert(artworkData)
+        .insert({
+          user_id: session.user.id,
+          title: formData.title,
+          category: formData.category,
+          artist_name: formData.artistName,
+          description: formData.description,
+          price: parseFloat(formData.price),
+          location: formData.location,
+          dimensions: {
+            width: parseFloat(formData.width),
+            height: parseFloat(formData.height),
+            depth: parseFloat(formData.depth),
+            unit: 'cm'
+          },
+          year: parseInt(formData.year),
+          provenance: formData.provenance,
+          status: 'pending'
+        })
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (artworkError) throw artworkError;
 
-      // 5. Generate and update embedding
-      if (data) {
-        const textForEmbedding = `
-          ${formData.title}
-          ${formData.description}
-          ${formData.category}
-          ${formData.artistName}
-          Art piece from ${formData.year}
-          Located in ${formData.location}
-          ${formData.provenance}
-        `.trim();
+      // Insert images
+      const { error: imagesError } = await supabase
+        .from('artwork_images')
+        .insert(
+          uploadedImages.map(img => ({
+            artwork_id: artwork.id,
+            url: img.url,
+            is_primary: img.is_primary
+          }))
+        );
 
-        const embedding = await generateEmbedding(textForEmbedding);
-        
-        await supabase
-          .from('artworks')
-          .update({ content_embedding: embedding })
-          .eq('id', data.id);
-      }
+      if (imagesError) throw imagesError;
+
+      // Generate embedding for search
+      const textForEmbedding = `
+        ${formData.title}
+        ${formData.description}
+        ${formData.category}
+        ${formData.artistName}
+        Art piece from ${formData.year}
+        Located in ${formData.location}
+        ${formData.provenance}
+      `.trim();
+
+      const embedding = await generateEmbedding(textForEmbedding);
+      
+      // Update artwork with embedding
+      const { error: updateError } = await supabase
+        .from('artworks')
+        .update({ content_embedding: embedding })
+        .eq('id', artwork.id);
+
+      if (updateError) throw updateError;
 
       router.push('/sell/success');
     } catch (error) {
-      console.error('Submission error:', error);
-      alert(error instanceof Error ? error.message : 'Error submitting artwork');
+      console.error('Error submitting artwork:', error);
+      alert('Failed to submit artwork. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

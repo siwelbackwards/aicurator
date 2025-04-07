@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/lib/supabase';
 
 const steps = [
   {
@@ -20,13 +22,41 @@ const steps = [
   {
     number: '03',
     title: 'Review & Submit',
-    description: 'Create an account to submit each of your item for review - we will be in touch soon.',
+    description: 'Submit your item for review - we will be in touch soon.',
     icon: '✓'
   }
 ];
 
 export default function SellPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+      setLoading(false);
+    };
+
+    checkAuth();
+  }, []);
+
+  const handleGetStarted = () => {
+    if (!isAuthenticated) {
+      router.push('/auth?redirect=/sell/new');
+    } else {
+      router.push('/sell/new');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -67,7 +97,7 @@ export default function SellPage() {
         <div className="mt-12 text-center">
           <Button 
             size="lg"
-            onClick={() => router.push('/sell/new')}
+            onClick={handleGetStarted}
             className="gap-2"
           >
             Get Started

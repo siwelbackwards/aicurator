@@ -1,8 +1,18 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/lib/supabase';
+
+interface Artwork {
+  id: string;
+  title: string;
+  price: number;
+  artist_name: string;
+  images: { url: string; is_primary: boolean; }[];
+}
 
 const trendingProducts = [
   {
@@ -33,6 +43,46 @@ const trendingProducts = [
 
 export default function SuccessPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [recentItems, setRecentItems] = useState<Artwork[]>([]);
+
+  useEffect(() => {
+    const fetchRecentItems = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/auth?redirect=/sell/success');
+        return;
+      }
+
+      const { data: artworks, error } = await supabase
+        .from('artworks')
+        .select(`
+          *,
+          images:artwork_images(url, is_primary)
+        `)
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(4);
+
+      if (error) {
+        console.error('Error fetching recent items:', error);
+        return;
+      }
+
+      setRecentItems(artworks || []);
+      setLoading(false);
+    };
+
+    fetchRecentItems();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -83,28 +133,40 @@ export default function SuccessPage() {
           </Button>
         </div>
 
-        <div>
-          <h2 className="text-2xl font-bold text-left mb-6">Other Items You Might Like</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {trendingProducts.map((product, index) => (
-              <div 
-                key={index}
-                className="cursor-pointer group"
-                onClick={() => router.push('/product')}
-              >
-                <div className="aspect-square rounded-lg overflow-hidden mb-4">
-                  <div
-                    className="w-full h-full bg-cover bg-center transition-transform duration-300 group-hover:scale-110"
-                    style={{ backgroundImage: `url(${product.image})` }}
-                  />
-                </div>
-                <h3 className="font-medium text-lg mb-1">{product.title}</h3>
-                <p className="text-sm text-gray-600 mb-2">By: {product.artist}</p>
-                <p className="text-green-600 font-bold">{product.price}</p>
-              </div>
-            ))}
+        {recentItems.length > 0 && (
+          <div>
+            <h2 className="text-2xl font-bold text-left mb-6">Your Recent Listings</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {recentItems.map((item) => {
+                const primaryImage = item.images?.find(img => img.is_primary);
+                const imageUrl = primaryImage?.url || '/images/placeholder.webp';
+
+                return (
+                  <div 
+                    key={item.id}
+                    className="cursor-pointer group"
+                    onClick={() => router.push(`/product/${item.id}`)}
+                  >
+                    <div className="aspect-square rounded-lg overflow-hidden mb-4">
+                      <img
+                        src={imageUrl}
+                        alt={item.title}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement;
+                          img.src = '/images/placeholder.webp';
+                        }}
+                      />
+                    </div>
+                    <h3 className="font-medium text-lg mb-1">{item.title}</h3>
+                    <p className="text-sm text-gray-600 mb-2">By: {item.artist_name}</p>
+                    <p className="text-green-600 font-bold">£{item.price.toLocaleString()}</p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
