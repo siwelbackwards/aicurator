@@ -17,7 +17,7 @@ const blogs = [
     id: 2,
     title: 'Collecting in the Digital Age',
     excerpt: 'A comprehensive guide to building and maintaining a valuable collection in the era of digital transformation.',
-    image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80',
     category: 'Guides',
     author: 'Marcus Thompson',
     date: 'March 12, 2024',
@@ -37,7 +37,7 @@ const blogs = [
     id: 4,
     title: 'The Psychology of Collecting',
     excerpt: 'Understanding the deep-rooted motivations and behaviors that drive collectors in their pursuit of rare items.',
-    image: 'https://images.unsplash.com/photo-1580137189272-c9379f8864fd?auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&q=80',
     category: 'Psychology',
     author: 'Dr. James Wilson',
     date: 'March 8, 2024',
@@ -82,7 +82,7 @@ export default function BlogPage() {
           <div className="max-w-4xl mx-auto px-4 text-center">
             <h1 className="text-7xl font-serif font-bold mb-6 text-white tracking-wide">Blog</h1>
             <p className="text-lg text-gray-200 max-w-3xl mx-auto leading-relaxed">
-              Explore expert insights, market trends, and collecting wisdom from industry leaders.
+              Insights, trends, and expert perspectives on the world of luxury collectibles and art investment.
             </p>
           </div>
         </div>

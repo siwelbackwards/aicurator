@@ -17,23 +17,23 @@ const recommendations = [
   },
   {
     id: 2,
-    title: 'Urban Reflections',
-    artist: 'Marcus Chen',
-    image: 'https://images.unsplash.com/photo-1580137189272-c9379f8864fd?auto=format&fit=crop&q=80',
-    description: 'A powerful urban photography piece that resonates with your collection theme.',
+    title: 'Guernica',
+    artist: 'Pablo Picasso',
+    image: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80',
+    description: 'A powerful masterpiece that resonates with your collection theme.',
     matchScore: 95,
     price: 3299,
-    tags: ['Urban', 'Photography', 'Black & White']
+    tags: ['Cubism', 'Modern Art', 'Oil']
   },
   {
     id: 3,
-    title: 'Nature Whispers',
-    artist: 'Sofia Patel',
+    title: 'Starry Night',
+    artist: 'Vincent van Gogh',
     image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80',
     description: 'An impressionist masterpiece that complements your existing collection of nature-themed artwork.',
     matchScore: 94,
     price: 4199,
-    tags: ['Impressionism', 'Nature', 'Oil']
+    tags: ['Post-Impressionism', 'Landscape', 'Oil']
   }
 ];
 
