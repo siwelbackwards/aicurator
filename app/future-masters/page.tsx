@@ -24,53 +24,53 @@ const artists = [
   },
   {
     id: 2,
-    name: 'Marcus Chen',
-    image: 'https://images.unsplash.com/photo-1580137189272-c9379f8864fd?auto=format&fit=crop&q=80',
-    location: 'Singapore',
-    specialty: 'Digital Mixed Media',
-    description: 'Pioneering artist merging traditional Eastern aesthetics with cutting-edge digital techniques.',
+    name: 'Yayoi Kusama',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Yayoi_Kusama_2015.jpg/800px-Yayoi_Kusama_2015.jpg',
+    location: 'Tokyo, Japan',
+    specialty: 'Contemporary Art',
+    description: 'Visionary artist known for her immersive installations and polka dot patterns that explore infinity and self-obliteration.',
     stats: {
-      exhibitions: 15,
-      collections: 10,
-      awards: 4
+      exhibitions: 45,
+      collections: 30,
+      awards: 12
     },
     recentWorks: [
-      'https://images.unsplash.com/photo-1615247001958-f4bc92fa6a4a?auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1613027667527-c45d3c4dfe8b?auto=format&fit=crop&q=80'
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Yayoi_Kusama%2C_Infinity_Mirrored_Room_-_The_Souls_of_Millions_of_Light_Years_Away%2C_2013%2C_installation_view%2C_David_Zwirner%2C_New_York.jpg/800px-Yayoi_Kusama%2C_Infinity_Mirrored_Room_-_The_Souls_of_Millions_of_Light_Years_Away%2C_2013%2C_installation_view%2C_David_Zwirner%2C_New_York.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Yayoi_Kusama%2C_Infinity_Mirrored_Room_-_The_Souls_of_Millions_of_Light_Years_Away%2C_2013%2C_installation_view%2C_David_Zwirner%2C_New_York_%282%29.jpg/800px-Yayoi_Kusama%2C_Infinity_Mirrored_Room_-_The_Souls_of_Millions_of_Light_Years_Away%2C_2013%2C_installation_view%2C_David_Zwirner%2C_New_York_%282%29.jpg'
     ]
   },
   {
     id: 3,
-    name: 'Sofia Patel',
-    image: 'https://images.unsplash.com/photo-1611085583191-a3b181a88401?auto=format&fit=crop&q=80',
-    location: 'Mumbai, India',
-    specialty: 'Sculptural Installations',
-    description: 'Emerging talent creating immersive installations that challenge spatial perception.',
+    name: 'Ai Weiwei',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Ai_Weiwei_2010.jpg/800px-Ai_Weiwei_2010.jpg',
+    location: 'Beijing, China',
+    specialty: 'Conceptual Art',
+    description: 'Provocative artist and activist whose work challenges political and social issues through various mediums.',
     stats: {
-      exhibitions: 8,
-      collections: 5,
-      awards: 2
+      exhibitions: 38,
+      collections: 25,
+      awards: 15
     },
     recentWorks: [
-      'https://images.unsplash.com/photo-1545759843-49d5f0838d8f?auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&q=80'
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Ai_Weiwei%2C_Sunflower_Seeds%2C_2010%2C_Tate_Modern.jpg/800px-Ai_Weiwei%2C_Sunflower_Seeds%2C_2010%2C_Tate_Modern.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Ai_Weiwei%2C_Remembering%2C_2009%2C_installation_view%2C_Alte_Nationalgalerie%2C_Berlin.jpg/800px-Ai_Weiwei%2C_Remembering%2C_2009%2C_installation_view%2C_Alte_Nationalgalerie%2C_Berlin.jpg'
     ]
   },
   {
     id: 4,
-    name: 'Lucas Schmidt',
-    image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&q=80',
-    location: 'Berlin, Germany',
-    specialty: 'Neo-Expressionism',
-    description: 'Up-and-coming artist revitalizing expressionist traditions with contemporary themes.',
+    name: 'Olafur Eliasson',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Olafur_Eliasson_2014.jpg/800px-Olafur_Eliasson_2014.jpg',
+    location: 'Copenhagen, Denmark',
+    specialty: 'Installation Art',
+    description: 'Innovative artist creating immersive experiences that explore perception, movement, and environmental issues.',
     stats: {
-      exhibitions: 10,
-      collections: 6,
-      awards: 3
+      exhibitions: 42,
+      collections: 28,
+      awards: 10
     },
     recentWorks: [
-      'https://images.unsplash.com/photo-1579783901586-d88db74b4fe4?auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?auto=format&fit=crop&q=80'
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Olafur_Eliasson%2C_The_Weather_Project%2C_2003%2C_Tate_Modern.jpg/800px-Olafur_Eliasson%2C_The_Weather_Project%2C_2003%2C_Tate_Modern.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Olafur_Eliasson%2C_Riverbed%2C_2014%2C_Louisiana_Museum_of_Modern_Art.jpg/800px-Olafur_Eliasson%2C_Riverbed%2C_2014%2C_Louisiana_Museum_of_Modern_Art.jpg'
     ]
   }
 ];

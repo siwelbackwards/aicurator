@@ -19,21 +19,21 @@ const recommendations = [
     id: 2,
     title: 'Guernica',
     artist: 'Pablo Picasso',
-    image: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80',
+    image: 'https://upload.wikimedia.org/wikipedia/en/7/74/PicassoGuernica.jpg',
     description: 'A powerful masterpiece that resonates with your collection theme.',
     matchScore: 95,
     price: 3299,
-    tags: ['Cubism', 'Modern Art', 'Oil']
+    tags: ['Cubism', 'Modern Art', 'Oil', 'Political', 'Monochrome']
   },
   {
     id: 3,
     title: 'Starry Night',
     artist: 'Vincent van Gogh',
-    image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1200px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg',
     description: 'An impressionist masterpiece that complements your existing collection of nature-themed artwork.',
     matchScore: 94,
     price: 4199,
-    tags: ['Post-Impressionism', 'Landscape', 'Oil']
+    tags: ['Post-Impressionism', 'Landscape', 'Oil', 'Night Scene', 'Expressionist']
   }
 ];
 
