@@ -12,16 +12,10 @@ import Image from 'next/image';
 interface SearchResult {
   id: string;
   title: string;
-  description: string;
   artist_name: string;
-  category: string;
-  image_url: string;
-  images: { url: string; is_primary: boolean; }[];
   price: number;
-  similarity?: number;
-  created_at: string;
-  location: string;
-  year: number;
+  category: string;
+  images: { url: string; is_primary: boolean; }[];
 }
 
 interface SearchProps {
@@ -72,16 +66,23 @@ export default function SearchResults({ query, category }: SearchProps) {
           `)
           .eq('status', 'approved');
 
-        // If there's a category, filter by it
-        if (category) {
+        // Handle category-only search
+        if (category && !query) {
           queryBuilder = queryBuilder.ilike('category', `%${category}%`);
         }
-
-        // If there's a search query, add text search
-        if (query) {
+        // Handle text-only search
+        else if (query && !category) {
           queryBuilder = queryBuilder.or(
             `title.ilike.%${query}%,artist_name.ilike.%${query}%,description.ilike.%${query}%`
           );
+        }
+        // Handle combined search
+        else if (query && category) {
+          queryBuilder = queryBuilder
+            .ilike('category', `%${category}%`)
+            .or(
+              `title.ilike.%${query}%,artist_name.ilike.%${query}%,description.ilike.%${query}%`
+            );
         }
 
         const { data, error: searchError } = await queryBuilder;
@@ -173,7 +174,14 @@ export default function SearchResults({ query, category }: SearchProps) {
   if (results.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-500">No results found for "{query}"{category ? ` in category "${category}"` : ''}</p>
+        <p className="text-gray-500">
+          {category && !query 
+            ? `No results found in category "${category}"`
+            : query && !category
+            ? `No results found for "${query}"`
+            : `No results found for "${query}" in category "${category}"`
+          }
+        </p>
       </div>
     );
   }
