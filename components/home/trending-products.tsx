@@ -131,8 +131,7 @@ export default function TrendingProducts() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {visibleProducts.map((product) => {
-            const primaryImage = product.images?.find(img => img.is_primary);
-            const imageUrl = primaryImage?.url || product.image_url || '/images/placeholder.webp';
+            const imageUrl = product.images?.[0]?.url || '/images/placeholder.webp';
 
             return (
               <div 
@@ -140,17 +139,16 @@ export default function TrendingProducts() {
                 className="group cursor-pointer"
                 onClick={() => handleProductClick(product.id)}
               >
-                <div className="relative aspect-square overflow-hidden rounded-lg mb-4 bg-gray-100">
+                <div className="relative aspect-square w-full overflow-hidden rounded-lg">
                   <Image
                     src={imageUrl}
                     alt={product.title}
                     fill
-                    className="object-cover object-center transition-transform duration-500 group-hover:scale-110"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-cover"
                     onError={(e) => {
-                      console.error('Image failed to load:', imageUrl);
-                      const img = e.target as HTMLImageElement;
-                      img.src = '/images/placeholder.webp';
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/images/placeholder.webp';
                     }}
                   />
                 </div>
