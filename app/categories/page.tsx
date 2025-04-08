@@ -65,8 +65,7 @@ export default function CategoriesPage() {
 
   const handleCategoryClick = (category: string) => {
     const params = new URLSearchParams({
-      q: category,
-      category: category
+      category: category.toLowerCase()
     });
     router.push(`/search?${params.toString()}`);
   };
@@ -94,7 +93,7 @@ export default function CategoriesPage() {
       </div>
 
       {/* Categories Grid */}
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="max-w-7xl mx-auto px-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {categories.map((category) => (
             <div
