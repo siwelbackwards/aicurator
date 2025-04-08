@@ -2,68 +2,70 @@
 const nextConfig = {
   output: 'export',
   images: {
-    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**.supabase.co',
-        pathname: '/storage/v1/object/public/**',
+        hostname: 'upload.wikimedia.org',
       },
       {
         protocol: 'https',
-        hostname: '**.googleusercontent.com',
+        hostname: 'images.unsplash.com',
       },
       {
         protocol: 'https',
-        hostname: '**.staticflickr.com',
+        hostname: 'encrypted-tbn0.gstatic.com',
       },
       {
         protocol: 'https',
-        hostname: '**.cloudfront.net',
+        hostname: 'static.designboom.com',
       },
       {
         protocol: 'https',
-        hostname: '**.etsystatic.com',
+        hostname: 'thebourbonconcierge.com',
       },
       {
         protocol: 'https',
-        hostname: '**.shopify.com',
+        hostname: 'robbreport.com',
       },
       {
         protocol: 'https',
-        hostname: '**.seadn.io',
+        hostname: 'cdn11.bigcommerce.com',
       },
       {
         protocol: 'https',
-        hostname: '**.designboom.com',
+        hostname: 'musubikiln.com',
       },
       {
         protocol: 'https',
-        hostname: '**.thebourbonconcierge.com',
+        hostname: 'i.etsystatic.com',
       },
       {
         protocol: 'https',
-        hostname: '**.robbreport.com',
+        hostname: 'jeroenmarkies.co.uk',
       },
       {
         protocol: 'https',
-        hostname: '**.musubikiln.com',
+        hostname: 'cdn.shopify.com',
       },
       {
         protocol: 'https',
-        hostname: '**.jeroenmarkies.co.uk',
+        hostname: 'www.guggenheim.org',
       },
       {
         protocol: 'https',
-        hostname: '**.thehouseofwhisky.com',
+        hostname: 'd3rf6j5nx5r04a.cloudfront.net',
       },
       {
         protocol: 'https',
-        hostname: '**.guggenheim.org',
+        hostname: 'outland.art',
       },
       {
         protocol: 'https',
-        hostname: '**.outland.art',
+        hostname: 'thehouseofwhisky.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.seadn.io',
       }
     ]
   },
