@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabase';
 import { generateEmbedding } from '@/lib/openai';
+import Image from 'next/image';
 
 interface SearchResult {
   id: string;
@@ -25,7 +26,7 @@ interface SearchResult {
 
 interface SearchProps {
   query: string;
-  category: string;
+  category?: string;
 }
 
 export default function SearchResults({ query, category }: SearchProps) {
@@ -57,63 +58,57 @@ export default function SearchResults({ query, category }: SearchProps) {
     checkAuthAndFetchWishlist();
   }, []);
 
-  // Search functionality
   useEffect(() => {
-    const searchProducts = async () => {
-      setLoading(true);
-      setError(null);
-      
+    const fetchResults = async () => {
       try {
-        let searchQuery = supabase
+        setLoading(true);
+        setError(null);
+
+        let queryBuilder = supabase
           .from('artworks')
-          .select('*')
+          .select(`
+            *,
+            images:artwork_images(url, is_primary)
+          `)
           .eq('status', 'approved');
 
+        // If there's a category, filter by it
+        if (category) {
+          queryBuilder = queryBuilder.ilike('category', `%${category}%`);
+        }
+
+        // If there's a search query, add text search
         if (query) {
-          searchQuery = searchQuery.or(
-            `title.ilike.%${query}%,description.ilike.%${query}%,artist_name.ilike.%${query}%`
+          queryBuilder = queryBuilder.or(
+            `title.ilike.%${query}%,artist_name.ilike.%${query}%,description.ilike.%${query}%`
           );
         }
 
-        if (category && category !== 'all') {
-          searchQuery = searchQuery.eq('category', category);
-        }
-
-        const { data: artworks, error: searchError } = await searchQuery
-          .order('created_at', { ascending: false });
+        const { data, error: searchError } = await queryBuilder;
 
         if (searchError) {
-          throw new Error('Failed to search items');
+          throw searchError;
         }
 
-        // Transform the data to include images
-        const itemsWithImages = await Promise.all(
-          (artworks || []).map(async (artwork) => {
-            const { data: images } = await supabase
-              .from('artwork_images')
-              .select('url, is_primary')
-              .eq('artwork_id', artwork.id);
-            
-            return {
-              ...artwork,
-              images: images || [],
-              image_url: artwork.image_url
-            };
-          })
-        );
-
-        setResults(itemsWithImages);
-      } catch (error) {
-        console.error('Search error:', error);
-        setError(error instanceof Error ? error.message : 'An unexpected error occurred');
-        setResults([]);
+        if (!data || data.length === 0) {
+          setResults([]);
+        } else {
+          setResults(data);
+        }
+      } catch (err) {
+        console.error('Search error:', err);
+        setError('Failed to fetch search results');
       } finally {
         setLoading(false);
       }
     };
 
-    searchProducts();
+    fetchResults();
   }, [query, category]);
+
+  const handleProductClick = (id: string) => {
+    router.push(`/product/${id}`);
+  };
 
   const handleWishlist = async (e: React.MouseEvent, artworkId: string) => {
     e.stopPropagation();
@@ -148,118 +143,80 @@ export default function SearchResults({ query, category }: SearchProps) {
 
   if (loading) {
     return (
-      <div className="max-w-[1400px] mx-auto px-4 py-8">
-        <div className="space-y-6">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="flex gap-6 bg-white p-6 shadow-sm animate-pulse">
-              <div className="w-48 h-48 bg-gray-200 flex-shrink-0 rounded-lg" />
-              <div className="flex-1 space-y-4">
-                <div className="h-4 bg-gray-200 rounded w-3/4" />
-                <div className="h-4 bg-gray-200 rounded w-1/2" />
-                <div className="h-4 bg-gray-200 rounded w-full" />
-              </div>
-              <div className="w-32 space-y-4">
-                <div className="h-4 bg-gray-200 rounded w-full" />
-                <div className="h-8 bg-gray-200 rounded w-full" />
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="animate-pulse">
+            <div className="aspect-square bg-gray-200 rounded-lg mb-4" />
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+            <div className="h-4 bg-gray-200 rounded w-1/2" />
+          </div>
+        ))}
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-[1400px] mx-auto px-4 py-8">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+      <div className="text-center py-8">
+        <p className="text-red-500">{error}</p>
+        <Button 
+          variant="outline" 
+          className="mt-4"
+          onClick={() => window.location.reload()}
+        >
+          Try Again
+        </Button>
       </div>
     );
   }
 
   if (results.length === 0) {
     return (
-      <div className="max-w-[1400px] mx-auto px-4 py-8">
-        <div className="text-center py-12">
-          <h3 className="text-xl font-medium text-gray-900 mb-2">No results found</h3>
-          <p className="text-gray-600">
-            {category !== 'All' 
-              ? `Try searching in all categories or adjust your search terms.`
-              : `Try adjusting your search terms or browse our recent items.`
-            }
-          </p>
-        </div>
+      <div className="text-center py-8">
+        <p className="text-gray-500">No results found for "{query}"{category ? ` in category "${category}"` : ''}</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 py-8">
-      <div className="space-y-6">
-        {results.map((result) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {results.map((product) => {
+        const primaryImage = product.images?.find(img => img.is_primary);
+        const imageUrl = primaryImage?.url || '/images/placeholder.webp';
+
+        return (
           <div 
-            key={result.id} 
-            className="flex gap-6 bg-white p-6 shadow-sm cursor-pointer hover:shadow-md transition-shadow duration-200 rounded-lg"
-            onClick={() => router.push(`/product/${result.id}`)}
+            key={product.id} 
+            className="group cursor-pointer"
+            onClick={() => handleProductClick(product.id)}
           >
-            <div className="relative w-48 h-48 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-              <img
-                src={
-                  result.image_url || 
-                  (result.images && result.images.length > 0
-                    ? (result.images.find(img => img.is_primary)?.url || result.images[0]?.url)
-                    : '/images/placeholder.webp')
-                }
-                alt={result.title}
-                className="absolute inset-0 w-full h-full object-cover object-center"
+            <div className="relative aspect-square overflow-hidden rounded-lg mb-4 bg-gray-100">
+              <Image
+                src={imageUrl}
+                alt={product.title}
+                fill
+                className="object-cover object-center transition-transform duration-500 group-hover:scale-110"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 onError={(e) => {
-                  console.error('Image failed to load:', result.image_url);
+                  console.error('Image failed to load:', imageUrl);
                   const img = e.target as HTMLImageElement;
                   img.src = '/images/placeholder.webp';
                 }}
               />
             </div>
-            <div className="flex-1">
-              <h3 className="text-2xl font-bold mb-2">{result.title}</h3>
-              <p className="text-gray-600 mb-4">{result.description}</p>
-              <div className="flex items-center gap-4 flex-wrap">
-                <div>
-                  <div className="text-sm text-gray-600">Category:</div>
-                  <div className="font-medium">{result.category}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600">Artist:</div>
-                  <div className="font-medium">{result.artist_name}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600">Location:</div>
-                  <div className="font-medium">{result.location}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600">Year:</div>
-                  <div className="font-medium">{result.year}</div>
-                </div>
-              </div>
-            </div>
+            <h3 className="font-medium text-lg mb-2">{product.title}</h3>
+            <p className="text-sm text-gray-600 mb-2">By: {product.artist_name}</p>
+            <p className="text-sm text-gray-500 mb-2">Category: {product.category}</p>
+            <p className="text-green-600 font-bold">£{product.price.toLocaleString()}</p>
             <div className="flex flex-col items-end justify-between">
-              <div>
-                <div className="text-sm text-gray-600 text-right">Estimated value:</div>
-                <div className="text-xl font-bold text-green-600">
-                  Starting at £{result.price.toLocaleString()}
-                </div>
-              </div>
               {isAuthenticated ? (
                 <Button 
-                  variant={wishlist.has(result.id) ? "default" : "outline"}
+                  variant={wishlist.has(product.id) ? "default" : "outline"}
                   className="gap-2"
-                  onClick={(e) => handleWishlist(e, result.id)}
+                  onClick={(e) => handleWishlist(e, product.id)}
                 >
-                  <Heart className="w-4 h-4" fill={wishlist.has(result.id) ? "currentColor" : "none"} />
-                  {wishlist.has(result.id) ? 'Added to wishlist' : 'Add to wishlist'}
+                  <Heart className="w-4 h-4" fill={wishlist.has(product.id) ? "currentColor" : "none"} />
+                  {wishlist.has(product.id) ? 'Added to wishlist' : 'Add to wishlist'}
                 </Button>
               ) : (
                 <Button 
@@ -276,8 +233,8 @@ export default function SearchResults({ query, category }: SearchProps) {
               )}
             </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }

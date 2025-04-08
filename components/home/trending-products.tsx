@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
+import Image from 'next/image';
 
 interface Product {
   id: string;
@@ -140,10 +141,12 @@ export default function TrendingProducts() {
                 onClick={() => handleProductClick(product.id)}
               >
                 <div className="relative aspect-square overflow-hidden rounded-lg mb-4 bg-gray-100">
-                  <img
+                  <Image
                     src={imageUrl}
                     alt={product.title}
-                    className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-110"
+                    fill
+                    className="object-cover object-center transition-transform duration-500 group-hover:scale-110"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     onError={(e) => {
                       console.error('Image failed to load:', imageUrl);
                       const img = e.target as HTMLImageElement;
