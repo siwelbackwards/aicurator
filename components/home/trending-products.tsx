@@ -149,8 +149,10 @@ export default function TrendingProducts() {
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.src = '/placeholder.webp';
+                      target.onerror = null; // Prevent infinite loop
                     }}
                     priority={true}
+                    unoptimized={true}
                   />
                 </div>
                 <h3 className="font-medium text-lg mb-2">{product.title}</h3>
