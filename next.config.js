@@ -19,11 +19,7 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true
-  },
-  experimental: {
-    serverActions: true,
-    missingSuspenseWithCSRError: false,
-  },
-};
+  }
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig
