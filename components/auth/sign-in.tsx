@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ interface SignInProps {
 
 export default function SignIn({ onModeChange, onClose }: SignInProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -38,7 +39,14 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
       if (data.user) {
         toast.success('Signed in successfully!');
         onClose();
-        router.refresh();
+        
+        // Get the redirect URL from the query parameters
+        const redirectedFrom = searchParams.get('redirectedFrom');
+        if (redirectedFrom) {
+          router.push(redirectedFrom);
+        } else {
+          router.refresh();
+        }
       }
     } catch (error) {
       console.error('Error signing in:', error);

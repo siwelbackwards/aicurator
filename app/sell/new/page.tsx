@@ -6,7 +6,6 @@ import { Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
-import { generateEmbedding } from '@/lib/openai';
 
 interface ImageFile {
   file: File;
@@ -90,9 +89,14 @@ export default function NewItemPage() {
 
   const uploadImage = async (file: File): Promise<string> => {
     try {
+      // Get current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.user?.id) throw new Error('No authenticated user found');
+
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileName = `${session.user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = fileName;
 
       const { error: uploadError } = await supabase.storage
         .from('artwork-images')
@@ -178,30 +182,6 @@ export default function NewItemPage() {
       if (imagesError) {
         console.error('Images insert error:', imagesError);
         throw new Error(`Failed to save images: ${imagesError.message}`);
-      }
-
-      // Generate embedding for search
-      const textForEmbedding = `
-        ${formData.title}
-        ${formData.description}
-        ${formData.category}
-        ${formData.artistName}
-        Art piece from ${formData.year}
-        Located in ${formData.location}
-        ${formData.provenance}
-      `.trim();
-
-      const embedding = await generateEmbedding(textForEmbedding);
-      
-      // Update artwork with embedding
-      const { error: updateError } = await supabase
-        .from('artworks')
-        .update({ content_embedding: embedding })
-        .eq('id', artwork.id);
-
-      if (updateError) {
-        console.error('Embedding update error:', updateError);
-        throw new Error(`Failed to update artwork embedding: ${updateError.message}`);
       }
 
       router.push('/sell/success');
