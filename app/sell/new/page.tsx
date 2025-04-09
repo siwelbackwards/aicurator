@@ -89,24 +89,32 @@ export default function NewItemPage() {
   };
 
   const uploadImage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
-    const filePath = `artwork-images/${fileName}`;
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('Media')
-      .upload(filePath, file);
+      const { error: uploadError } = await supabase.storage
+        .from('artwork-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      throw new Error(`Failed to upload image: ${uploadError.message}`);
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error(`Failed to upload image: ${uploadError.message}`);
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('artwork-images')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error in uploadImage:', error);
+      throw error;
     }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('Media')
-      .getPublicUrl(filePath);
-
-    return publicUrl;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -151,7 +159,10 @@ export default function NewItemPage() {
         .select()
         .single();
 
-      if (artworkError) throw artworkError;
+      if (artworkError) {
+        console.error('Artwork insert error:', artworkError);
+        throw new Error(`Failed to create artwork: ${artworkError.message}`);
+      }
 
       // Insert images
       const { error: imagesError } = await supabase
@@ -164,7 +175,10 @@ export default function NewItemPage() {
           }))
         );
 
-      if (imagesError) throw imagesError;
+      if (imagesError) {
+        console.error('Images insert error:', imagesError);
+        throw new Error(`Failed to save images: ${imagesError.message}`);
+      }
 
       // Generate embedding for search
       const textForEmbedding = `
@@ -185,12 +199,15 @@ export default function NewItemPage() {
         .update({ content_embedding: embedding })
         .eq('id', artwork.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Embedding update error:', updateError);
+        throw new Error(`Failed to update artwork embedding: ${updateError.message}`);
+      }
 
       router.push('/sell/success');
     } catch (error) {
       console.error('Error submitting artwork:', error);
-      alert('Failed to submit artwork. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to submit artwork. Please try again.');
     } finally {
       setLoading(false);
     }

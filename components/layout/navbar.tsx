@@ -33,6 +33,11 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.refresh();
+  };
+
   return (
     <header className="bg-white dark:bg-gray-900 shadow-sm">
       <nav className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8" aria-label="Global">
@@ -114,7 +119,7 @@ export default function Navbar() {
                   <Menu.Item>
                     {({ active }) => (
                       <button
-                        onClick={() => supabase.auth.signOut()}
+                        onClick={handleSignOut}
                         className={`${
                           active ? 'bg-gray-100' : ''
                         } flex items-center w-full px-4 py-2 text-sm`}
@@ -191,10 +196,7 @@ export default function Navbar() {
                           Sell
                         </Link>
                         <button
-                          onClick={() => {
-                            supabase.auth.signOut();
-                            setMobileMenuOpen(false);
-                          }}
+                          onClick={handleSignOut}
                           className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 hover:bg-gray-50 dark:hover:bg-gray-800 w-full text-left"
                         >
                           Sign out
@@ -221,8 +223,8 @@ export default function Navbar() {
 
       <ErrorBoundary>
         <AuthDialog
-          isOpen={authDialogOpen}
-          onClose={() => setAuthDialogOpen(false)}
+          open={authDialogOpen}
+          onOpenChange={setAuthDialogOpen}
         />
       </ErrorBoundary>
     </header>

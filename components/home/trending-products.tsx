@@ -7,13 +7,18 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 
+interface ArtworkImage {
+  file_path: string;
+  is_primary: boolean;
+  url?: string;
+}
+
 interface Product {
   id: string;
   title: string;
   artist_name: string;
   price: number;
-  image_url: string;
-  images: { url: string; is_primary: boolean; }[];
+  images: ArtworkImage[];
 }
 
 const VISIBLE_ITEMS = 4;
@@ -32,7 +37,7 @@ export default function TrendingProducts() {
           .from('artworks')
           .select(`
             *,
-            images:artwork_images(url, is_primary)
+            images:artwork_images(file_path, is_primary)
           `)
           .eq('status', 'approved')
           .order('created_at', { ascending: false })
@@ -44,8 +49,19 @@ export default function TrendingProducts() {
         }
 
         if (artworks) {
-          console.log('Fetched artworks:', artworks);
-          setProducts(artworks);
+          // Get public URLs for all images
+          const artworksWithUrls = artworks.map(artwork => ({
+            ...artwork,
+            images: artwork.images?.map((image: ArtworkImage) => ({
+              ...image,
+              url: supabase.storage
+                .from('artwork-images')
+                .getPublicUrl(image.file_path).data.publicUrl
+            }))
+          }));
+          
+          console.log('Fetched artworks:', artworksWithUrls);
+          setProducts(artworksWithUrls);
         }
       } catch (error) {
         console.error('Error:', error);

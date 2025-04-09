@@ -1,55 +1,43 @@
 "use client";
 
 import { useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface SignUpProps {
   onModeChange: () => void;
   onClose: () => void;
 }
 
-type UserType = "buyer" | "seller" | null;
-
-interface FormData {
-  email: string;
-  password: string;
-  title: string;
-  firstName: string;
-  lastName: string;
-  accountNumber?: string;
-  receiveUpdates: boolean;
-}
-
 export default function SignUp({ onModeChange, onClose }: SignUpProps) {
-  const [userType, setUserType] = useState<UserType>(null);
-  const [formData, setFormData] = useState<FormData>({
-    email: "",
-    password: "",
-    title: "",
-    firstName: "",
-    lastName: "",
-    accountNumber: "",
-    receiveUpdates: false,
-  });
-  const [loading, setLoading] = useState(false);
-  const supabase = createClientComponentClient();
-  const { toast } = useToast();
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    title: '',
+    firstName: '',
+    lastName: '',
+    userType: 'buyer' as 'buyer' | 'seller',
+  });
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userType) return;
     setLoading(true);
 
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
     try {
-      // 1. Sign up the user
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
@@ -58,16 +46,16 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
             title: formData.title,
             first_name: formData.firstName,
             last_name: formData.lastName,
-            user_type: userType,
-            receive_updates: formData.receiveUpdates,
+            user_type: formData.userType,
           },
         },
       });
 
-      if (signUpError) throw signUpError;
+      if (authError) {
+        throw authError;
+      }
 
       if (authData.user) {
-        // 2. Create the user's profile
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
@@ -75,70 +63,98 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
             title: formData.title,
             first_name: formData.firstName,
             last_name: formData.lastName,
-            email: formData.email,
-            user_type: userType,
-            receive_updates: formData.receiveUpdates,
-            account_number: formData.accountNumber || null,
+            user_type: formData.userType,
           });
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          throw profileError;
+        }
 
-        toast({
-          title: "Success",
-          description: "Account created successfully! You can now sign in.",
-        });
+        toast.success('Account created successfully!');
         onClose();
         router.refresh();
       }
-    } catch (error: any) {
-      console.error('Sign up error:', error);
-      toast({
-        variant: "destructive",
-        title: "Error signing up",
-        description: error.message || "An unexpected error occurred. Please try again.",
-      });
+    } catch (error) {
+      console.error('Error signing up:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to sign up');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!userType) {
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <h3 className="text-lg font-medium">I want to...</h3>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Button
-            variant="outline"
-            className="h-32 flex flex-col"
-            onClick={() => setUserType("buyer")}
-          >
-            <span className="text-2xl mb-2">🛍️</span>
-            <span>Buy Art & Collectibles</span>
-          </Button>
-          <Button
-            variant="outline"
-            className="h-32 flex flex-col"
-            onClick={() => setUserType("seller")}
-          >
-            <span className="text-2xl mb-2">🎨</span>
-            <span>Sell Art & Collectibles</span>
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   return (
-    <form onSubmit={handleSignUp} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="title">Title</Label>
+        <select
+          id="title"
+          name="title"
+          value={formData.title}
+          onChange={handleChange}
+          className="w-full p-2 border rounded"
+          required
+        >
+          <option value="">Select title</option>
+          <option value="Mr">Mr</option>
+          <option value="Mrs">Mrs</option>
+          <option value="Ms">Ms</option>
+          <option value="Dr">Dr</option>
+        </select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="firstName">First Name</Label>
+        <Input
+          id="firstName"
+          name="firstName"
+          value={formData.firstName}
+          onChange={handleChange}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="lastName">Last Name</Label>
+        <Input
+          id="lastName"
+          name="lastName"
+          value={formData.lastName}
+          onChange={handleChange}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="userType">I want to</Label>
+        <select
+          id="userType"
+          name="userType"
+          value={formData.userType}
+          onChange={handleChange}
+          className="w-full p-2 border rounded"
+          required
+        >
+          <option value="buyer">Buy Art</option>
+          <option value="seller">Sell Art</option>
+        </select>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
+          name="email"
           type="email"
           value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          onChange={handleChange}
           required
         />
       </div>
@@ -147,83 +163,39 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
         <Label htmlFor="password">Password</Label>
         <Input
           id="password"
+          name="password"
           type="password"
           value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+          onChange={handleChange}
           required
-          minLength={6}
         />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="title">Title</Label>
-          <Input
-            id="title"
-            value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="firstName">First Name</Label>
-          <Input
-            id="firstName"
-            value={formData.firstName}
-            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-            required
-          />
-        </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="lastName">Last Name</Label>
+        <Label htmlFor="confirmPassword">Confirm Password</Label>
         <Input
-          id="lastName"
-          value={formData.lastName}
-          onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+          id="confirmPassword"
+          name="confirmPassword"
+          type="password"
+          value={formData.confirmPassword}
+          onChange={handleChange}
           required
         />
       </div>
 
-      {userType === "seller" && (
-        <div className="space-y-2">
-          <Label htmlFor="accountNumber">Account Number (Optional)</Label>
-          <Input
-            id="accountNumber"
-            value={formData.accountNumber}
-            onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-          />
-        </div>
-      )}
-
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="receiveUpdates"
-          checked={formData.receiveUpdates}
-          onCheckedChange={(checked) =>
-            setFormData({ ...formData, receiveUpdates: checked as boolean })
-          }
-        />
-        <Label htmlFor="receiveUpdates" className="text-sm">
-          I want to receive updates about new artworks and events
-        </Label>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Creating account..." : "Create Account"}
-        </Button>
-        <Button
+      <div className="flex items-center justify-between">
+        <button
           type="button"
-          variant="outline"
-          className="w-full"
           onClick={onModeChange}
+          className="text-sm text-blue-600 hover:underline"
         >
           Already have an account? Sign in
-        </Button>
+        </button>
       </div>
+
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading ? 'Creating account...' : 'Create Account'}
+      </Button>
     </form>
   );
 }

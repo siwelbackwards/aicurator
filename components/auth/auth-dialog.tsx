@@ -10,33 +10,25 @@ import {
 import SignIn from './sign-in';
 import SignUp from './sign-up';
 
-type Mode = 'signin' | 'signup';
-
 interface AuthDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  initialMode?: Mode;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialMode?: 'signin' | 'signup';
 }
 
-export default function AuthDialog({
-  isOpen,
-  onClose,
-  initialMode = 'signin',
-}: AuthDialogProps) {
-  const [mode, setMode] = useState<Mode>(initialMode);
+export default function AuthDialog({ open, onOpenChange, initialMode = 'signin' }: AuthDialogProps) {
+  const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>
-            {mode === 'signin' ? 'Welcome Back' : 'Create Account'}
-          </DialogTitle>
+          <DialogTitle>{mode === 'signin' ? 'Sign In' : 'Create Account'}</DialogTitle>
         </DialogHeader>
         {mode === 'signin' ? (
-          <SignIn onModeChange={() => setMode('signup')} onClose={onClose} />
+          <SignIn onModeChange={() => setMode('signup')} onClose={() => onOpenChange(false)} />
         ) : (
-          <SignUp onModeChange={() => setMode('signin')} onClose={onClose} />
+          <SignUp onModeChange={() => setMode('signin')} onClose={() => onOpenChange(false)} />
         )}
       </DialogContent>
     </Dialog>

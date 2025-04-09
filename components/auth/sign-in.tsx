@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 interface SignInProps {
   onModeChange: () => void;
@@ -13,83 +14,93 @@ interface SignInProps {
 }
 
 export default function SignIn({ onModeChange, onClose }: SignInProps) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const supabase = createClientComponentClient();
-  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
       });
 
       if (error) {
-        toast({
-          variant: "destructive",
-          title: "Error signing in",
-          description: error.message,
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "You have been signed in successfully.",
-        });
+        throw error;
+      }
+
+      if (data.user) {
+        toast.success('Signed in successfully!');
         onClose();
+        router.refresh();
       }
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-      });
+      console.error('Error signing in:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to sign in');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   return (
-    <form onSubmit={handleSignIn} className="space-y-4 py-2 pb-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
+          name="email"
           type="email"
-          placeholder="Enter your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={formData.email}
+          onChange={handleChange}
           required
         />
       </div>
+
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
         <Input
           id="password"
+          name="password"
           type="password"
-          placeholder="Enter your password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={formData.password}
+          onChange={handleChange}
           required
         />
       </div>
-      <div className="flex flex-col space-y-2 pt-4">
-        <Button type="submit" disabled={loading}>
-          {loading ? "Signing in..." : "Sign In"}
-        </Button>
-        <Button
+
+      <div className="flex items-center justify-between">
+        <button
           type="button"
-          variant="outline"
           onClick={onModeChange}
-          disabled={loading}
+          className="text-sm text-blue-600 hover:underline"
         >
-          Don't have an account? Sign up
-        </Button>
+          Create an account
+        </button>
+        <button
+          type="button"
+          className="text-sm text-blue-600 hover:underline"
+        >
+          Forgot password?
+        </button>
       </div>
+
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading ? 'Signing in...' : 'Sign In'}
+      </Button>
     </form>
   );
 }
