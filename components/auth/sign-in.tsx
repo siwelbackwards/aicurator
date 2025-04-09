@@ -37,6 +37,9 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
       }
 
       if (data.user) {
+        // Ensure session is set
+        await supabase.auth.getSession();
+        
         toast.success('Signed in successfully!');
         onClose();
         
