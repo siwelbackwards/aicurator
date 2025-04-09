@@ -23,6 +23,12 @@ const nextConfig = {
   // Disable all server-side features
   experimental: {
     serverActions: false
+  },
+  // Filter out non-public env vars
+  env: {
+    // Only include public environment variables here
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   }
 }
 
