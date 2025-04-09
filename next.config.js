@@ -19,6 +19,10 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true
+  },
+  // Disable all server-side features
+  experimental: {
+    serverActions: false
   }
 }
 
