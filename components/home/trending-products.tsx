@@ -28,8 +28,7 @@ export default function TrendingProducts() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        // Fetch artworks with their images in a single query using Supabase's foreign key relationships
-        const { data: artworks, error: artworksError } = await supabase
+        const { data: artworks, error } = await supabase
           .from('artworks')
           .select(`
             *,
@@ -39,20 +38,18 @@ export default function TrendingProducts() {
           .order('created_at', { ascending: false })
           .limit(12);
 
-        if (artworksError) {
-          console.error('Error fetching artworks:', artworksError);
+        if (error) {
+          console.error('Error fetching artworks:', error);
           return;
         }
 
-        if (!artworks) {
-          console.error('No artworks found');
-          return;
+        if (artworks) {
+          console.log('Fetched artworks:', artworks);
+          setProducts(artworks);
         }
-
-        setProducts(artworks);
-        setLoading(false);
       } catch (error) {
         console.error('Error:', error);
+      } finally {
         setLoading(false);
       }
     };
@@ -131,7 +128,8 @@ export default function TrendingProducts() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {visibleProducts.map((product) => {
-            const imageUrl = product.images?.[0]?.url || '/placeholder.webp';
+            const imageUrl = product.images?.[0]?.url;
+            console.log('Product:', product.title, 'Image URL:', imageUrl);
 
             return (
               <div 
@@ -140,20 +138,27 @@ export default function TrendingProducts() {
                 onClick={() => handleProductClick(product.id)}
               >
                 <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-gray-100">
-                  <Image
-                    src={imageUrl}
-                    alt={product.title}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = '/placeholder.webp';
-                      target.onerror = null; // Prevent infinite loop
-                    }}
-                    priority={true}
-                    unoptimized={true}
-                  />
+                  {imageUrl ? (
+                    <Image
+                      src={imageUrl}
+                      alt={product.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        console.error('Image load error:', imageUrl);
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/placeholder.webp';
+                        target.onerror = null;
+                      }}
+                      priority={true}
+                      unoptimized={true}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                      <span className="text-gray-500">No image available</span>
+                    </div>
+                  )}
                 </div>
                 <h3 className="font-medium text-lg mb-2">{product.title}</h3>
                 <p className="text-sm text-gray-600 mb-2">By: {product.artist_name}</p>
