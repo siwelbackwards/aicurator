@@ -94,28 +94,58 @@ export default function NewItemPage() {
       if (sessionError) throw sessionError;
       if (!session?.user?.id) throw new Error('No authenticated user found');
 
+      console.log('User authenticated:', session.user.id);
+      
+      // Try to list buckets to see if we have access
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      if (bucketsError) {
+        console.error('Error listing buckets:', bucketsError);
+      } else {
+        console.log('Available buckets:', buckets.map(b => b.name));
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${session.user.id}/${fileName}`;
 
-      console.log('Uploading to path:', filePath);
+      console.log('Attempting to upload to path:', filePath);
 
-      const { error: uploadError } = await supabase.storage
-        .from('artwork-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      // First try with a simpler path to see if it's a path structure issue
+      const simplePath = `public/${fileName}`;
+      console.log('Trying alternative simple path:', simplePath);
+
+      let uploadResult;
+      try {
+        uploadResult = await supabase.storage
+          .from('artwork-images')
+          .upload(simplePath, file, {
+            cacheControl: '3600',
+            upsert: true // Changed to true to overwrite if file exists
+          });
+      } catch (e) {
+        console.error('Simplified path upload failed:', e);
+        
+        // Try with original path as a fallback
+        uploadResult = await supabase.storage
+          .from('artwork-images')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: true // Changed to true
+          });
+      }
+
+      const { error: uploadError } = uploadResult;
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
+        console.error('Upload error details:', JSON.stringify(uploadError));
         throw new Error(`Failed to upload image: ${uploadError.message}`);
       }
 
       const { data: { publicUrl } } = supabase.storage
         .from('artwork-images')
-        .getPublicUrl(filePath);
+        .getPublicUrl(uploadResult.data?.path || simplePath);
 
+      console.log('Upload successful, public URL:', publicUrl);
       return publicUrl;
     } catch (error) {
       console.error('Error in uploadImage:', error);
