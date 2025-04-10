@@ -20,7 +20,7 @@ const isValidUrl = (urlString) => {
 
 // Environment variables container
 window.env = {
-  // Default values (these get replaced at build time or runtime)
+  // Default values (will be empty unless injected at build time)
   NEXT_PUBLIC_SUPABASE_URL: '',
   NEXT_PUBLIC_SUPABASE_ANON_KEY: '',
 };
@@ -41,42 +41,42 @@ if (window.process && window.process.env) {
   if (isNetlify) {
     console.log('Detected Netlify environment, checking for injected variables');
     
-    // Check for Netlify environment variables
     // Method 1: Check for window.ENV (from inject-env.js)
     if (window.ENV) {
       console.log('Found window.ENV, using those variables');
-      if (window.ENV.NEXT_PUBLIC_SUPABASE_URL) {
+      
+      // Only use these if they're valid
+      if (window.ENV.NEXT_PUBLIC_SUPABASE_URL && isValidUrl(window.ENV.NEXT_PUBLIC_SUPABASE_URL)) {
         window.env.NEXT_PUBLIC_SUPABASE_URL = window.ENV.NEXT_PUBLIC_SUPABASE_URL;
         window.process.env.NEXT_PUBLIC_SUPABASE_URL = window.ENV.NEXT_PUBLIC_SUPABASE_URL;
+        console.log('Using Supabase URL from Netlify ENV', window.ENV.NEXT_PUBLIC_SUPABASE_URL.substring(0, 15) + '...');
+      } else {
+        console.error('Netlify ENV contains invalid Supabase URL:', window.ENV.NEXT_PUBLIC_SUPABASE_URL);
       }
       
       if (window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
         window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         window.process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        console.log('Using Supabase Anon Key from Netlify ENV');
+      } else {
+        console.error('Netlify ENV missing Supabase Anon Key');
       }
+    } else {
+      console.error('window.ENV not found - Netlify environment variables might not be injected properly');
     }
     
     // Method 2: Look for other Netlify-specific environment objects
-    const netlifyEnv = window._env || window.netlifyEnv || {};
-    if (netlifyEnv.NEXT_PUBLIC_SUPABASE_URL && !window.env.NEXT_PUBLIC_SUPABASE_URL) {
-      console.log('Found Netlify-injected variables via _env');
-      window.env.NEXT_PUBLIC_SUPABASE_URL = netlifyEnv.NEXT_PUBLIC_SUPABASE_URL;
-      window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      
-      // Update process.env as well
-      window.process.env.NEXT_PUBLIC_SUPABASE_URL = netlifyEnv.NEXT_PUBLIC_SUPABASE_URL;
-      window.process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    }
-    
-    // Add fallback for AI Curator Netlify site if we still don't have valid values
-    if (!isValidUrl(window.env.NEXT_PUBLIC_SUPABASE_URL)) {
-      console.log('Using hardcoded fallback values for Netlify deployment');
-      window.env.NEXT_PUBLIC_SUPABASE_URL = 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
-      window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw';
-      
-      // Update process.env as well
-      window.process.env.NEXT_PUBLIC_SUPABASE_URL = window.env.NEXT_PUBLIC_SUPABASE_URL;
-      window.process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!window.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const netlifyEnv = window._env || window.netlifyEnv || {};
+      if (netlifyEnv.NEXT_PUBLIC_SUPABASE_URL && isValidUrl(netlifyEnv.NEXT_PUBLIC_SUPABASE_URL)) {
+        console.log('Found Netlify-injected variables via _env');
+        window.env.NEXT_PUBLIC_SUPABASE_URL = netlifyEnv.NEXT_PUBLIC_SUPABASE_URL;
+        window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        
+        // Update process.env as well
+        window.process.env.NEXT_PUBLIC_SUPABASE_URL = netlifyEnv.NEXT_PUBLIC_SUPABASE_URL;
+        window.process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      }
     }
   }
   

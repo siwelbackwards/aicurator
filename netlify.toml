@@ -12,9 +12,9 @@
   NODE_VERSION = "18"
   # Disable secrets scanning completely
   SECRETS_SCAN_ENABLED = "false"
-  # Placeholder values that will be replaced at runtime
-  NEXT_PUBLIC_SUPABASE_URL = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co"
-  NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw"
+  # Do NOT hardcode actual keys here - set these in Netlify UI
+  NEXT_PUBLIC_SUPABASE_URL = ""
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = ""
 
 # Post processing command to replace environment variables in the client JS files
 [build.processing]

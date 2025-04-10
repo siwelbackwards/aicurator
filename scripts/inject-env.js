@@ -48,32 +48,29 @@ const isValidUrl = (urlString) => {
   }
 };
 
-// Get environment variables with fallbacks for production
-const FALLBACK_SUPABASE_URL = 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
-const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw';
-
+// Get environment variables from Netlify
 let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 let supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Validate URL and use fallback if needed
+// Validate URL
 if (!isValidUrl(supabaseUrl)) {
-  console.warn('Invalid or missing NEXT_PUBLIC_SUPABASE_URL, using fallback for production');
-  supabaseUrl = FALLBACK_SUPABASE_URL;
+  console.error('Invalid or missing NEXT_PUBLIC_SUPABASE_URL in Netlify environment variables');
+  console.error('Make sure to set these in your Netlify site dashboard under Settings > Environment variables');
+} else {
+  console.log(`Found valid Supabase URL in environment: ${supabaseUrl.substring(0, 15)}...`);
 }
 
 if (!supabaseAnonKey) {
-  console.warn('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY, using fallback for production');
-  supabaseAnonKey = FALLBACK_SUPABASE_ANON_KEY;
+  console.error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY in Netlify environment variables');
+  console.error('Make sure to set these in your Netlify site dashboard under Settings > Environment variables');
+} else {
+  console.log('Found Supabase Anon Key in environment');
 }
 
 const environmentVariables = {
   NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey
 };
-
-console.log('Using environment variables:');
-console.log(`NEXT_PUBLIC_SUPABASE_URL: ${supabaseUrl.slice(0, 12)}...`);
-console.log(`NEXT_PUBLIC_SUPABASE_ANON_KEY: ${supabaseAnonKey.slice(0, 12)}...`);
 
 // Inject environment variables into env.js
 try {
@@ -104,7 +101,7 @@ const isValidUrl = (urlString) => {
 
 // Environment variables container
 window.env = {
-  // Production values for AI Curator
+  // Variables injected at build time by Netlify
   NEXT_PUBLIC_SUPABASE_URL: '${supabaseUrl}',
   NEXT_PUBLIC_SUPABASE_ANON_KEY: '${supabaseAnonKey}',
 };
@@ -126,7 +123,6 @@ if (window.process && window.process.env) {
     console.log('Detected Netlify environment, checking for injected variables');
     
     // Check for Netlify environment variables
-    // Method 1: Check for window.ENV (from inject-env.js)
     if (window.ENV) {
       console.log('Found window.ENV, using those variables');
       if (window.ENV.NEXT_PUBLIC_SUPABASE_URL && isValidUrl(window.ENV.NEXT_PUBLIC_SUPABASE_URL)) {

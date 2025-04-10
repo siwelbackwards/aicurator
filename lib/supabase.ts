@@ -36,36 +36,40 @@ const getEnvVars = () => {
   let supabaseAnonKey = '';
 
   if (typeof window !== 'undefined') {
-    // Priority 1: Check window.env (from our env.js)
-    if ((window as any).env?.NEXT_PUBLIC_SUPABASE_URL) {
-      supabaseUrl = (window as any).env.NEXT_PUBLIC_SUPABASE_URL;
-      supabaseAnonKey = (window as any).env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    } 
-    // Priority 2: Check window.ENV (from inject-env.js script)
-    else if ((window as any).ENV?.NEXT_PUBLIC_SUPABASE_URL) {
+    // Priority 1: Check window.ENV (from inject-env.js script) - Netlify injects variables here
+    if ((window as any).ENV?.NEXT_PUBLIC_SUPABASE_URL) {
+      console.log('Using Netlify injected variables from window.ENV');
       supabaseUrl = (window as any).ENV.NEXT_PUBLIC_SUPABASE_URL;
       supabaseAnonKey = (window as any).ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
     }
-    // Priority 3: Check if there are Netlify-specific environment variables
+    // Priority 2: Check window.env (from our env.js)
+    else if ((window as any).env?.NEXT_PUBLIC_SUPABASE_URL) {
+      console.log('Using variables from window.env');
+      supabaseUrl = (window as any).env.NEXT_PUBLIC_SUPABASE_URL;
+      supabaseAnonKey = (window as any).env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    } 
+    // Priority 3: Check if there are Netlify-specific environment variables in _env
     else if (window.location.hostname.includes('netlify.app')) {
       const netlifyEnv = (window as any)._env || {};
       supabaseUrl = netlifyEnv.NEXT_PUBLIC_SUPABASE_URL || '';
       supabaseAnonKey = netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      console.log('Using Netlify _env variables');
     }
   }
 
   // Priority 4: Fall back to Next.js environment variables
   if (!isValidUrl(supabaseUrl) && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    console.log('Using Next.js process.env variables');
     supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   }
 
-  // Validate the URL format
-  if (!isValidUrl(supabaseUrl)) {
-    console.error('Invalid Supabase URL format:', supabaseUrl);
-    // Fallback to a hardcoded value for testing only - REPLACE WITH YOUR ACTUAL SUPABASE URL FOR NETLIFY
-    supabaseUrl = 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
-    console.log('Using fallback URL:', supabaseUrl);
+  // Log values (partially) for debugging
+  if (supabaseUrl) {
+    console.log(`Found Supabase URL: ${supabaseUrl.substring(0, 15)}...`);
+  }
+  if (supabaseAnonKey) {
+    console.log(`Found Supabase Anon Key: ${supabaseAnonKey.substring(0, 15)}...`);
   }
 
   return { supabaseUrl, supabaseAnonKey };
@@ -87,10 +91,10 @@ if (!supabaseAnonKey) {
   console.error('Missing Supabase Anon Key - authentication will fail!');
 }
 
-// Create Supabase client with more resilient configuration
+// Create Supabase client with better error handling
 export const supabase = createClient(
   supabaseUrl,
-  supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw', // Fallback anon key
+  supabaseAnonKey,
   {
     auth: {
       persistSession: true,
@@ -107,6 +111,22 @@ export const supabase = createClient(
     }
   }
 );
+
+// Test connection when client is initialized
+if (typeof window !== 'undefined') {
+  (async () => {
+    try {
+      const { error } = await supabase.from('profiles').select('count').limit(1);
+      if (error) {
+        console.error('Supabase connection test failed:', error);
+      } else {
+        console.log('Supabase connection test successful');
+      }
+    } catch (error) {
+      console.error('Supabase connection test error:', error);
+    }
+  })();
+}
 
 // Storage bucket name for artwork images
 export const ARTWORK_IMAGES_BUCKET = 'artwork-images';
