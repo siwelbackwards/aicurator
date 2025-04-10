@@ -8,19 +8,32 @@ import Image from 'next/image';
 
 interface Profile {
   id: string;
-  title: string;
-  first_name: string;
-  last_name: string;
-  user_type: string;
+  title?: string;
+  first_name?: string;
+  last_name?: string;
+  user_type?: string;
   avatar_url?: string;
   email?: string;
+}
+
+interface ArtworkImage {
+  url: string;
+  is_primary: boolean;
+}
+
+interface Artwork {
+  id: string;
+  title?: string;
+  price?: number;
+  status?: string;
+  artwork_images?: ArtworkImage[];
 }
 
 export default function ProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [artworks, setArtworks] = useState<any[]>([]);
+  const [artworks, setArtworks] = useState<Artwork[]>([]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -83,6 +96,16 @@ export default function ProfilePage() {
     return null;
   }
 
+  // Helper function to safely get image URL
+  const getImageUrl = (artwork: Artwork) => {
+    if (!artwork.artwork_images || artwork.artwork_images.length === 0) {
+      return '/images/placeholder.webp';
+    }
+    
+    const primaryImage = artwork.artwork_images.find(img => img && img.is_primary);
+    return primaryImage && primaryImage.url ? primaryImage.url : '/images/placeholder.webp';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-4">
@@ -92,24 +115,25 @@ export default function ProfilePage() {
               {profile.avatar_url ? (
                 <Image
                   src={profile.avatar_url}
-                  alt={`${profile.first_name} ${profile.last_name}`}
+                  alt={`${profile.first_name || ''} ${profile.last_name || ''}`}
                   fill
                   className="object-cover"
                 />
               ) : (
                 <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                   <span className="text-2xl text-gray-500">
-                    {profile.first_name[0]}{profile.last_name[0]}
+                    {profile.first_name && profile.first_name[0]}
+                    {profile.last_name && profile.last_name[0]}
                   </span>
                 </div>
               )}
             </div>
             <div>
               <h1 className="text-2xl font-bold">
-                {profile.title} {profile.first_name} {profile.last_name}
+                {profile.title || ''} {profile.first_name || ''} {profile.last_name || ''}
               </h1>
-              <p className="text-gray-600">{profile.email}</p>
-              <p className="text-gray-600 capitalize">{profile.user_type}</p>
+              <p className="text-gray-600">{profile.email || ''}</p>
+              <p className="text-gray-600 capitalize">{profile.user_type || ''}</p>
             </div>
           </div>
         </div>
@@ -122,22 +146,22 @@ export default function ProfilePage() {
                 <div key={artwork.id} className="border rounded-lg overflow-hidden">
                   <div className="relative aspect-square">
                     <Image
-                      src={artwork.artwork_images?.find((img: any) => img.is_primary)?.url || '/placeholder.webp'}
-                      alt={artwork.title}
+                      src={getImageUrl(artwork)}
+                      alt={artwork.title || 'Artwork'}
                       fill
                       className="object-cover"
                     />
                   </div>
                   <div className="p-4">
-                    <h3 className="font-semibold text-lg">{artwork.title}</h3>
-                    <p className="text-gray-600">£{artwork.price.toLocaleString()}</p>
+                    <h3 className="font-semibold text-lg">{artwork.title || 'Untitled'}</h3>
+                    <p className="text-gray-600">£{(artwork.price || 0).toLocaleString()}</p>
                     <div className="flex justify-between items-center mt-4">
                       <span className={`px-2 py-1 rounded-full text-sm ${
                         artwork.status === 'approved' ? 'bg-green-100 text-green-800' :
                         artwork.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                         'bg-red-100 text-red-800'
                       }`}>
-                        {artwork.status}
+                        {artwork.status || 'unknown'}
                       </span>
                       <Button variant="outline" onClick={() => router.push(`/artwork/${artwork.id}`)}>
                         View Details
