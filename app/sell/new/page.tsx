@@ -95,8 +95,10 @@ export default function NewItemPage() {
       if (!session?.user?.id) throw new Error('No authenticated user found');
 
       const fileExt = file.name.split('.').pop();
-      const fileName = `${session.user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = fileName;
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${session.user.id}/${fileName}`;
+
+      console.log('Uploading to path:', filePath);
 
       const { error: uploadError } = await supabase.storage
         .from('artwork-images')
