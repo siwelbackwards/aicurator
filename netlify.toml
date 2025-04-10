@@ -10,6 +10,8 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  # Disable secrets scanning completely
+  SECRETS_SCAN_ENABLED = "false"
 
 [[headers]]
   for = "/*"

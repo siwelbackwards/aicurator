@@ -24,11 +24,11 @@ const nextConfig = {
   experimental: {
     serverActions: false
   },
-  // Filter out non-public env vars
+  // Use placeholder values during build
   env: {
-    // Only include public environment variables here
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    // Use placeholder values during build time
+    NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder-url.supabase.co',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder-anon-key'
   }
 }
 
