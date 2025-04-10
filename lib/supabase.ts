@@ -1,15 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-  throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_URL');
+// First look for runtime environment variables that might be injected by env.js
+// This is especially important for static site deployments
+let supabaseUrl = typeof window !== 'undefined' && (window as any).env?.NEXT_PUBLIC_SUPABASE_URL;
+let supabaseAnonKey = typeof window !== 'undefined' && (window as any).env?.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Fall back to Next.js environment variables
+if (!supabaseUrl) {
+  supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) {
+    console.error('Missing Supabase URL');
+  }
 }
-if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-  throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_ANON_KEY');
+
+if (!supabaseAnonKey) {
+  supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseAnonKey) {
+    console.error('Missing Supabase Anon Key');
+  }
 }
 
 export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  supabaseUrl || '', // Provide empty string as fallback
+  supabaseAnonKey || '', // Provide empty string as fallback
   {
     auth: {
       persistSession: true,

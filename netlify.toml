@@ -8,6 +8,10 @@
 [[plugins]]
   package = "@netlify/plugin-lighthouse"
 
+[[plugins]]
+  # Inject environment variables at build time
+  package = "./netlify/plugins/inject-env"
+
 [build.environment]
   NODE_VERSION = "18"
   # Disable secrets scanning completely

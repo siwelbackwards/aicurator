@@ -6,6 +6,7 @@ import Footer from '@/components/layout/footer';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from "@/components/ui/toaster";
 import type { Metadata } from "next";
+import Script from 'next/script';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -21,6 +22,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Load environment variables before the app mounts */}
+        <Script src="/env.js" strategy="beforeInteractive" />
+      </head>
       <body className={inter.className}>
         <ErrorBoundary>
           <ThemeProvider

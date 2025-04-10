@@ -16,6 +16,7 @@ interface SignUpProps {
 export default function SignUp({ onModeChange, onClose }: SignUpProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [connectionError, setConnectionError] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -29,6 +30,7 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setConnectionError(false);
 
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
@@ -37,6 +39,18 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
     }
 
     try {
+      // Try to verify connection to Supabase
+      try {
+        await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL || "", { 
+          method: 'HEAD', 
+          mode: 'no-cors' 
+        });
+      } catch (connError) {
+        console.error("Connection test failed:", connError);
+        setConnectionError(true);
+        // Continue anyway
+      }
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -76,7 +90,14 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
       }
     } catch (error) {
       console.error('Error signing up:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to sign up');
+      
+      // Check if it's a connection error
+      if (error instanceof Error && error.message.includes("fetch")) {
+        toast.error("Cannot connect to authentication service. Please check your internet connection.");
+        setConnectionError(true);
+      } else {
+        toast.error(error instanceof Error ? error.message : 'Failed to sign up');
+      }
     } finally {
       setLoading(false);
     }
@@ -92,6 +113,17 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {connectionError && (
+        <div className="p-3 bg-red-100 border border-red-300 rounded text-sm text-red-700">
+          Connection error: Cannot connect to authentication service. This may be due to:
+          <ul className="list-disc ml-4 mt-1">
+            <li>Network connectivity issues</li>
+            <li>Incorrect Supabase URL configuration</li>
+            <li>Supabase service being temporarily unavailable</li>
+          </ul>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="title">Title</Label>
         <select
