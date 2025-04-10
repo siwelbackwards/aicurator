@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/inject-env.js",
+    "build": "next build",
+    "inject-env": "node scripts/inject-env.js",
     "start": "next start",
     "lint": "next lint"
   },

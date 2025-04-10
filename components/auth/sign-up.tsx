@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -26,11 +26,53 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
     lastName: '',
     userType: 'buyer' as 'buyer' | 'seller',
   });
+  const [envStatus, setEnvStatus] = useState<{hasUrl: boolean, hasKey: boolean}>({
+    hasUrl: false,
+    hasKey: false
+  });
+
+  // Check environment variables and connection
+  useEffect(() => {
+    // Check environment variables
+    const windowEnv = typeof window !== 'undefined' ? (window as any).env || (window as any).ENV || {} : {};
+    
+    // Check if we have the required environment variables
+    const hasUrl = Boolean(
+      windowEnv.NEXT_PUBLIC_SUPABASE_URL || 
+      process.env.NEXT_PUBLIC_SUPABASE_URL
+    );
+    
+    const hasKey = Boolean(
+      windowEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
+    
+    setEnvStatus({ hasUrl, hasKey });
+    
+    // Test connection to Supabase
+    const testConnection = async () => {
+      try {
+        const { data, error } = await supabase.from('profiles').select('count').limit(1);
+        if (error) throw error;
+        console.log('Connection test successful');
+        setConnectionError(false);
+      } catch (error) {
+        console.error('Connection test failed:', error);
+        setConnectionError(true);
+      }
+    };
+    
+    // Only test connection if we have the required environment variables
+    if (hasUrl && hasKey) {
+      testConnection();
+    } else {
+      setConnectionError(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setConnectionError(false);
 
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
@@ -39,18 +81,6 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
     }
 
     try {
-      // Try to verify connection to Supabase
-      try {
-        await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL || "", { 
-          method: 'HEAD', 
-          mode: 'no-cors' 
-        });
-      } catch (connError) {
-        console.error("Connection test failed:", connError);
-        setConnectionError(true);
-        // Continue anyway
-      }
-
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -92,7 +122,8 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
       console.error('Error signing up:', error);
       
       // Check if it's a connection error
-      if (error instanceof Error && error.message.includes("fetch")) {
+      if (error instanceof Error && 
+          (error.message.includes("fetch") || error.message.includes("network"))) {
         toast.error("Cannot connect to authentication service. Please check your internet connection.");
         setConnectionError(true);
       } else {
@@ -111,11 +142,29 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
     }));
   };
 
+  // Show a clear error if environment variables are missing
+  if (!envStatus.hasUrl || !envStatus.hasKey) {
+    return (
+      <div className="p-4 bg-red-100 border border-red-300 rounded text-sm text-red-700">
+        <p className="font-bold">Configuration Error</p>
+        <p>The application is missing required environment variables:</p>
+        <ul className="list-disc ml-4 mt-2">
+          {!envStatus.hasUrl && <li>NEXT_PUBLIC_SUPABASE_URL is missing</li>}
+          {!envStatus.hasKey && <li>NEXT_PUBLIC_SUPABASE_ANON_KEY is missing</li>}
+        </ul>
+        <p className="mt-2">
+          Please ensure these environment variables are set in your deployment.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {connectionError && (
         <div className="p-3 bg-red-100 border border-red-300 rounded text-sm text-red-700">
-          Connection error: Cannot connect to authentication service. This may be due to:
+          <p className="font-bold">Connection error: Cannot connect to authentication service.</p>
+          <p>This may be due to:</p>
           <ul className="list-disc ml-4 mt-1">
             <li>Network connectivity issues</li>
             <li>Incorrect Supabase URL configuration</li>

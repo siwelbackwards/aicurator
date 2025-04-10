@@ -22,70 +22,56 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
     password: '',
   });
   const [connectionError, setConnectionError] = useState(false);
-  const [environmentDebug, setEnvironmentDebug] = useState<Record<string, any>>({});
+  const [envStatus, setEnvStatus] = useState<{hasUrl: boolean, hasKey: boolean}>({
+    hasUrl: false,
+    hasKey: false
+  });
 
-  // Log public environment variables for debugging
+  // Check environment variables and connection
   useEffect(() => {
-    // Check if we're on Netlify
-    const isNetlify = typeof window !== 'undefined' && window.location.hostname.includes('netlify.app');
+    // Check environment variables
+    const windowEnv = typeof window !== 'undefined' ? (window as any).env || (window as any).ENV || {} : {};
     
-    // Get environment variables from different sources
-    const windowEnv = typeof window !== 'undefined' ? (window as any).env : null;
-    const processEnv = process.env;
-    const netlifyEnv = typeof window !== 'undefined' ? (window as any)._env || (window as any).ENV || {} : {};
+    // Check if we have the required environment variables
+    const hasUrl = Boolean(
+      windowEnv.NEXT_PUBLIC_SUPABASE_URL || 
+      process.env.NEXT_PUBLIC_SUPABASE_URL
+    );
     
-    // Collect debug info
-    const debugInfo = {
-      isNetlify,
-      hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
-      windowEnvExists: Boolean(windowEnv),
-      processEnvExists: Boolean(processEnv),
-      supabaseUrlFromWindow: windowEnv?.NEXT_PUBLIC_SUPABASE_URL || 'Not set',
-      supabaseUrlFromProcess: processEnv.NEXT_PUBLIC_SUPABASE_URL || 'Not set',
-      supabaseUrlFromNetlify: netlifyEnv.NEXT_PUBLIC_SUPABASE_URL || 'Not set',
-    };
+    const hasKey = Boolean(
+      windowEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
     
-    // Save debug info for potential display
-    setEnvironmentDebug(debugInfo);
-    
-    // Log to console
-    console.log('Environment debug info:', debugInfo);
+    setEnvStatus({ hasUrl, hasKey });
     
     // Test connection to Supabase
     const testConnection = async () => {
       try {
-        // Simple ping request
-        const { data } = await supabase.from('profiles').select('count').limit(1);
-        console.log('Connection test successful:', data);
+        const { data, error } = await supabase.from('profiles').select('count').limit(1);
+        if (error) throw error;
+        console.log('Connection test successful');
+        setConnectionError(false);
       } catch (error) {
         console.error('Connection test failed:', error);
         setConnectionError(true);
       }
     };
     
-    testConnection();
+    // Only test connection if we have the required environment variables
+    if (hasUrl && hasKey) {
+      testConnection();
+    } else {
+      setConnectionError(true);
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setConnectionError(false);
 
     try {
-      // Try to verify connection to Supabase
-      try {
-        // Simple ping request to check connectivity
-        await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL || "", { 
-          method: 'HEAD', 
-          mode: 'no-cors' 
-        });
-      } catch (connError) {
-        console.error("Connection test failed:", connError);
-        setConnectionError(true);
-        // Continue anyway, as the no-cors mode might not return a valid response
-      }
-
-      console.log('Attempting sign in with:', { email: formData.email, password: '******' });
+      console.log('Attempting sign in with:', { email: formData.email });
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
@@ -98,7 +84,7 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
 
       if (data.user) {
         // Ensure session is set
-        console.log('Sign in successful, getting session');
+        console.log('Sign in successful');
         await supabase.auth.getSession();
         
         toast.success('Signed in successfully!');
@@ -116,7 +102,8 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
       console.error('Error signing in:', error);
       
       // Check if it's a connection error
-      if (error instanceof Error && error.message.includes("fetch")) {
+      if (error instanceof Error && 
+          (error.message.includes("fetch") || error.message.includes("network"))) {
         toast.error("Cannot connect to authentication service. Please check your internet connection.");
         setConnectionError(true);
       } else {
@@ -135,10 +122,22 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
     }));
   };
 
-  const showEnvironmentDebug = () => {
-    console.log('Full environment debug:', environmentDebug);
-    alert(JSON.stringify(environmentDebug, null, 2));
-  };
+  // Show a clear error if environment variables are missing
+  if (!envStatus.hasUrl || !envStatus.hasKey) {
+    return (
+      <div className="p-4 bg-red-100 border border-red-300 rounded text-sm text-red-700">
+        <p className="font-bold">Configuration Error</p>
+        <p>The application is missing required environment variables:</p>
+        <ul className="list-disc ml-4 mt-2">
+          {!envStatus.hasUrl && <li>NEXT_PUBLIC_SUPABASE_URL is missing</li>}
+          {!envStatus.hasKey && <li>NEXT_PUBLIC_SUPABASE_ANON_KEY is missing</li>}
+        </ul>
+        <p className="mt-2">
+          Please ensure these environment variables are set in your deployment.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -151,13 +150,6 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
             <li>Incorrect Supabase URL configuration</li>
             <li>Supabase service being temporarily unavailable</li>
           </ul>
-          <button 
-            type="button" 
-            onClick={showEnvironmentDebug}
-            className="text-xs text-blue-600 underline mt-2"
-          >
-            Show Environment Debug Info
-          </button>
         </div>
       )}
 

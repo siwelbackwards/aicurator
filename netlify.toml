@@ -1,5 +1,5 @@
 [build]
-  command = "npm run build"
+  command = "npm run build && npm run inject-env"
   publish = "out"
 
 [[plugins]]
@@ -12,6 +12,9 @@
   NODE_VERSION = "18"
   # Disable secrets scanning completely
   SECRETS_SCAN_ENABLED = "false"
+  # Placeholder for environment variables - Netlify will inject the real ones
+  NEXT_PUBLIC_SUPABASE_URL = "placeholder-for-build"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "placeholder-for-build"
 
 # Post processing command to replace environment variables in the client JS files
 [build.processing]
@@ -35,8 +38,9 @@
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
-    # Add Content-Security-Policy header to allow inline scripts
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data: https://*.supabase.co;"
+    # Update CSP to allow inline styles and Unsplash images
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data: https://*.supabase.co https://*.unsplash.com;"
+    Referrer-Policy = "strict-origin-when-cross-origin"
 
 [[headers]]
   for = "/_next/static/*"
@@ -51,4 +55,12 @@
   environment = { NODE_VERSION = "18" }
   
 [context.branch-deploy]
-  environment = { NODE_VERSION = "18" } 
+  environment = { NODE_VERSION = "18" }
+
+# Handle SPA routing for Next.js
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+  conditions = {Country = ["*"]} 

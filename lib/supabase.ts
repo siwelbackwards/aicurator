@@ -4,8 +4,13 @@ import { createClient } from '@supabase/supabase-js';
 const debugEnv = () => {
   if (typeof window !== 'undefined') {
     console.log('Environment loading debug:');
+    // Check window.env first (our custom object)
     console.log('- window.env exists:', Boolean((window as any).env));
-    console.log('- NEXT_PUBLIC_SUPABASE_URL from window:', (window as any).env?.NEXT_PUBLIC_SUPABASE_URL || 'Not set');
+    console.log('- NEXT_PUBLIC_SUPABASE_URL from window.env:', (window as any).env?.NEXT_PUBLIC_SUPABASE_URL || 'Not set');
+    // Then check window.ENV (from inject-env.js)
+    console.log('- window.ENV exists:', Boolean((window as any).ENV));
+    console.log('- NEXT_PUBLIC_SUPABASE_URL from window.ENV:', (window as any).ENV?.NEXT_PUBLIC_SUPABASE_URL || 'Not set');
+    // Finally check process.env
     console.log('- process.env exists:', Boolean(process.env));
     console.log('- NEXT_PUBLIC_SUPABASE_URL from process.env:', process.env.NEXT_PUBLIC_SUPABASE_URL || 'Not set');
   }
@@ -16,26 +21,32 @@ const getEnvVars = () => {
   // For debugging only
   debugEnv();
   
-  // First look for runtime environment variables that might be injected by env.js
-  // This is especially important for static site deployments
-  let supabaseUrl = typeof window !== 'undefined' && (window as any).env?.NEXT_PUBLIC_SUPABASE_URL;
-  let supabaseAnonKey = typeof window !== 'undefined' && (window as any).env?.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  let supabaseUrl = '';
+  let supabaseAnonKey = '';
 
-  // Fall back to Next.js environment variables
-  if (!supabaseUrl) {
+  if (typeof window !== 'undefined') {
+    // Priority 1: Check window.env (from our env.js)
+    if ((window as any).env?.NEXT_PUBLIC_SUPABASE_URL) {
+      supabaseUrl = (window as any).env.NEXT_PUBLIC_SUPABASE_URL;
+      supabaseAnonKey = (window as any).env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    } 
+    // Priority 2: Check window.ENV (from inject-env.js script)
+    else if ((window as any).ENV?.NEXT_PUBLIC_SUPABASE_URL) {
+      supabaseUrl = (window as any).ENV.NEXT_PUBLIC_SUPABASE_URL;
+      supabaseAnonKey = (window as any).ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    }
+    // Priority 3: Check if there are Netlify-specific environment variables
+    else if (window.location.hostname.includes('netlify.app')) {
+      const netlifyEnv = (window as any)._env || {};
+      supabaseUrl = netlifyEnv.NEXT_PUBLIC_SUPABASE_URL || '';
+      supabaseAnonKey = netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    }
+  }
+
+  // Priority 4: Fall back to Next.js environment variables
+  if (!supabaseUrl && process.env.NEXT_PUBLIC_SUPABASE_URL) {
     supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  }
-
-  if (!supabaseAnonKey) {
-    supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  }
-
-  // Use Netlify-specific environment detection as a last resort
-  if (typeof window !== 'undefined' && window.location.hostname.includes('netlify.app')) {
-    // If on Netlify, try to load from common endpoints where env vars might be injected
-    const netlifyEnv = (window as any)._env || (window as any).ENV || {};
-    supabaseUrl = supabaseUrl || netlifyEnv.NEXT_PUBLIC_SUPABASE_URL;
-    supabaseAnonKey = supabaseAnonKey || netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   }
 
   return { supabaseUrl, supabaseAnonKey };
@@ -47,15 +58,20 @@ const { supabaseUrl, supabaseAnonKey } = getEnvVars();
 // Log critical information for debugging
 if (!supabaseUrl) {
   console.error('Missing Supabase URL - authentication will fail!');
+  console.error('Please ensure environment variables are properly set.');
+  if (typeof window !== 'undefined') {
+    console.error('Current hostname:', window.location.hostname);
+  }
 }
 
 if (!supabaseAnonKey) {
   console.error('Missing Supabase Anon Key - authentication will fail!');
 }
 
+// Create Supabase client with more resilient configuration
 export const supabase = createClient(
-  supabaseUrl || '', // Provide empty string as fallback
-  supabaseAnonKey || '', // Provide empty string as fallback
+  supabaseUrl || 'https://placeholder-for-build.supabase.co', // Provide placeholder for build
+  supabaseAnonKey || 'placeholder-key-for-build', // Provide placeholder for build
   {
     auth: {
       persistSession: true,

@@ -1,38 +1,66 @@
-// This file will be included in the HTML and will inject environment variables at runtime
+// This file is loaded before any app code and provides environment variables
+// for static site generation deployments like Netlify, Vercel, etc.
+
+// Create a global process object if it doesn't exist (for client-side environment)
+if (typeof window !== 'undefined') {
+  window.process = window.process || {};
+  window.process.env = window.process.env || {};
+}
+
+// Environment variables container
+window.env = {
+  // Default values (these get replaced at build time or runtime)
+  NEXT_PUBLIC_SUPABASE_URL: '',
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: '',
+};
+
+// Copy environment variables to process.env for compatibility
+if (window.process && window.process.env) {
+  window.process.env.NEXT_PUBLIC_SUPABASE_URL = window.env.NEXT_PUBLIC_SUPABASE_URL;
+  window.process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+}
+
+// Handle Netlify-specific environment variables
 (function() {
-  // Initialize environment variables container
-  window.env = window.env || {};
+  // Check if we're running on Netlify by checking the hostname
+  const isNetlify = typeof window !== 'undefined' && 
+    (window.location.hostname.includes('netlify.app') || 
+     document.querySelector('meta[name="netlify"]'));
   
-  // Set placeholder values that will be replaced during build or runtime
-  window.env.NEXT_PUBLIC_SUPABASE_URL = '%NEXT_PUBLIC_SUPABASE_URL%';
-  window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = '%NEXT_PUBLIC_SUPABASE_ANON_KEY%';
-  
-  // Special handling for Netlify
-  if (window.location.hostname.includes('netlify.app')) {
-    // Log that we're on Netlify
-    console.log('Detected Netlify environment, attempting to load environment variables');
+  if (isNetlify) {
+    console.log('Detected Netlify environment, checking for injected variables');
     
-    // Try to look for Netlify's injected environment variables
-    // These might be in various locations depending on the Netlify setup
-    const netlifyEnv = window._env || window.ENV || {};
-    
-    // Only override if the values are not placeholders
-    if (netlifyEnv.NEXT_PUBLIC_SUPABASE_URL && 
-        netlifyEnv.NEXT_PUBLIC_SUPABASE_URL !== '%NEXT_PUBLIC_SUPABASE_URL%') {
-      window.env.NEXT_PUBLIC_SUPABASE_URL = netlifyEnv.NEXT_PUBLIC_SUPABASE_URL;
-      console.log('Loaded Supabase URL from Netlify environment');
+    // Check for Netlify environment variables
+    // Method 1: Check for window.ENV (from inject-env.js)
+    if (window.ENV) {
+      console.log('Found window.ENV, using those variables');
+      if (window.ENV.NEXT_PUBLIC_SUPABASE_URL) {
+        window.env.NEXT_PUBLIC_SUPABASE_URL = window.ENV.NEXT_PUBLIC_SUPABASE_URL;
+        window.process.env.NEXT_PUBLIC_SUPABASE_URL = window.ENV.NEXT_PUBLIC_SUPABASE_URL;
+      }
+      
+      if (window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        window.process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      }
     }
     
-    if (netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY && 
-        netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY !== '%NEXT_PUBLIC_SUPABASE_ANON_KEY%') {
+    // Method 2: Look for other Netlify-specific environment objects
+    const netlifyEnv = window._env || window.netlifyEnv || {};
+    if (netlifyEnv.NEXT_PUBLIC_SUPABASE_URL && !window.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.log('Found Netlify-injected variables via _env');
+      window.env.NEXT_PUBLIC_SUPABASE_URL = netlifyEnv.NEXT_PUBLIC_SUPABASE_URL;
       window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      console.log('Loaded Supabase Anon Key from Netlify environment');
+      
+      // Update process.env as well
+      window.process.env.NEXT_PUBLIC_SUPABASE_URL = netlifyEnv.NEXT_PUBLIC_SUPABASE_URL;
+      window.process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     }
   }
   
-  // Log environment status (without revealing the actual values)
-  console.log('Environment variables loaded:', {
-    NEXT_PUBLIC_SUPABASE_URL: window.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Not set',
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'Not set'
-  });
+  // Log status of environment variables (without revealing values)
+  console.log('Environment variables loaded:',
+    'NEXT_PUBLIC_SUPABASE_URL', window.env.NEXT_PUBLIC_SUPABASE_URL ? '✓' : '✗',
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY', window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✓' : '✗'
+  );
 })(); 
