@@ -31,72 +31,30 @@ const debugEnv = () => {
   }
 };
 
-// Try to get environment variables
-const getEnvVars = () => {
-  // For debugging only
-  debugEnv();
-  
-  let supabaseUrl = '';
-  let supabaseAnonKey = '';
+// Validate environment variables
+const validateEnv = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Special case for aicurator.netlify.app - use known working values
-  if (typeof window !== 'undefined' && window.location.hostname === 'aicurator.netlify.app') {
-    console.log('Using hardcoded values for aicurator.netlify.app');
-    return { 
-      supabaseUrl: AICURATOR_URL, 
-      supabaseAnonKey: AICURATOR_ANON_KEY 
-    };
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing required environment variables:');
+    if (!supabaseUrl) console.error('- NEXT_PUBLIC_SUPABASE_URL');
+    if (!supabaseAnonKey) console.error('- NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    throw new Error('Missing required environment variables for Supabase');
   }
 
-  if (typeof window !== 'undefined') {
-    // Priority 1: Check window.ENV (from inject-env.js script) - Netlify injects variables here
-    if ((window as any).ENV?.NEXT_PUBLIC_SUPABASE_URL) {
-      console.log('Using Netlify injected variables from window.ENV');
-      supabaseUrl = (window as any).ENV.NEXT_PUBLIC_SUPABASE_URL;
-      supabaseAnonKey = (window as any).ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    }
-    // Priority 2: Check window.env (from our env.js)
-    else if ((window as any).env?.NEXT_PUBLIC_SUPABASE_URL) {
-      console.log('Using variables from window.env');
-      supabaseUrl = (window as any).env.NEXT_PUBLIC_SUPABASE_URL;
-      supabaseAnonKey = (window as any).env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    } 
-    // Priority 3: Check if there are Netlify-specific environment variables in _env
-    else if (window.location.hostname.includes('netlify.app')) {
-      const netlifyEnv = (window as any)._env || {};
-      supabaseUrl = netlifyEnv.NEXT_PUBLIC_SUPABASE_URL || '';
-      supabaseAnonKey = netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-      console.log('Using Netlify _env variables');
-    }
-  }
-
-  // Priority 4: Fall back to Next.js environment variables
-  if (!isValidUrl(supabaseUrl) && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    console.log('Using Next.js process.env variables');
-    supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  }
-
-  // Fallback to hardcoded values for any Netlify app if still not valid
-  if ((!supabaseUrl || !supabaseAnonKey) && typeof window !== 'undefined' && window.location.hostname.includes('netlify.app')) {
-    console.log('Using fallback values for Netlify app');
-    if (!supabaseUrl) supabaseUrl = AICURATOR_URL;
-    if (!supabaseAnonKey) supabaseAnonKey = AICURATOR_ANON_KEY;
-  }
-
-  // Log values (partially) for debugging
-  if (supabaseUrl) {
-    console.log(`Found Supabase URL: ${supabaseUrl.substring(0, 15)}...`);
-  }
-  if (supabaseAnonKey) {
-    console.log(`Found Supabase Anon Key: ${supabaseAnonKey.substring(0, 15)}...`);
+  try {
+    new URL(supabaseUrl);
+  } catch (e) {
+    console.error('Invalid Supabase URL:', supabaseUrl);
+    throw new Error('Invalid Supabase URL');
   }
 
   return { supabaseUrl, supabaseAnonKey };
 };
 
-// Get environment variables
-const { supabaseUrl, supabaseAnonKey } = getEnvVars();
+// Initialize Supabase client
+const { supabaseUrl, supabaseAnonKey } = validateEnv();
 
 // Log critical information for debugging
 if (!supabaseUrl) {
@@ -119,6 +77,7 @@ export const supabase = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
+      detectSessionInUrl: true
     },
     global: {
       // Add error handling and logging

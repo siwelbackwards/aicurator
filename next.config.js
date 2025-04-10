@@ -11,11 +11,7 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**',
       },
-      {
-        protocol: 'http',
-        hostname: '**',
-      }
-    ]
+    ],
   },
   eslint: {
     ignoreDuringBuilds: true
@@ -29,9 +25,8 @@ const nextConfig = {
   },
   // Use placeholder values during build
   env: {
-    // Use placeholder values during build time
-    NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder-url.supabase.co',
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder-anon-key'
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
   // Copy env.js to the output directory
   onBuildComplete: async () => {
