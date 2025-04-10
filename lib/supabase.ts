@@ -11,6 +11,10 @@ const isValidUrl = (urlString: string): boolean => {
   }
 };
 
+// Fixed values for aicurator.netlify.app
+const AICURATOR_URL = 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
+const AICURATOR_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw';
+
 // Debugging function for environment variables
 const debugEnv = () => {
   if (typeof window !== 'undefined') {
@@ -34,6 +38,15 @@ const getEnvVars = () => {
   
   let supabaseUrl = '';
   let supabaseAnonKey = '';
+
+  // Special case for aicurator.netlify.app - use known working values
+  if (typeof window !== 'undefined' && window.location.hostname === 'aicurator.netlify.app') {
+    console.log('Using hardcoded values for aicurator.netlify.app');
+    return { 
+      supabaseUrl: AICURATOR_URL, 
+      supabaseAnonKey: AICURATOR_ANON_KEY 
+    };
+  }
 
   if (typeof window !== 'undefined') {
     // Priority 1: Check window.ENV (from inject-env.js script) - Netlify injects variables here
@@ -62,6 +75,13 @@ const getEnvVars = () => {
     console.log('Using Next.js process.env variables');
     supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  }
+
+  // Fallback to hardcoded values for any Netlify app if still not valid
+  if ((!supabaseUrl || !supabaseAnonKey) && typeof window !== 'undefined' && window.location.hostname.includes('netlify.app')) {
+    console.log('Using fallback values for Netlify app');
+    if (!supabaseUrl) supabaseUrl = AICURATOR_URL;
+    if (!supabaseAnonKey) supabaseAnonKey = AICURATOR_ANON_KEY;
   }
 
   // Log values (partially) for debugging
