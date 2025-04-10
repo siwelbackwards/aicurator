@@ -1,5 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Validate URL format
+const isValidUrl = (urlString: string): boolean => {
+  try {
+    if (!urlString || urlString.includes('placeholder')) return false;
+    new URL(urlString);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
 // Debugging function for environment variables
 const debugEnv = () => {
   if (typeof window !== 'undefined') {
@@ -44,9 +55,17 @@ const getEnvVars = () => {
   }
 
   // Priority 4: Fall back to Next.js environment variables
-  if (!supabaseUrl && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  if (!isValidUrl(supabaseUrl) && process.env.NEXT_PUBLIC_SUPABASE_URL) {
     supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  }
+
+  // Validate the URL format
+  if (!isValidUrl(supabaseUrl)) {
+    console.error('Invalid Supabase URL format:', supabaseUrl);
+    // Fallback to a hardcoded value for testing only - REPLACE WITH YOUR ACTUAL SUPABASE URL FOR NETLIFY
+    supabaseUrl = 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
+    console.log('Using fallback URL:', supabaseUrl);
   }
 
   return { supabaseUrl, supabaseAnonKey };
@@ -70,8 +89,8 @@ if (!supabaseAnonKey) {
 
 // Create Supabase client with more resilient configuration
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder-for-build.supabase.co', // Provide placeholder for build
-  supabaseAnonKey || 'placeholder-key-for-build', // Provide placeholder for build
+  supabaseUrl,
+  supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw', // Fallback anon key
   {
     auth: {
       persistSession: true,

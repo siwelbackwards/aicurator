@@ -12,9 +12,9 @@
   NODE_VERSION = "18"
   # Disable secrets scanning completely
   SECRETS_SCAN_ENABLED = "false"
-  # Placeholder for environment variables - Netlify will inject the real ones
-  NEXT_PUBLIC_SUPABASE_URL = "placeholder-for-build"
-  NEXT_PUBLIC_SUPABASE_ANON_KEY = "placeholder-for-build"
+  # Placeholder values that will be replaced at runtime
+  NEXT_PUBLIC_SUPABASE_URL = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw"
 
 # Post processing command to replace environment variables in the client JS files
 [build.processing]
@@ -31,23 +31,24 @@
   bundle = false
   minify = false
 
-# Add environment variables to the HTML
+# Add security headers
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
-    # Update CSP to allow inline styles and Unsplash images
+    # Update CSP to allow inline styles and Supabase
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data: https://*.supabase.co https://*.unsplash.com;"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
+# Cache settings for static assets
 [[headers]]
   for = "/_next/static/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Add post-processing script to inject environment variables into the HTML
+# Add environment context settings
 [context.production]
   environment = { NODE_VERSION = "18" }
   

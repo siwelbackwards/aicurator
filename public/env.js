@@ -7,6 +7,17 @@ if (typeof window !== 'undefined') {
   window.process.env = window.process.env || {};
 }
 
+// Validate URL format
+const isValidUrl = (urlString) => {
+  try {
+    if (!urlString || urlString.includes('placeholder')) return false;
+    new URL(urlString);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
 // Environment variables container
 window.env = {
   // Default values (these get replaced at build time or runtime)
@@ -55,6 +66,17 @@ if (window.process && window.process.env) {
       // Update process.env as well
       window.process.env.NEXT_PUBLIC_SUPABASE_URL = netlifyEnv.NEXT_PUBLIC_SUPABASE_URL;
       window.process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    }
+    
+    // Add fallback for AI Curator Netlify site if we still don't have valid values
+    if (!isValidUrl(window.env.NEXT_PUBLIC_SUPABASE_URL)) {
+      console.log('Using hardcoded fallback values for Netlify deployment');
+      window.env.NEXT_PUBLIC_SUPABASE_URL = 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
+      window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw';
+      
+      // Update process.env as well
+      window.process.env.NEXT_PUBLIC_SUPABASE_URL = window.env.NEXT_PUBLIC_SUPABASE_URL;
+      window.process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     }
   }
   
