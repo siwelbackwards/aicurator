@@ -4,15 +4,10 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  NEXT_PUBLIC_SUPABASE_URL = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co"
-  NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw"
   SECRETS_SCAN_ENABLED = "false"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-[[plugins]]
-  package = "netlify-plugin-inject-env"
 
 [[plugins]]
   package = "@netlify/plugin-lighthouse"
@@ -48,16 +43,6 @@
   for = "/_next/static/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-
-# Add environment context settings
-[context.production]
-  environment = { NODE_VERSION = "18" }
-  
-[context.deploy-preview]
-  environment = { NODE_VERSION = "18" }
-  
-[context.branch-deploy]
-  environment = { NODE_VERSION = "18" }
 
 # Handle SPA routing for Next.js
 [[redirects]]
