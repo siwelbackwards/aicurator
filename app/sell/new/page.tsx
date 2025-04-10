@@ -87,71 +87,78 @@ export default function NewItemPage() {
     setImages(newImages);
   };
 
-  const uploadImage = async (file: File): Promise<string> => {
+  async function uploadImage(file: File): Promise<string> {
     try {
-      // Get current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!session?.user?.id) throw new Error('No authenticated user found');
-
-      console.log('User authenticated:', session.user.id);
+      // First check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('You must be logged in to upload images');
+      }
       
-      // Try to list buckets to see if we have access
+      const userId = session.user.id;
+      console.log('User authenticated:', userId);
+      
+      // Check available buckets to debug
       const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      console.log('Available buckets:', buckets);
+      
       if (bucketsError) {
         console.error('Error listing buckets:', bucketsError);
-      } else {
-        console.log('Available buckets:', buckets.map(b => b.name));
       }
-
+      
+      // Create a unique file name with user ID and timestamp
+      const timestamp = Date.now();
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `${session.user.id}/${fileName}`;
-
+      const fileName = `${timestamp}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+      const filePath = `${userId}/${fileName}`;
+      
       console.log('Attempting to upload to path:', filePath);
-
-      // First try with a simpler path to see if it's a path structure issue
-      const simplePath = `public/${fileName}`;
-      console.log('Trying alternative simple path:', simplePath);
-
-      let uploadResult;
-      try {
-        uploadResult = await supabase.storage
-          .from('artwork-images')
-          .upload(simplePath, file, {
-            cacheControl: '3600',
-            upsert: true // Changed to true to overwrite if file exists
-          });
-      } catch (e) {
-        console.error('Simplified path upload failed:', e);
-        
-        // Try with original path as a fallback
-        uploadResult = await supabase.storage
-          .from('artwork-images')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: true // Changed to true
-          });
-      }
-
-      const { error: uploadError } = uploadResult;
-
-      if (uploadError) {
-        console.error('Upload error details:', JSON.stringify(uploadError));
-        throw new Error(`Failed to upload image: ${uploadError.message}`);
-      }
-
-      const { data: { publicUrl } } = supabase.storage
+      
+      // Upload to user-specific folder in artwork-images bucket
+      const { data, error } = await supabase.storage
         .from('artwork-images')
-        .getPublicUrl(uploadResult.data?.path || simplePath);
-
-      console.log('Upload successful, public URL:', publicUrl);
-      return publicUrl;
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) {
+        console.error('Upload error details:', error);
+        
+        // Try alternative path for public folder
+        const publicPath = `public/${fileName}`;
+        console.log('Trying alternative simple path:', publicPath);
+        
+        const { data: publicData, error: publicError } = await supabase.storage
+          .from('artwork-images')
+          .upload(publicPath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+        
+        if (publicError) {
+          throw new Error(`Failed to upload image: ${publicError.message}`);
+        }
+        
+        // Return the URL for the uploaded file
+        const { data: publicUrl } = supabase.storage
+          .from('artwork-images')
+          .getPublicUrl(publicPath);
+          
+        return publicUrl.publicUrl;
+      }
+      
+      // Return the URL for the uploaded file
+      const { data: url } = supabase.storage
+        .from('artwork-images')
+        .getPublicUrl(filePath);
+        
+      return url.publicUrl;
     } catch (error) {
       console.error('Error in uploadImage:', error);
       throw error;
     }
-  };
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,7 +214,8 @@ export default function NewItemPage() {
           uploadedImages.map(img => ({
             artwork_id: artwork.id,
             url: img.url,
-            is_primary: img.is_primary
+            is_primary: img.is_primary,
+            file_path: img.url.split('/public/')[1] || img.url // Extract file path from URL or use full URL
           }))
         );
 

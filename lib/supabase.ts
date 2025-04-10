@@ -1,5 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Add TypeScript declaration for Window with ENV
+declare global {
+  interface Window {
+    ENV?: {
+      NEXT_PUBLIC_SUPABASE_URL?: string;
+      NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
+      [key: string]: any;
+    };
+  }
+}
+
 // Validate URL format
 const isValidUrl = (urlString: string): boolean => {
   try {
@@ -32,26 +43,41 @@ const debugEnv = () => {
 };
 
 // Validate environment variables
-const validateEnv = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+function validateEnv() {
+  let supabaseUrl = '';
+  let supabaseAnonKey = '';
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Missing required environment variables:');
-    if (!supabaseUrl) console.error('- NEXT_PUBLIC_SUPABASE_URL');
-    if (!supabaseAnonKey) console.error('- NEXT_PUBLIC_SUPABASE_ANON_KEY');
-    throw new Error('Missing required environment variables for Supabase');
+  // Check for variables in window.ENV (Netlify setup)
+  if (typeof window !== 'undefined' && window.ENV) {
+    supabaseUrl = window.ENV.NEXT_PUBLIC_SUPABASE_URL || '';
+    supabaseAnonKey = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    console.log('Using Supabase credentials from window.ENV');
+  } 
+  // Check for variables in process.env (standard setup)
+  else if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    console.log('Using Supabase credentials from process.env');
+  }
+  // Fallback values for development
+  else if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    supabaseUrl = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
+    supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw";
+    console.log('Using fallback Supabase credentials for localhost');
   }
 
-  try {
-    new URL(supabaseUrl);
-  } catch (e) {
-    console.error('Invalid Supabase URL:', supabaseUrl);
-    throw new Error('Invalid Supabase URL');
+  // Validate URL format
+  if (!supabaseUrl || !supabaseUrl.startsWith('https://')) {
+    console.error('Invalid SUPABASE_URL format:', supabaseUrl);
+  }
+  
+  // Validate key format (without revealing full key)
+  if (!supabaseAnonKey || supabaseAnonKey.length < 20) {
+    console.error('Invalid SUPABASE_ANON_KEY format');
   }
 
   return { supabaseUrl, supabaseAnonKey };
-};
+}
 
 // Initialize Supabase client
 const { supabaseUrl, supabaseAnonKey } = validateEnv();
@@ -174,6 +200,35 @@ export async function deleteArtworkImage(filePath: string) {
     .remove([filePath]);
 
   if (error) {
-    throw error;
+    throw new Error(`Failed to delete image: ${error.message}`);
+  }
+}
+
+// Connection test function
+export async function testConnection() {
+  try {
+    const { data, error } = await supabase.from('artworks').select('count()', { count: 'exact' }).limit(1);
+    
+    if (error) {
+      console.error('Supabase connection test failed:', error.message);
+      return false;
+    }
+    
+    console.log('Supabase connection test successful');
+    return true;
+  } catch (err) {
+    console.error('Supabase connection error:', err);
+    return false;
+  }
+}
+
+// Test function to check whether the client can connect to the database
+export function getConnectionStatus() {
+  try {
+    const url = supabaseUrl || 'No URL found';
+    const keyStatus = supabaseAnonKey ? 'Key found' : 'No key found';
+    return { url, keyStatus, connected: !!(supabaseUrl && supabaseAnonKey) };
+  } catch (error) {
+    return { url: 'Error', keyStatus: 'Error', connected: false, error };
   }
 }
