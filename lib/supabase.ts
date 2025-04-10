@@ -49,21 +49,30 @@ function validateEnv() {
 
   // Check for variables in window.ENV (Netlify setup)
   if (typeof window !== 'undefined' && window.ENV) {
+    console.log('Using Supabase credentials from window.ENV');
     supabaseUrl = window.ENV.NEXT_PUBLIC_SUPABASE_URL || '';
     supabaseAnonKey = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    console.log('Using Supabase credentials from window.ENV');
+    
+    // Debug key (only showing first/last few chars for security)
+    if (supabaseAnonKey) {
+      const keyStart = supabaseAnonKey.substring(0, 10);
+      const keyEnd = supabaseAnonKey.substring(supabaseAnonKey.length - 5);
+      console.log(`Key found with format: ${keyStart}...${keyEnd}, length: ${supabaseAnonKey.length}`);
+    } else {
+      console.error('No key found in window.ENV');
+    }
   } 
   // Check for variables in process.env (standard setup)
   else if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.log('Using Supabase credentials from process.env');
     supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    console.log('Using Supabase credentials from process.env');
   }
   // Fallback values for development
   else if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    console.log('Using hardcoded fallback Supabase credentials for localhost');
     supabaseUrl = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
     supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw";
-    console.log('Using fallback Supabase credentials for localhost');
   }
 
   // Validate URL format
@@ -73,7 +82,12 @@ function validateEnv() {
   
   // Validate key format (without revealing full key)
   if (!supabaseAnonKey || supabaseAnonKey.length < 20) {
-    console.error('Invalid SUPABASE_ANON_KEY format');
+    console.error('Invalid SUPABASE_ANON_KEY format - length too short');
+  }
+
+  // Validate JWT structure (should be JWT format with 3 parts separated by dots)
+  if (supabaseAnonKey && !supabaseAnonKey.match(/^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/)) {
+    console.error('Invalid JWT format for SUPABASE_ANON_KEY');
   }
 
   return { supabaseUrl, supabaseAnonKey };
@@ -81,6 +95,11 @@ function validateEnv() {
 
 // Initialize Supabase client
 const { supabaseUrl, supabaseAnonKey } = validateEnv();
+
+console.log('Creating Supabase client with:', { 
+  url: supabaseUrl, 
+  keyLength: supabaseAnonKey?.length
+});
 
 // Log critical information for debugging
 if (!supabaseUrl) {
@@ -210,7 +229,7 @@ export async function testConnection() {
     const { data, error } = await supabase.from('artworks').select('count()', { count: 'exact' }).limit(1);
     
     if (error) {
-      console.error('Supabase connection test failed:', error.message);
+      console.error('Supabase connection test failed:', error);
       return false;
     }
     

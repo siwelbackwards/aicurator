@@ -6,6 +6,7 @@
   NODE_VERSION = "18"
   SECRETS_SCAN_ENABLED = "false"
 
+# Use netlify-plugin-inline-functions-env to inject environment variables
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
