@@ -16,11 +16,8 @@ export async function generateStaticParams() {
   }
 }
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 // Server Component that passes data to Client Component
-export default async function ProductPage({ params }: { params: { id: string } }) {
+export default function ProductPage({ params }: { params: { id: string } }) {
   // Since we're using static export, we'll need to handle this differently
   return <ProductClient productId={params.id} />;
 }
