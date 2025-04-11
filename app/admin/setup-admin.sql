@@ -40,6 +40,29 @@ USING (
   )
 );
 
+-- Ensure foreign key relationship between artworks and profiles
+DO $$
+BEGIN
+  -- Check if the constraint already exists
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE constraint_name = 'artworks_user_id_fkey' 
+    AND table_name = 'artworks'
+  ) THEN
+    -- Add foreign key constraint if it doesn't exist
+    BEGIN
+      ALTER TABLE public.artworks 
+      ADD CONSTRAINT artworks_user_id_fkey 
+      FOREIGN KEY (user_id) 
+      REFERENCES public.profiles(id);
+      
+      RAISE NOTICE 'Foreign key constraint added between artworks and profiles';
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not add foreign key constraint: %', SQLERRM;
+    END;
+  END IF;
+END $$;
+
 -- To promote a user to admin, run the following SQL command:
 /*
   1. Log into your Supabase instance dashboard

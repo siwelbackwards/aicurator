@@ -103,21 +103,53 @@ export default function AdminArtworksPage() {
     try {
       setLoading(true);
       
+      // Fix the query to handle the missing relationship between artworks and profiles
       const { data, error } = await supabase
         .from('artworks')
         .select(`
           *,
-          images:artwork_images(url, is_primary),
-          profiles:profiles(full_name, email)
+          images:artwork_images(url, is_primary)
         `)
         .eq('status', status)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setArtworks(data || []);
+
+      // If we have artworks, fetch the user profiles separately
+      if (data && data.length > 0) {
+        // Get unique user IDs
+        const userIds = Array.from(new Set(data.map(artwork => artwork.user_id)));
+        
+        // Fetch profiles
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', userIds);
+          
+        // Create a lookup map for profiles
+        type ProfileMap = {
+          [key: string]: { id: string, full_name: string, email: string }
+        };
+        
+        const profilesMap = (profilesData || []).reduce<ProfileMap>((acc, profile) => {
+          acc[profile.id] = profile;
+          return acc;
+        }, {});
+        
+        // Attach profile data to artworks
+        const artworksWithProfiles = data.map(artwork => ({
+          ...artwork,
+          profiles: profilesMap[artwork.user_id] || { id: artwork.user_id, full_name: 'Unknown', email: '' }
+        }));
+        
+        setArtworks(artworksWithProfiles);
+      } else {
+        setArtworks(data || []);
+      }
     } catch (error) {
       console.error('Error fetching artworks:', error);
       toast.error('Failed to load artworks');
+      setArtworks([]);
     } finally {
       setLoading(false);
     }
