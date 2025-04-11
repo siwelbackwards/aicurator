@@ -6,6 +6,8 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
+import { formatSupabaseUrl } from '@/lib/utils';
+import { SupabaseImage } from '@/components/ui/supabase-image';
 
 interface ArtworkImage {
   file_path: string;
@@ -54,9 +56,7 @@ export default function TrendingProducts() {
             ...artwork,
             images: artwork.images?.map((image: ArtworkImage) => ({
               ...image,
-              url: supabase.storage
-                .from('artwork-images')
-                .getPublicUrl(image.file_path).data.publicUrl
+              url: image.file_path
             }))
           }));
           
@@ -155,20 +155,13 @@ export default function TrendingProducts() {
               >
                 <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-gray-100">
                   {imageUrl ? (
-                    <Image
+                    <SupabaseImage
                       src={imageUrl}
                       alt={product.title}
                       fill
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
-                      onError={(e) => {
-                        console.error('Image load error:', imageUrl);
-                        const target = e.target as HTMLImageElement;
-                        target.src = '/placeholder.webp';
-                        target.onerror = null;
-                      }}
                       priority={true}
-                      unoptimized={true}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gray-200">

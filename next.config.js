@@ -8,9 +8,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://cpzzmpgbyzc
 const supabaseHostname = supabaseUrl.replace(/^https?:\/\//, '');
 
 const nextConfig = {
-  output: 'export',
+  // Remove static export output to allow dynamic routes
   images: {
-    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',

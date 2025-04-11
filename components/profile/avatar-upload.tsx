@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Image from 'next/image';
+import { formatSupabaseUrl } from '@/lib/utils';
+import { SupabaseImage } from '@/components/ui/supabase-image';
 
 interface AvatarUploadProps {
   userId: string;
@@ -54,11 +56,10 @@ export default function AvatarUpload({
       
       if (uploadError) throw uploadError;
       
-      const { data } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+      // Use the formatSupabaseUrl utility to create a clean URL
+      const avatarUrl = formatSupabaseUrl(`avatars/${filePath}`);
       
-      onUpload(data.publicUrl);
+      onUpload(avatarUrl);
     } catch (error: any) {
       setError(error.message || 'Error uploading avatar');
       console.error('Error uploading avatar:', error);
@@ -74,7 +75,7 @@ export default function AvatarUpload({
         style={{ width: `${size}px`, height: `${size}px` }}
       >
         {url ? (
-          <Image 
+          <SupabaseImage 
             src={url} 
             alt="Avatar" 
             className="object-cover"

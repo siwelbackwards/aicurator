@@ -1,46 +1,131 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Heart, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ConfirmationDialog from '@/components/product/confirmation-dialog';
+import { supabase } from '@/lib/supabase';
+import { SupabaseImage } from '@/components/ui/supabase-image';
+import { useRouter } from 'next/navigation';
 
 interface ProductProps {
-  product: {
-    id: string;
-    title: string;
-    price: number;
-    currentPrice: number;
-    predictedPrice: number;
-    description: string;
-    artist: {
-      name: string;
-      image: string;
-      from: string;
-      birth: string;
-      bio: string;
-    };
-    images: string[];
-    artHistory: {
-      from: string;
-      launch: string;
-      lastSold: string;
-      history: string;
-    };
+  productId: string;
+}
+
+interface Artwork {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  artist_name: string;
+  location: string;
+  year: number;
+  provenance: string;
+  dimensions?: {
+    width: number;
+    height: number;
+    depth: number;
+    unit: string;
+  };
+  images: {
+    url: string;
+    is_primary: boolean;
+    file_path: string;
+  }[];
+  profiles?: {
+    full_name: string;
+    avatar_url: string;
   };
 }
 
-export default function ProductClient({ product }: ProductProps) {
+export default function ProductClient({ productId }: ProductProps) {
+  const router = useRouter();
   const [currentImage, setCurrentImage] = useState(0);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [product, setProduct] = useState<Artwork | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        
+        const { data: artwork, error } = await supabase
+          .from('artworks')
+          .select(`
+            *,
+            images:artwork_images(file_path, is_primary, url)
+          `)
+          .eq('id', productId)
+          .eq('status', 'approved')
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        if (!artwork) {
+          throw new Error('Artwork not found');
+        }
+
+        // Fetch user profile data for the artist
+        if (artwork.user_id) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('full_name, avatar_url')
+            .eq('id', artwork.user_id)
+            .single();
+
+          if (profileData) {
+            artwork.profiles = profileData;
+          }
+        }
+
+        setProduct(artwork);
+      } catch (error: any) {
+        console.error('Error fetching product:', error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (productId) {
+      fetchProduct();
+    }
+  }, [productId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <h1 className="text-2xl font-bold mb-4">Artwork Not Found</h1>
+        <p className="mb-8 text-gray-600">The artwork you're looking for is not available or does not exist.</p>
+        <Button onClick={() => router.push('/')}>Return to Home</Button>
+      </div>
+    );
+  }
 
   const nextImage = () => {
-    setCurrentImage((prev) => (prev + 1) % product.images.length);
+    setCurrentImage((prev) => (prev + 1) % (product.images?.length || 1));
   };
 
   const previousImage = () => {
-    setCurrentImage((prev) => (prev - 1 + product.images.length) % product.images.length);
+    setCurrentImage((prev) => (prev - 1 + (product.images?.length || 1)) % (product.images?.length || 1));
   };
+
+  // Placeholder values for data we don't have
+  const currentPrice = Math.round(product.price * 1.2);
+  const predictedPrice = Math.round(product.price * 2);
+  const artistImage = product.profiles?.avatar_url || 'https://images.unsplash.com/photo-1580137189272-c9379f8864fd?auto=format&fit=crop&q=80';
 
   return (
     <div className="bg-gray-50">
@@ -49,25 +134,35 @@ export default function ProductClient({ product }: ProductProps) {
           {/* Image Gallery */}
           <div className="space-y-4">
             <div className="relative aspect-square bg-white rounded-lg overflow-hidden">
-              <div
-                className="absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: `url(${product.images[currentImage]})` }}
-              />
+              {product.images && product.images.length > 0 ? (
+                <SupabaseImage
+                  src={product.images[currentImage]?.file_path}
+                  alt={product.title}
+                  fill
+                  className="object-contain"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                  <span className="text-gray-400">No image available</span>
+                </div>
+              )}
               <button
                 onClick={previousImage}
                 className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 hover:bg-white transition-colors"
+                disabled={!product.images || product.images.length <= 1}
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
               <button
                 onClick={nextImage}
                 className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 hover:bg-white transition-colors"
+                disabled={!product.images || product.images.length <= 1}
               >
                 <ChevronRight className="w-6 h-6" />
               </button>
             </div>
             <div className="grid grid-cols-4 gap-4">
-              {product.images.map((image, index) => (
+              {product.images && product.images.map((image, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentImage(index)}
@@ -75,9 +170,11 @@ export default function ProductClient({ product }: ProductProps) {
                     currentImage === index ? 'ring-2 ring-primary' : ''
                   }`}
                 >
-                  <div
-                    className="absolute inset-0 bg-cover bg-center"
-                    style={{ backgroundImage: `url(${image})` }}
+                  <SupabaseImage
+                    src={image.file_path}
+                    alt={`Thumbnail ${index + 1}`}
+                    fill
+                    className="object-cover"
                   />
                 </button>
               ))}
@@ -87,34 +184,38 @@ export default function ProductClient({ product }: ProductProps) {
           {/* Product Info */}
           <div className="space-y-6">
             <h1 className="text-4xl font-bold">{product.title}</h1>
-            <p className="text-xl text-green-600 font-bold">${product.price}</p>
+            <p className="text-xl text-green-600 font-bold">£{product.price.toLocaleString()}</p>
             <p className="text-gray-600">{product.description}</p>
 
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
-                <div
-                  className="w-12 h-12 rounded-full bg-cover bg-center"
-                  style={{ backgroundImage: `url(${product.artist.image})` }}
-                />
+                <div className="relative w-12 h-12 rounded-full overflow-hidden">
+                  <SupabaseImage
+                    src={artistImage}
+                    alt={product.artist_name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
                 <div>
-                  <div className="font-medium">Artist: {product.artist.name}</div>
-                  <div className="text-sm text-gray-500">From: {product.artist.from}</div>
+                  <div className="font-medium">Artist: {product.artist_name}</div>
+                  <div className="text-sm text-gray-500">From: {product.location || 'Unknown'}</div>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4 py-4">
               <div className="text-center p-4 bg-white rounded-lg">
-                <div className="text-sm text-gray-500">Price in 2014:</div>
-                <div className="font-bold">${product.price}</div>
+                <div className="text-sm text-gray-500">Original Price:</div>
+                <div className="font-bold">£{product.price.toLocaleString()}</div>
               </div>
               <div className="text-center p-4 bg-white rounded-lg">
                 <div className="text-sm text-gray-500">Current Price:</div>
-                <div className="font-bold">${product.currentPrice}</div>
+                <div className="font-bold">£{currentPrice.toLocaleString()}</div>
               </div>
               <div className="text-center p-4 bg-white rounded-lg">
-                <div className="text-sm text-gray-500">Predicted Price in 2034</div>
-                <div className="font-bold">${product.predictedPrice}</div>
+                <div className="text-sm text-gray-500">Estimated Future Value</div>
+                <div className="font-bold">£{predictedPrice.toLocaleString()}</div>
               </div>
             </div>
 
@@ -139,42 +240,52 @@ export default function ProductClient({ product }: ProductProps) {
           <h2 className="text-2xl font-bold mb-6">About Artist</h2>
           <div className="bg-white p-6 rounded-lg">
             <div className="flex items-center space-x-4 mb-4">
-              <div
-                className="w-20 h-20 rounded-full bg-cover bg-center"
-                style={{ backgroundImage: `url(${product.artist.image})` }}
-              />
+              <div className="relative w-20 h-20 rounded-full overflow-hidden">
+                <SupabaseImage
+                  src={artistImage}
+                  alt={product.artist_name}
+                  fill
+                  className="object-cover"
+                />
+              </div>
               <div>
-                <h3 className="text-xl font-bold">{product.artist.name}</h3>
+                <h3 className="text-xl font-bold">{product.artist_name}</h3>
                 <div className="grid grid-cols-2 gap-4 mt-2">
                   <div className="px-4 py-2 bg-gray-50 rounded-full">
-                    Artist From: {product.artist.from}
+                    Artist From: {product.location || 'Unknown'}
                   </div>
                   <div className="px-4 py-2 bg-gray-50 rounded-full">
-                    Artist Birth: {product.artist.birth}
+                    Created: {product.year || 'Unknown'}
                   </div>
                 </div>
               </div>
             </div>
-            <p className="text-gray-600">{product.artist.bio}</p>
+            <p className="text-gray-600">
+              {product.provenance || 'No artist biography available.'}
+            </p>
           </div>
         </div>
 
-        {/* Art History */}
+        {/* Art Details */}
         <div className="mt-16">
-          <h2 className="text-2xl font-bold mb-6">Art History</h2>
+          <h2 className="text-2xl font-bold mb-6">Artwork Details</h2>
           <div className="bg-white p-6 rounded-lg">
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="px-4 py-2 bg-gray-50 rounded-full text-center">
-                Art From: {product.artHistory.from}
+                Location: {product.location || 'Unknown'}
               </div>
               <div className="px-4 py-2 bg-gray-50 rounded-full text-center">
-                Art Launch: {product.artHistory.launch}
+                Created: {product.year || 'Unknown'}
               </div>
               <div className="px-4 py-2 bg-gray-50 rounded-full text-center">
-                Last Sold On: {product.artHistory.lastSold}
+                Size: {product.dimensions ? 
+                  `${product.dimensions.width} × ${product.dimensions.height} × ${product.dimensions.depth} ${product.dimensions.unit}` : 
+                  'Unknown'}
               </div>
             </div>
-            <p className="text-gray-600">{product.artHistory.history}</p>
+            <p className="text-gray-600">
+              {product.provenance || 'No additional information available about this artwork.'}
+            </p>
           </div>
         </div>
       </div>

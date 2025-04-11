@@ -6,6 +6,7 @@ import { Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { formatSupabaseUrl } from '@/lib/utils';
 
 interface ImageFile {
   file: File;
@@ -145,7 +146,7 @@ export default function NewItemPage() {
           .from('artwork-images')
           .getPublicUrl(publicPath);
           
-        return publicUrl.publicUrl;
+        return formatSupabaseUrl(`artwork-images/${publicPath}`);
       }
       
       // Return the URL for the uploaded file
@@ -153,7 +154,7 @@ export default function NewItemPage() {
         .from('artwork-images')
         .getPublicUrl(filePath);
         
-      return url.publicUrl;
+      return formatSupabaseUrl(`artwork-images/${filePath}`);
     } catch (error) {
       console.error('Error in uploadImage:', error);
       throw error;
@@ -215,7 +216,7 @@ export default function NewItemPage() {
             artwork_id: artwork.id,
             url: img.url,
             is_primary: img.is_primary,
-            file_path: img.url.split('/public/')[1] || img.url // Extract file path from URL or use full URL
+            file_path: img.url.includes('/public/') ? img.url.split('/public/')[1] : img.url.split('artwork-images/').pop() || img.url
           }))
         );
 
