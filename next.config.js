@@ -2,6 +2,11 @@
 const { copyFileSync, existsSync, mkdirSync } = require('fs');
 const { join } = require('path');
 
+// Get Supabase URL from environment variable or use default
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
+// Extract the hostname from the URL
+const supabaseHostname = supabaseUrl.replace(/^https?:\/\//, '');
+
 const nextConfig = {
   output: 'export',
   images: {
@@ -9,9 +14,18 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: supabaseHostname,
+        pathname: '/**',
+      },
+      // Allow images from any domain during development
+      {
+        protocol: 'https',
         hostname: '**',
       },
     ],
+    // Add placeholder for fallback images
+    minimumCacheTTL: 60,
+    dangerouslyAllowSVG: true,
   },
   eslint: {
     ignoreDuringBuilds: true

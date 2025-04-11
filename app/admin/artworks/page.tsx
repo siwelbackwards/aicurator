@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import Image from 'next/image';
 import Link from 'next/link';
 import { 
   Card, 
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
+import { SupabaseImage } from '@/components/ui/supabase-image';
 
 interface Artwork {
   id: string;
@@ -207,18 +207,11 @@ export default function AdminArtworksPage() {
                 <Card key={artwork.id} className="overflow-hidden">
                   <div className="relative aspect-square">
                     <Link href={`/artwork/${artwork.id}`}>
-                      <Image
-                        src={(artwork.images && artwork.images.length > 0) 
-                          ? artwork.images[0].url.replace('/artwork-images/artwork-images/', '/artwork-images/') 
-                          : '/placeholder.webp'}
+                      <SupabaseImage
+                        src={artwork.images && artwork.images.length > 0 ? artwork.images[0].url : undefined}
                         alt={artwork.title}
                         fill
                         className="object-cover cursor-pointer"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.onerror = null;
-                          target.src = '/placeholder.webp';
-                        }}
                       />
                     </Link>
                   </div>
@@ -276,18 +269,11 @@ export default function AdminArtworksPage() {
                 <Card key={artwork.id}>
                   <div className="relative aspect-square">
                     <Link href={`/artwork/${artwork.id}`}>
-                      <Image
-                        src={(artwork.images && artwork.images.length > 0) 
-                          ? artwork.images[0].url.replace('/artwork-images/artwork-images/', '/artwork-images/') 
-                          : '/placeholder.webp'}
+                      <SupabaseImage
+                        src={artwork.images && artwork.images.length > 0 ? artwork.images[0].url : undefined}
                         alt={artwork.title}
                         fill
                         className="object-cover cursor-pointer"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.onerror = null;
-                          target.src = '/placeholder.webp';
-                        }}
                       />
                     </Link>
                   </div>
@@ -327,18 +313,11 @@ export default function AdminArtworksPage() {
                 <Card key={artwork.id}>
                   <div className="relative aspect-square">
                     <Link href={`/artwork/${artwork.id}`}>
-                      <Image
-                        src={(artwork.images && artwork.images.length > 0) 
-                          ? artwork.images[0].url.replace('/artwork-images/artwork-images/', '/artwork-images/') 
-                          : '/placeholder.webp'}
+                      <SupabaseImage
+                        src={artwork.images && artwork.images.length > 0 ? artwork.images[0].url : undefined}
                         alt={artwork.title}
                         fill
                         className="object-cover cursor-pointer"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.onerror = null;
-                          target.src = '/placeholder.webp';
-                        }}
                       />
                     </Link>
                   </div>
