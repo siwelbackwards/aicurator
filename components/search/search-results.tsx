@@ -66,23 +66,16 @@ export default function SearchResults({ query, category }: SearchProps) {
           `)
           .eq('status', 'approved');
 
-        // Handle category-only search
-        if (category && !query) {
-          queryBuilder = queryBuilder.ilike('category', `%${category}%`);
+        // Handle category filtering if not 'all'
+        if (category && category !== 'all') {
+          queryBuilder = queryBuilder.eq('category', category);
         }
-        // Handle text-only search
-        else if (query && !category) {
+
+        // Handle text search if query exists
+        if (query) {
           queryBuilder = queryBuilder.or(
             `title.ilike.%${query}%,artist_name.ilike.%${query}%,description.ilike.%${query}%`
           );
-        }
-        // Handle combined search
-        else if (query && category) {
-          queryBuilder = queryBuilder
-            .ilike('category', `%${category}%`)
-            .or(
-              `title.ilike.%${query}%,artist_name.ilike.%${query}%,description.ilike.%${query}%`
-            );
         }
 
         const { data, error: searchError } = await queryBuilder;

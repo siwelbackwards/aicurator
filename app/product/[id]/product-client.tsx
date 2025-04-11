@@ -69,6 +69,16 @@ export default function ProductClient({ productId }: ProductProps) {
           throw new Error('Artwork not found');
         }
 
+        // Parse dimensions if it's a string
+        if (artwork.dimensions && typeof artwork.dimensions === 'string') {
+          try {
+            artwork.dimensions = JSON.parse(artwork.dimensions);
+          } catch (e) {
+            console.error('Failed to parse dimensions:', e);
+            // Keep the original value if parsing fails
+          }
+        }
+
         // Fetch user profile data for the artist
         if (artwork.user_id) {
           const { data: profileData } = await supabase
@@ -235,37 +245,6 @@ export default function ProductClient({ productId }: ProductProps) {
           </div>
         </div>
 
-        {/* Artist Info */}
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold mb-6">About Artist</h2>
-          <div className="bg-white p-6 rounded-lg">
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="relative w-20 h-20 rounded-full overflow-hidden">
-                <SupabaseImage
-                  src={artistImage}
-                  alt={product.artist_name}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold">{product.artist_name}</h3>
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <div className="px-4 py-2 bg-gray-50 rounded-full">
-                    Artist From: {product.location || 'Unknown'}
-                  </div>
-                  <div className="px-4 py-2 bg-gray-50 rounded-full">
-                    Created: {product.year || 'Unknown'}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <p className="text-gray-600">
-              {product.provenance || 'No artist biography available.'}
-            </p>
-          </div>
-        </div>
-
         {/* Art Details */}
         <div className="mt-16">
           <h2 className="text-2xl font-bold mb-6">Artwork Details</h2>
@@ -275,7 +254,7 @@ export default function ProductClient({ productId }: ProductProps) {
                 Location: {product.location || 'Unknown'}
               </div>
               <div className="px-4 py-2 bg-gray-50 rounded-full text-center">
-                Created: {product.year || 'Unknown'}
+                Year of Creation: {product.year || 'Unknown'}
               </div>
               <div className="px-4 py-2 bg-gray-50 rounded-full text-center">
                 Size: {product.dimensions ? 
@@ -283,9 +262,10 @@ export default function ProductClient({ productId }: ProductProps) {
                   'Unknown'}
               </div>
             </div>
-            <p className="text-gray-600">
-              {product.provenance || 'No additional information available about this artwork.'}
-            </p>
+            <div className="mb-6">
+              <h3 className="text-lg font-medium mb-2">Artist: {product.artist_name}</h3>
+              <p className="text-gray-600">{product.provenance || 'No additional information available about this artwork.'}</p>
+            </div>
           </div>
         </div>
       </div>
