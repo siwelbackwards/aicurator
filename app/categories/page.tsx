@@ -11,7 +11,7 @@ const categories = [
     stats: {
       items: '2,500+',
       artists: '450+',
-      avgValue: '$15,000'
+      avgValue: '$33,000'
     }
   },
   {
@@ -22,7 +22,7 @@ const categories = [
     stats: {
       items: '1,200+',
       artists: '280+',
-      avgValue: '$25,000'
+      avgValue: '$56,000'
     }
   },
   {
@@ -33,7 +33,7 @@ const categories = [
     stats: {
       items: '3,800+',
       artists: '620+',
-      avgValue: '$8,000'
+      avgValue: '$23,000'
     }
   },
   {
@@ -44,7 +44,7 @@ const categories = [
     stats: {
       items: '950+',
       artists: '150+',
-      avgValue: '$12,000'
+      avgValue: '$53,000'
     }
   },
   {
@@ -55,7 +55,7 @@ const categories = [
     stats: {
       items: '750+',
       artists: '180+',
-      avgValue: '$18,000'
+      avgValue: '$37,000'
     }
   }
 ];
