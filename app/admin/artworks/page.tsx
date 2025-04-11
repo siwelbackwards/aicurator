@@ -206,15 +206,28 @@ export default function AdminArtworksPage() {
               {artworks.map((artwork) => (
                 <Card key={artwork.id} className="overflow-hidden">
                   <div className="relative aspect-square">
-                    <Image
-                      src={artwork.images?.[0]?.url || '/placeholder.webp'}
-                      alt={artwork.title}
-                      fill
-                      className="object-cover"
-                    />
+                    <Link href={`/artwork/${artwork.id}`}>
+                      <Image
+                        src={(artwork.images && artwork.images.length > 0) 
+                          ? artwork.images[0].url.replace('/artwork-images/artwork-images/', '/artwork-images/') 
+                          : '/placeholder.webp'}
+                        alt={artwork.title}
+                        fill
+                        className="object-cover cursor-pointer"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = '/placeholder.webp';
+                        }}
+                      />
+                    </Link>
                   </div>
                   <CardHeader>
-                    <CardTitle>{artwork.title}</CardTitle>
+                    <CardTitle>
+                      <Link href={`/artwork/${artwork.id}`} className="hover:underline">
+                        {artwork.title}
+                      </Link>
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
@@ -262,15 +275,28 @@ export default function AdminArtworksPage() {
               {artworks.map((artwork) => (
                 <Card key={artwork.id}>
                   <div className="relative aspect-square">
-                    <Image
-                      src={artwork.images?.[0]?.url || '/placeholder.webp'}
-                      alt={artwork.title}
-                      fill
-                      className="object-cover"
-                    />
+                    <Link href={`/artwork/${artwork.id}`}>
+                      <Image
+                        src={(artwork.images && artwork.images.length > 0) 
+                          ? artwork.images[0].url.replace('/artwork-images/artwork-images/', '/artwork-images/') 
+                          : '/placeholder.webp'}
+                        alt={artwork.title}
+                        fill
+                        className="object-cover cursor-pointer"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = '/placeholder.webp';
+                        }}
+                      />
+                    </Link>
                   </div>
                   <CardContent className="pt-4">
-                    <h3 className="font-semibold">{artwork.title}</h3>
+                    <h3 className="font-semibold">
+                      <Link href={`/artwork/${artwork.id}`} className="hover:underline">
+                        {artwork.title}
+                      </Link>
+                    </h3>
                     <p className="text-sm">£{artwork.price.toLocaleString()}</p>
                     <div className="mt-2">
                       <Button 
@@ -300,15 +326,28 @@ export default function AdminArtworksPage() {
               {artworks.map((artwork) => (
                 <Card key={artwork.id}>
                   <div className="relative aspect-square">
-                    <Image
-                      src={artwork.images?.[0]?.url || '/placeholder.webp'}
-                      alt={artwork.title}
-                      fill
-                      className="object-cover"
-                    />
+                    <Link href={`/artwork/${artwork.id}`}>
+                      <Image
+                        src={(artwork.images && artwork.images.length > 0) 
+                          ? artwork.images[0].url.replace('/artwork-images/artwork-images/', '/artwork-images/') 
+                          : '/placeholder.webp'}
+                        alt={artwork.title}
+                        fill
+                        className="object-cover cursor-pointer"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = '/placeholder.webp';
+                        }}
+                      />
+                    </Link>
                   </div>
                   <CardContent className="pt-4">
-                    <h3 className="font-semibold">{artwork.title}</h3>
+                    <h3 className="font-semibold">
+                      <Link href={`/artwork/${artwork.id}`} className="hover:underline">
+                        {artwork.title}
+                      </Link>
+                    </h3>
                     <p className="text-sm">£{artwork.price.toLocaleString()}</p>
                     <div className="mt-2">
                       <Button 
