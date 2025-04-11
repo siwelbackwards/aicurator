@@ -203,12 +203,20 @@ export default function AdminArtworksPage() {
             <div className="text-center py-8 text-gray-500">No pending artworks to review</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {artworks.map((artwork) => (
+              {artworks.map((artwork) => {
+                // Extract the primary image or first available image
+                const imageUrl = artwork.images && artwork.images.length > 0 
+                  ? (artwork.images.find(img => img.is_primary)?.url || artwork.images[0].url)
+                  : undefined;
+                
+                console.log(`Artwork ID: ${artwork.id}, Title: ${artwork.title}, Image: ${imageUrl}`);
+                
+                return (
                 <Card key={artwork.id} className="overflow-hidden">
                   <div className="relative aspect-square">
                     <Link href={`/artwork/${artwork.id}`}>
                       <SupabaseImage
-                        src={artwork.images && artwork.images.length > 0 ? artwork.images[0].url : undefined}
+                        src={imageUrl}
                         alt={artwork.title}
                         fill
                         className="object-cover cursor-pointer"
@@ -252,7 +260,8 @@ export default function AdminArtworksPage() {
                     </Button>
                   </CardFooter>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -265,12 +274,17 @@ export default function AdminArtworksPage() {
             <div className="text-center py-8 text-gray-500">No approved artworks</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {artworks.map((artwork) => (
+              {artworks.map((artwork) => {
+                const imageUrl = artwork.images && artwork.images.length > 0 
+                  ? (artwork.images.find(img => img.is_primary)?.url || artwork.images[0].url)
+                  : undefined;
+                
+                return (
                 <Card key={artwork.id}>
                   <div className="relative aspect-square">
                     <Link href={`/artwork/${artwork.id}`}>
                       <SupabaseImage
-                        src={artwork.images && artwork.images.length > 0 ? artwork.images[0].url : undefined}
+                        src={imageUrl}
                         alt={artwork.title}
                         fill
                         className="object-cover cursor-pointer"
@@ -296,7 +310,8 @@ export default function AdminArtworksPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -309,12 +324,17 @@ export default function AdminArtworksPage() {
             <div className="text-center py-8 text-gray-500">No rejected artworks</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {artworks.map((artwork) => (
+              {artworks.map((artwork) => {
+                const imageUrl = artwork.images && artwork.images.length > 0 
+                  ? (artwork.images.find(img => img.is_primary)?.url || artwork.images[0].url)
+                  : undefined;
+                
+                return (
                 <Card key={artwork.id}>
                   <div className="relative aspect-square">
                     <Link href={`/artwork/${artwork.id}`}>
                       <SupabaseImage
-                        src={artwork.images && artwork.images.length > 0 ? artwork.images[0].url : undefined}
+                        src={imageUrl}
                         alt={artwork.title}
                         fill
                         className="object-cover cursor-pointer"
@@ -340,7 +360,8 @@ export default function AdminArtworksPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>

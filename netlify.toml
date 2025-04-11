@@ -35,8 +35,9 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     # Update CSP to allow inline styles and Supabase
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data: https://*.supabase.co https://*.unsplash.com;"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co https://*.supabase.net https://api.* wss://*.supabase.co; img-src 'self' data: blob: https://*.supabase.co https://*.supabase.net https://*.unsplash.com https://storage.googleapis.com; media-src 'self' https://*.supabase.co;"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    Access-Control-Allow-Origin = "*"
 
 # Cache settings for static assets
 [[headers]]

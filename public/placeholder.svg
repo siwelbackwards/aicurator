@@ -1,0 +1,5 @@
+<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="400" fill="#f0f0f0"/>
+  <text x="50%" y="50%" font-family="Arial" font-size="24" text-anchor="middle" fill="#888">Image Unavailable</text>
+  <path d="M180,140 L220,140 L220,180 L260,180 L260,220 L220,220 L220,260 L180,260 L180,220 L140,220 L140,180 L180,180 Z" fill="#ccc"/>
+</svg> 
