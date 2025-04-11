@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-const { copyFileSync } = require('fs');
+const { copyFileSync, existsSync, mkdirSync } = require('fs');
 const { join } = require('path');
 
 const nextConfig = {
@@ -32,9 +32,17 @@ const nextConfig = {
   // Copy env.js to the output directory
   onBuildComplete: async () => {
     try {
+      const outDir = join(__dirname, 'out');
+      
+      // Ensure output directory exists
+      if (!existsSync(outDir)) {
+        mkdirSync(outDir, { recursive: true });
+      }
+      
+      // Copy env.js to output directory
       copyFileSync(
         join(__dirname, 'public', 'env.js'),
-        join(__dirname, 'out', 'env.js')
+        join(outDir, 'env.js')
       );
       console.log('Successfully copied env.js to output directory');
     } catch (error) {
