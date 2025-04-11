@@ -44,13 +44,43 @@ export default function SettingsPage() {
           .eq('id', user.id)
           .single();
 
-        if (error) throw error;
+        if (error) {
+          if (error.code === 'PGRST116') {
+            // Profile doesn't exist yet, create a new one
+            console.log('Profile not found, creating a new one...');
+            await createInitialProfile(user.id, user.email);
+            return;
+          }
+          throw error;
+        }
         
         setProfile(data);
         setFullName(data.full_name || '');
         setAvatarUrl(data.avatar_url);
       } catch (error) {
         console.error('Error fetching profile:', error);
+      }
+    };
+
+    const createInitialProfile = async (userId: string, email?: string) => {
+      try {
+        const newProfile = {
+          id: userId,
+          full_name: '',
+          email: email || '',
+          avatar_url: null,
+          updated_at: new Date().toISOString()
+        };
+        
+        const { error } = await supabase
+          .from('profiles')
+          .insert(newProfile);
+        
+        if (error) throw error;
+        
+        setProfile(newProfile as Profile);
+      } catch (error) {
+        console.error('Error creating initial profile:', error);
       }
     };
 
@@ -110,6 +140,18 @@ export default function SettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
+      // First check if user settings already exist
+      const { data: existingSettings, error: fetchError } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError;
+      }
+
+      // Use upsert to handle both insert and update cases
       const { error } = await supabase
         .from('user_settings')
         .upsert({

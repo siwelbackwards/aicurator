@@ -16,6 +16,12 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access to profiles"
 ON public.profiles FOR SELECT USING (true);
 
+-- Policy for users to insert their own profiles
+CREATE POLICY "Allow users to insert their own profiles"
+ON public.profiles 
+FOR INSERT 
+WITH CHECK (auth.uid() = id);
+
 -- Policy for users to update their own profiles
 CREATE POLICY "Allow users to update their own profiles"
 ON public.profiles 
