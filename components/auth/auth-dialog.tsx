@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import SignIn from './sign-in';
 import SignUp from './sign-up';
@@ -24,6 +25,12 @@ export default function AuthDialog({ open, onOpenChange, initialMode = 'signin' 
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{mode === 'signin' ? 'Sign In' : 'Create Account'}</DialogTitle>
+          <DialogDescription>
+            {mode === 'signin' 
+              ? 'Enter your credentials to access your account'
+              : 'Create a new account to start selling your artwork'
+            }
+          </DialogDescription>
         </DialogHeader>
         {mode === 'signin' ? (
           <SignIn onModeChange={() => setMode('signup')} onClose={() => onOpenChange(false)} />

@@ -26,6 +26,7 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
     hasUrl: false,
     hasKey: false
   });
+  const [error, setError] = useState<string | null>(null);
 
   // Check environment variables and connection
   useEffect(() => {
@@ -50,7 +51,6 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
       try {
         const { data, error } = await supabase.from('profiles').select('count').limit(1);
         if (error) throw error;
-        console.log('Connection test successful');
         setConnectionError(false);
       } catch (error) {
         console.error('Connection test failed:', error);
@@ -69,46 +69,37 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     try {
-      console.log('Attempting sign in with:', { email: formData.email });
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
       if (error) {
-        console.error('Auth error response:', error);
-        throw error;
+        if (error.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please try again.');
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Please confirm your email before signing in.');
+        } else {
+          setError(error.message);
+        }
+        return;
       }
 
-      if (data.user) {
-        // Ensure session is set
-        console.log('Sign in successful');
-        await supabase.auth.getSession();
-        
-        toast.success('Signed in successfully!');
-        onClose();
-        
-        // Get the redirect URL from the query parameters
-        const redirectedFrom = searchParams.get('redirectedFrom');
-        if (redirectedFrom) {
-          router.push(redirectedFrom);
-        } else {
-          router.refresh();
-        }
-      }
-    } catch (error) {
-      console.error('Error signing in:', error);
+      toast.success('Successfully signed in!');
+      onClose();
       
-      // Check if it's a connection error
-      if (error instanceof Error && 
-          (error.message.includes("fetch") || error.message.includes("network"))) {
-        toast.error("Cannot connect to authentication service. Please check your internet connection.");
-        setConnectionError(true);
+      // Get the redirect URL from the query parameters
+      const redirectedFrom = searchParams.get('redirectedFrom');
+      if (redirectedFrom) {
+        router.push(redirectedFrom);
       } else {
-        toast.error(error instanceof Error ? error.message : 'Failed to sign in');
+        router.refresh();
       }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -150,6 +141,12 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
             <li>Incorrect Supabase URL configuration</li>
             <li>Supabase service being temporarily unavailable</li>
           </ul>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-300 rounded text-sm text-red-700">
+          <p className="font-bold">Error: {error}</p>
         </div>
       )}
 

@@ -30,6 +30,7 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
     hasUrl: false,
     hasKey: false
   });
+  const [error, setError] = useState<string | null>(null);
 
   // Check environment variables and connection
   useEffect(() => {
@@ -73,14 +74,16 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
+      setError('Passwords do not match');
       setLoading(false);
       return;
     }
 
     try {
+      // First, sign up the user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -100,34 +103,67 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
       }
 
       if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            title: formData.title,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            user_type: formData.userType,
-          });
+        // Create the profile with a retry mechanism
+        let retries = 3;
+        let profileError = null;
 
-        if (profileError) {
-          throw profileError;
+        while (retries > 0) {
+          const { error } = await supabase
+            .from('profiles')
+            .insert({
+              id: authData.user.id,
+              title: formData.title,
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              user_type: formData.userType,
+              email: formData.email,
+            });
+
+          if (!error) {
+            profileError = null;
+            break;
+          }
+
+          profileError = error;
+          retries--;
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
         }
 
-        toast.success('Account created successfully!');
-        onClose();
-        router.refresh();
+        if (profileError) {
+          console.error('Failed to create profile after retries:', profileError);
+          // Don't throw here, as the user is still created
+        }
+
+        // Sign in the user immediately after signup
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (signInError) {
+          console.error('Error signing in after signup:', signInError);
+          toast.error('Account created but failed to sign in automatically. Please sign in manually.');
+        } else {
+          toast.success('Account created and signed in successfully!');
+          onClose();
+          router.refresh();
+          router.push('/'); // Redirect to home page instead of dashboard
+        }
       }
     } catch (error) {
       console.error('Error signing up:', error);
       
-      // Check if it's a connection error
-      if (error instanceof Error && 
-          (error.message.includes("fetch") || error.message.includes("network"))) {
-        toast.error("Cannot connect to authentication service. Please check your internet connection.");
-        setConnectionError(true);
+      if (error instanceof Error) {
+        if (error.message.includes('Email already registered')) {
+          setError('This email is already registered. Please sign in instead.');
+        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+          setError('Cannot connect to authentication service. Please check your internet connection.');
+          setConnectionError(true);
+        } else {
+          setError(error.message);
+        }
       } else {
-        toast.error(error instanceof Error ? error.message : 'Failed to sign up');
+        setError('An unexpected error occurred. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -273,6 +309,12 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
           Already have an account? Sign in
         </button>
       </div>
+
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-300 rounded text-sm text-red-700">
+          <p className="font-bold">{error}</p>
+        </div>
+      )}
 
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? 'Creating account...' : 'Create Account'}

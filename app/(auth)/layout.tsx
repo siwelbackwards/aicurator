@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
 
 export default function AuthLayout({
   children,
@@ -27,8 +28,19 @@ export default function AuthLayout({
   }, [router]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/sign-in');
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        toast.error('Failed to sign out. Please try again.');
+        return;
+      }
+      toast.success('Successfully signed out');
+      router.push('/');
+      router.refresh();
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast.error('An unexpected error occurred while signing out');
+    }
   };
 
   if (loading) {
