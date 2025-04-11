@@ -123,15 +123,29 @@ function initSupabaseClient() {
   }
 }
 
+// Lazy-load admin client to avoid server-side initialization errors
+let adminClientInstance: ReturnType<typeof createClientOriginal> | null = null;
+
 // Initialize admin client with service role key
 function initAdminClient() {
+  // Ensure we're in browser environment for this client
+  if (typeof window === 'undefined') {
+    console.error('Admin client can only be initialized in browser context');
+    throw new Error('Admin client requires browser environment');
+  }
+
+  // Return existing instance if already created
+  if (adminClientInstance) {
+    return adminClientInstance;
+  }
+
   // Get URL 
   const { url } = debugKeys();
   let supabaseUrl = url;
   let serviceRoleKey = '';
   
   // Get service role key
-  if (typeof window !== 'undefined' && window.ENV?.SUPABASE_SERVICE_ROLE_KEY) {
+  if (window.ENV?.SUPABASE_SERVICE_ROLE_KEY) {
     serviceRoleKey = window.ENV.SUPABASE_SERVICE_ROLE_KEY;
   } else if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
     serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -145,21 +159,24 @@ function initAdminClient() {
   }
   
   try {
-    return createClientOriginal(supabaseUrl, serviceRoleKey, {
+    adminClientInstance = createClientOriginal(supabaseUrl, serviceRoleKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
       }
     });
+    return adminClientInstance;
   } catch (error) {
     console.error('Error creating admin Supabase client:', error);
     throw error;
   }
 }
 
-// Export Supabase clients
+// Export Supabase client
 export const supabase = initSupabaseClient();
-export const supabaseAdmin = initAdminClient();
+
+// Export admin client as a getter to ensure it's only initialized in browser context
+export const supabaseAdmin = typeof window !== 'undefined' ? initAdminClient() : null as any;
 
 // Connection test function to check configuration
 export async function testConnection() {
@@ -182,7 +199,13 @@ export async function testConnection() {
 
 // Artwork image functions
 export async function deleteArtworkImage(filePath: string) {
-  const { error } = await supabaseAdmin.storage.from('artwork-images').remove([filePath]);
+  if (typeof window === 'undefined') {
+    console.error('Cannot delete artwork image outside browser context');
+    return;
+  }
+  
+  const adminClient = initAdminClient();
+  const { error } = await adminClient.storage.from('artwork-images').remove([filePath]);
   if (error) {
     throw new Error(`Failed to delete image: ${error.message}`);
   }

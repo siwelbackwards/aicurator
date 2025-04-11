@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -38,21 +38,33 @@ interface Artwork {
 export default function AdminArtworksPage() {
   const [artworks, setArtworks] = useState<Artwork[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentTab, setCurrentTab] = useState<string>('pending');
+  const [currentTab, setCurrentTab] = useState('pending');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
+  // Set isClient to true when component mounts (client-side only)
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Separate admin check from artwork fetching
+  useEffect(() => {
+    // Don't run this effect on server-side rendering
+    if (!isClient) return;
+    
     const checkAdminStatus = async () => {
       try {
-        const { data: { user } } = await supabaseAdmin.auth.getUser();
+        // Use regular supabase client first to get the user
+        const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
-          window.location.href = '/sign-in';
+          window.location.href = '/';
           return;
         }
 
         // Check if user has admin role
-        const { data: profile, error: profileError } = await supabaseAdmin
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
@@ -62,27 +74,36 @@ export default function AdminArtworksPage() {
 
         if (profile?.role !== 'admin') {
           // Redirect non-admin users
-          window.location.href = '/dashboard';
+          window.location.href = '/';
           toast.error('You do not have permission to access the admin area');
           return;
         }
 
         setIsAdmin(true);
-        fetchArtworks(currentTab);
+        setInitialized(true);
       } catch (error) {
         console.error('Error checking admin status:', error);
-        window.location.href = '/dashboard';
+        window.location.href = '/';
       }
     };
 
     checkAdminStatus();
-  }, [currentTab]);
+  }, [isClient]);
+
+  // Only fetch artworks when tab changes and admin status is confirmed
+  useEffect(() => {
+    if (isAdmin && initialized && isClient) {
+      fetchArtworks(currentTab);
+    }
+  }, [currentTab, isAdmin, initialized, isClient]);
 
   const fetchArtworks = async (status = 'pending') => {
+    if (!isClient) return;
+    
     try {
       setLoading(true);
       
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from('artworks')
         .select(`
           *,
@@ -103,8 +124,10 @@ export default function AdminArtworksPage() {
   };
 
   const handleUpdateStatus = async (artworkId: string, newStatus: string) => {
+    if (!isClient) return;
+    
     try {
-      const { error } = await supabaseAdmin
+      const { error } = await supabase
         .from('artworks')
         .update({ status: newStatus })
         .eq('id', artworkId);
@@ -121,18 +144,19 @@ export default function AdminArtworksPage() {
     }
   };
 
-  if (!isAdmin) {
-    return null; // Don't render anything while checking permissions
+  if (!isClient) {
+    return null; // Don't render anything during SSR
+  }
+
+  if (!isAdmin || !initialized) {
+    return <div className="container mx-auto py-8 text-center">Loading...</div>;
   }
 
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">Artwork Management</h1>
       
-      <Tabs defaultValue="pending" onValueChange={(value: string) => {
-        setCurrentTab(value);
-        fetchArtworks(value);
-      }}>
+      <Tabs value={currentTab} onValueChange={setCurrentTab} defaultValue="pending">
         <TabsList className="mb-8">
           <TabsTrigger value="pending">Pending Approval</TabsTrigger>
           <TabsTrigger value="approved">Approved</TabsTrigger>
