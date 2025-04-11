@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Menu as MenuIcon, X, UserIcon, Settings, LogOut, ShoppingBag } from 'lucide-react';
+import { Menu as MenuIcon, X, UserIcon, Settings, LogOut, ShoppingBag, ShieldAlert } from 'lucide-react';
 import { Menu } from '@headlessui/react';
 import { Button } from '@/components/ui/button';
 import AuthDialog from '@/components/auth/auth-dialog';
@@ -24,10 +24,25 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (currentUser) {
+        // Check if user has admin role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', currentUser.id)
+          .single();
+          
+        setIsAdmin(profile?.role === 'admin');
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -116,6 +131,21 @@ export default function Navbar() {
                       </Link>
                     )}
                   </Menu.Item>
+                  {isAdmin && (
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          href="/admin/artworks"
+                          className={`${
+                            active ? 'bg-gray-100' : ''
+                          } flex items-center px-4 py-2 text-sm`}
+                        >
+                          <ShieldAlert className="h-4 w-4 mr-2" />
+                          Admin
+                        </Link>
+                      )}
+                    </Menu.Item>
+                  )}
                   <Menu.Item>
                     {({ active }) => (
                       <button
@@ -195,6 +225,15 @@ export default function Navbar() {
                         >
                           Sell
                         </Link>
+                        {isAdmin && (
+                          <Link
+                            href="/admin/artworks"
+                            className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 hover:bg-gray-50 dark:hover:bg-gray-800"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            Admin
+                          </Link>
+                        )}
                         <button
                           onClick={handleSignOut}
                           className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 hover:bg-gray-50 dark:hover:bg-gray-800 w-full text-left"
