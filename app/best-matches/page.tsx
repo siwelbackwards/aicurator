@@ -12,27 +12,27 @@ const recommendations = [
     image: 'https://images.unsplash.com/photo-1579783901586-d88db74b4fe4?auto=format&fit=crop&q=80',
     description: 'A stunning masterpiece that perfectly aligns with your appreciation for bold colors and abstract expressions.',
     matchScore: 98,
-    price: 2499,
+    price: 10000,
     tags: ['Abstract', 'Contemporary', 'Mixed Media']
   },
   {
     id: 2,
-    title: 'Guernica',
+    title: 'Atelier "La Californie"',
     artist: 'Pablo Picasso',
-    image: 'https://upload.wikimedia.org/wikipedia/en/7/74/PicassoGuernica.jpg',
+    image: 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co/storage/v1/object/public/artwork-images/public/Olafur%20Eliasson3.jpg',
     description: 'A powerful masterpiece that resonates with your collection theme.',
     matchScore: 95,
-    price: 3299,
+    price: 3300,
     tags: ['Cubism', 'Modern Art', 'Oil', 'Political', 'Monochrome']
   },
   {
     id: 3,
-    title: 'Starry Night',
-    artist: 'Vincent van Gogh',
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1200px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg',
+    title: 'Untitled (Woman Sitting)',
+    artist: 'Pablo Picasso',
+    image: 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co/storage/v1/object/public/artwork-images/public/picasso%20woman.webp',
     description: 'An impressionist masterpiece that complements your existing collection of nature-themed artwork.',
     matchScore: 94,
-    price: 4199,
+    price: 5000,
     tags: ['Post-Impressionism', 'Landscape', 'Oil', 'Night Scene', 'Expressionist']
   }
 ];
