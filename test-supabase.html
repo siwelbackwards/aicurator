@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Supabase API Key Test</title>
+  <script>
+    // Test different keys
+    window.onload = function() {
+      // The keys to test
+      const keys = {
+        // Key from .env file
+        'env': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.yN5KM7w8AjsXFOwdpQ4Oy7-Pf7D58fohL1tgnFBK_os',
+        
+        // Key from hardcoded fallback in supabase.ts
+        'fallback': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw'
+      };
+      
+      // Test each key
+      Object.keys(keys).forEach(keyName => {
+        testKey(keyName, keys[keyName]);
+      });
+    };
+    
+    // Function to test a specific key
+    function testKey(keyName, apiKey) {
+      const url = 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co/rest/v1/';
+      
+      // Log attempt
+      log(`Testing key "${keyName}": ${apiKey.substring(0, 10)}...`);
+      
+      // Make fetch request
+      fetch(url, {
+        method: 'GET',
+        headers: {
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`
+        }
+      })
+      .then(response => {
+        log(`Key "${keyName}" status: ${response.status} ${response.statusText}`);
+        if (!response.ok) {
+          log(`Key "${keyName}" failed with status ${response.status}`);
+          return response.text().then(text => {
+            try {
+              return JSON.parse(text);
+            } catch (e) {
+              return text;
+            }
+          });
+        }
+        return response.json();
+      })
+      .then(data => {
+        log(`Key "${keyName}" response: ${JSON.stringify(data)}`);
+      })
+      .catch(error => {
+        log(`Key "${keyName}" error: ${error.message}`);
+      });
+    }
+    
+    // Helper function to log results to the page
+    function log(message) {
+      const logElement = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.textContent = message;
+      logElement.appendChild(entry);
+      console.log(message);
+    }
+  </script>
+  <style>
+    body { font-family: monospace; margin: 20px; }
+    #log { margin-top: 20px; white-space: pre-wrap; }
+    .key-section { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Supabase API Key Test</h1>
+  <p>Testing connection to: https://cpzzmpgbyzcqbwkaaqdy.supabase.co</p>
+  
+  <div class="key-section">
+    <h2>Manual Test</h2>
+    <p>Enter your own key to test:</p>
+    <input type="text" id="manual-key" style="width: 80%;" 
+           placeholder="Enter Supabase API key to test">
+    <button onclick="testKey('manual', document.getElementById('manual-key').value)">
+      Test Key
+    </button>
+  </div>
+  
+  <h2>Test Results:</h2>
+  <div id="log"></div>
+</body>
+</html> 
