@@ -78,8 +78,12 @@ const artists = [
 export default function FutureMastersPage() {
   const router = useRouter();
 
-  const handleViewPortfolio = () => {
-    router.push('/product');
+  const handleViewPortfolio = (e: React.MouseEvent) => {
+    // Prevent event bubbling
+    e.stopPropagation();
+    // Do nothing - intentionally disabled
+    console.log('Portfolio view disabled as requested');
+    // No router.push call, so links don't work
   };
 
   return (
@@ -112,7 +116,7 @@ export default function FutureMastersPage() {
             <div 
               key={artist.id} 
               className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-              onClick={handleViewPortfolio}
+              onClick={(e) => handleViewPortfolio(e)}
             >
               <div className="aspect-[16/9] relative overflow-hidden">
                 <div
@@ -160,7 +164,7 @@ export default function FutureMastersPage() {
 
                 <Button 
                   className="w-full gap-2"
-                  onClick={handleViewPortfolio}
+                  onClick={(e) => handleViewPortfolio(e)}
                 >
                   View Full Portfolio
                   <ArrowRight className="w-4 h-4" />
