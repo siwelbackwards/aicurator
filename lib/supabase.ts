@@ -6,6 +6,7 @@ declare global {
     ENV?: {
       NEXT_PUBLIC_SUPABASE_URL?: string;
       NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
+      SUPABASE_SERVICE_ROLE_KEY?: string;
       [key: string]: any;
     };
   }
@@ -46,33 +47,29 @@ const debugEnv = () => {
 function validateEnv() {
   let supabaseUrl = '';
   let supabaseAnonKey = '';
+  let supabaseServiceRoleKey = '';
 
   // Check for variables in window.ENV (Netlify setup)
   if (typeof window !== 'undefined' && window.ENV) {
-    console.log('Using Supabase credentials from window.ENV');
     supabaseUrl = window.ENV.NEXT_PUBLIC_SUPABASE_URL || '';
     supabaseAnonKey = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    
-    // Debug key (only showing first/last few chars for security)
-    if (supabaseAnonKey) {
-      const keyStart = supabaseAnonKey.substring(0, 10);
-      const keyEnd = supabaseAnonKey.substring(supabaseAnonKey.length - 5);
-      console.log(`Key found with format: ${keyStart}...${keyEnd}, length: ${supabaseAnonKey.length}`);
-    } else {
-      console.error('No key found in window.ENV');
-    }
+    supabaseServiceRoleKey = window.ENV.SUPABASE_SERVICE_ROLE_KEY || '';
+    console.log('Using Supabase credentials from window.ENV');
   } 
   // Check for variables in process.env (standard setup)
   else if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    console.log('Using Supabase credentials from process.env');
     supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    console.log('Using Supabase credentials from process.env');
   }
   // Fallback values for development
   else if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    console.log('Using hardcoded fallback Supabase credentials for localhost');
     supabaseUrl = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
     supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw";
+    // Hardcoded service role key for localhost only
+    supabaseServiceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Mzk0NzAwMSwiZXhwIjoyMDU5NTIzMDAxfQ.1fjCF_WyFoRq_8THFURMosh3txmDaLsx7degHyYIycw";
+    console.log('Using fallback Supabase credentials for localhost');
   }
 
   // Validate URL format
@@ -82,24 +79,14 @@ function validateEnv() {
   
   // Validate key format (without revealing full key)
   if (!supabaseAnonKey || supabaseAnonKey.length < 20) {
-    console.error('Invalid SUPABASE_ANON_KEY format - length too short');
+    console.error('Invalid SUPABASE_ANON_KEY format');
   }
 
-  // Validate JWT structure (should be JWT format with 3 parts separated by dots)
-  if (supabaseAnonKey && !supabaseAnonKey.match(/^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/)) {
-    console.error('Invalid JWT format for SUPABASE_ANON_KEY');
-  }
-
-  return { supabaseUrl, supabaseAnonKey };
+  return { supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey };
 }
 
 // Initialize Supabase client
-const { supabaseUrl, supabaseAnonKey } = validateEnv();
-
-console.log('Creating Supabase client with:', { 
-  url: supabaseUrl, 
-  keyLength: supabaseAnonKey?.length
-});
+const { supabaseUrl, supabaseAnonKey, supabaseServiceRoleKey } = validateEnv();
 
 // Log critical information for debugging
 if (!supabaseUrl) {
@@ -114,27 +101,21 @@ if (!supabaseAnonKey) {
   console.error('Missing Supabase Anon Key - authentication will fail!');
 }
 
-// Create Supabase client with better error handling
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
-    },
-    global: {
-      // Add error handling and logging
-      fetch: (...args) => {
-        return fetch(...args).catch(error => {
-          console.error('Supabase fetch error:', error);
-          throw error;
-        });
-      }
-    }
+// Regular client with anon key for user operations
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    detectSessionInUrl: true,
   }
-);
+});
+
+// Admin client with service role key for privileged operations
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  }
+});
 
 // Test connection when client is initialized
 if (typeof window !== 'undefined') {
@@ -214,10 +195,7 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
 
 // Function to delete an image from Supabase Storage
 export async function deleteArtworkImage(filePath: string) {
-  const { error } = await supabase.storage
-    .from(ARTWORK_IMAGES_BUCKET)
-    .remove([filePath]);
-
+  const { error } = await supabaseAdmin.storage.from('artwork-images').remove([filePath]);
   if (error) {
     throw new Error(`Failed to delete image: ${error.message}`);
   }
@@ -229,7 +207,7 @@ export async function testConnection() {
     const { data, error } = await supabase.from('artworks').select('count()', { count: 'exact' }).limit(1);
     
     if (error) {
-      console.error('Supabase connection test failed:', error);
+      console.error('Supabase connection test failed:', error.message);
       return false;
     }
     
@@ -246,8 +224,14 @@ export function getConnectionStatus() {
   try {
     const url = supabaseUrl || 'No URL found';
     const keyStatus = supabaseAnonKey ? 'Key found' : 'No key found';
-    return { url, keyStatus, connected: !!(supabaseUrl && supabaseAnonKey) };
+    const serviceKeyStatus = supabaseServiceRoleKey ? 'Service role key found' : 'No service role key found';
+    return { 
+      url, 
+      keyStatus, 
+      serviceKeyStatus,
+      connected: !!(supabaseUrl && supabaseAnonKey)
+    };
   } catch (error) {
-    return { url: 'Error', keyStatus: 'Error', connected: false, error };
+    return { url: 'Error', keyStatus: 'Error', serviceKeyStatus: 'Error', connected: false, error };
   }
 }

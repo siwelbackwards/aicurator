@@ -45,34 +45,14 @@ if (window.process && window.process.env) {
             window.location.hostname.includes('netlify.live'));
   }
 
-  // Function to sanitize a possible JSON string
-  function safeParseJSON(jsonString) {
-    if (typeof jsonString !== 'string') return jsonString;
-    try {
-      // Check if it looks like a JSON string
-      if (jsonString.trim().startsWith('{') || jsonString.trim().startsWith('[')) {
-        return JSON.parse(jsonString);
-      }
-      return jsonString;
-    } catch (e) {
-      console.error('Error parsing JSON string:', e);
-      return jsonString;
-    }
-  }
-
-  // Function to clean keys that might have quotes or extra whitespace
-  function cleanKey(key) {
-    if (typeof key !== 'string') return key;
-    return key.trim().replace(/^["'](.*)["']$/, '$1');
-  }
-
   // Function to log environment variable status
   function logEnvStatus() {
     if (typeof window === 'undefined') return;
     
     console.log('Environment variables loaded: ' + 
       'NEXT_PUBLIC_SUPABASE_URL ' + (window.ENV.NEXT_PUBLIC_SUPABASE_URL ? '✓' : '✗') + ' ' +
-      'NEXT_PUBLIC_SUPABASE_ANON_KEY ' + (window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✓' : '✗')
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY ' + (window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✓' : '✗') + ' ' +
+      'SUPABASE_SERVICE_ROLE_KEY ' + (window.ENV.SUPABASE_SERVICE_ROLE_KEY ? '✓' : '✗')
     );
   }
 
@@ -81,31 +61,29 @@ if (window.process && window.process.env) {
     // Method 1: From Netlify runtime
     if (typeof window !== 'undefined' && window.netlifyEnv) {
       console.log('Loading environment variables from Netlify runtime');
-      Object.keys(window.netlifyEnv).forEach(key => {
-        window.ENV[key] = cleanKey(window.netlifyEnv[key]);
-      });
+      window.ENV = {
+        ...window.ENV,
+        ...window.netlifyEnv,
+      };
     } 
     // Method 2: From Netlify injected script
     else if (typeof window !== 'undefined' && window._env_) {
       console.log('Loading environment variables from injected script');
-      Object.keys(window._env_).forEach(key => {
-        window.ENV[key] = cleanKey(window._env_[key]);
-      });
+      window.ENV = {
+        ...window.ENV,
+        ...window._env_,
+      };
     } 
     // Method 3: Fall back to hardcoded values for Netlify preview deployments
     else if (isNetlify()) {
       console.log('Using fallback values for Netlify environment');
-      // These values must be correct and properly formatted
+      // These will be replaced by the actual values during build
       window.ENV = {
         ...window.ENV,
         NEXT_PUBLIC_SUPABASE_URL: "https://cpzzmpgbyzcqbwkaaqdy.supabase.co",
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw"
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw",
+        SUPABASE_SERVICE_ROLE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Mzk0NzAwMSwiZXhwIjoyMDU5NTIzMDAxfQ.1fjCF_WyFoRq_8THFURMosh3txmDaLsx7degHyYIycw"
       };
-    }
-
-    // Validate we have the required keys
-    if (!window.ENV.NEXT_PUBLIC_SUPABASE_URL || !window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      console.warn('Missing required Supabase environment variables!');
     }
   }
 
