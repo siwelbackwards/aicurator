@@ -1,15 +1,26 @@
 // This is a Server Component
 import ProductClient from './product-client';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { supabase } from '@/lib/supabase';
 
 // Add static params for build time generation
 export async function generateStaticParams() {
   try {
-    // For static export, we'll generate a dummy ID
-    // The actual data fetching happens client-side
-    return [{ id: 'placeholder' }];
+    // Get a few approved artworks to pre-generate
+    const { data, error } = await supabase
+      .from('artworks')
+      .select('id')
+      .eq('status', 'approved')
+      .limit(10);
+    
+    if (error || !data) {
+      console.error('Error generating static params:', error);
+      return [{ id: 'placeholder' }];
+    }
+    
+    const params = data.map(artwork => ({ id: artwork.id }));
+    
+    // Always include placeholder for fallback
+    return [...params, { id: 'placeholder' }];
   } catch (error) {
     console.error('Error generating static params:', error);
     return [{ id: 'placeholder' }];

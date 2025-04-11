@@ -23,50 +23,48 @@ declare global {
       SUPABASE_SERVICE_ROLE_KEY?: string;
       [key: string]: any;
     };
-    // Add global reference to supabase client
-    supabaseClientInstance?: any;
   }
 }
 
-// Debug function to check key values
-function debugKeys() {
-  // Get URL and key
+// Get environment config
+function getConfig() {
   let url = '';
-  let key = '';
+  let anonKey = '';
+  let serviceKey = '';
   
   // Browser environment
   if (typeof window !== 'undefined') {
-    // First try window.ENV (from env.js)
+    // Try window.ENV (from env.js)
     if (window.ENV?.NEXT_PUBLIC_SUPABASE_URL) {
       url = window.ENV.NEXT_PUBLIC_SUPABASE_URL;
-      key = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-      console.log('Keys from window.ENV');
+      anonKey = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      serviceKey = window.ENV.SUPABASE_SERVICE_ROLE_KEY || '';
     } 
     // Then try process.env
     else if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-      console.log('Keys from process.env');
+      anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
     }
   } 
   // Server environment
   else {
     url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    console.log('Keys from server process.env');
+    anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
   }
   
-  // Debug output - show partial key for verification
-  console.log('Supabase URL:', url);
-  if (key) {
-    // Only show first 10 chars, then hide the rest
-    console.log('Anon Key (partial):', key.substring(0, 10) + '...[hidden]');
-    console.log('Key length:', key.length);
-  } else {
-    console.log('Anon Key: Missing');
+  // Fallback values if needed
+  if (!isValidUrl(url) || !isValidKey(anonKey)) {
+    url = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
+    anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.yN5KM7w8AjsXFOwdpQ4Oy7-Pf7D58fohL1tgnFBK_os";
   }
   
-  return { url, key };
+  if (!isValidKey(serviceKey)) {
+    serviceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Mzk0NzAwMSwiZXhwIjoyMDU5NTIzMDAxfQ.1fjCF_WyFoRq_8THFURMosh3txmDaLsx7degHyYIycw";
+  }
+  
+  return { url, anonKey, serviceKey };
 }
 
 // Validate URL
@@ -85,148 +83,58 @@ function isValidKey(key: string): boolean {
   return /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(key);
 }
 
-// Create a global singleton Supabase client
-let supabaseClientInstance: any = null;
-let adminClientInstance: ReturnType<typeof createClientOriginal> | null = null;
+// Create clients with singleton pattern
+const config = getConfig();
 
-// Initialize Supabase client with built-in fallbacks
-function initSupabaseClient() {
-  // In server context, always create a new instance
+// Create a single Supabase client instance
+const createClient = () => {
   if (typeof window === 'undefined') {
-    return createServerClient();
-  }
-  
-  // In browser context, use singleton pattern
-  // Check for existing instance in global scope
-  if (window.supabaseClientInstance) {
-    return window.supabaseClientInstance;
-  }
-  
-  // Check for our module-level instance
-  if (supabaseClientInstance) {
-    return supabaseClientInstance;
-  }
-  
-  // Create new instance if none exists
-  const client = createBrowserClientInstance();
-  
-  // Store reference in both module and window scope
-  supabaseClientInstance = client;
-  window.supabaseClientInstance = client;
-  
-  return client;
-}
-
-// Create a browser client
-function createBrowserClientInstance() {
-  // Debug current keys
-  const { url, key } = debugKeys();
-  
-  // Final URL and key to use
-  let supabaseUrl = url;
-  let supabaseAnonKey = key;
-  
-  // Fallback values if needed
-  if (!isValidUrl(supabaseUrl) || !isValidKey(supabaseAnonKey)) {
-    console.log('Using hardcoded fallback values');
-    supabaseUrl = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
-    supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.yN5KM7w8AjsXFOwdpQ4Oy7-Pf7D58fohL1tgnFBK_os";
-  }
-  
-  // Create client with the final URL and key
-  console.log('Creating Supabase client with:');
-  console.log('- URL:', supabaseUrl);
-  console.log('- Key valid:', isValidKey(supabaseAnonKey));
-  
-  try {
-    return createSupabaseBrowserClient(supabaseUrl, supabaseAnonKey);
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-    throw error;
-  }
-}
-
-// Create a server client
-function createServerClient() {
-  // Debug current keys
-  const { url, key } = debugKeys();
-  
-  // Final URL and key to use
-  let supabaseUrl = url;
-  let supabaseAnonKey = key;
-  
-  // Fallback values if needed
-  if (!isValidUrl(supabaseUrl) || !isValidKey(supabaseAnonKey)) {
-    console.log('Using hardcoded fallback values');
-    supabaseUrl = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
-    supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.yN5KM7w8AjsXFOwdpQ4Oy7-Pf7D58fohL1tgnFBK_os";
-  }
-  
-  try {
-    // Use traditional client for SSR
-    return createClientOriginal(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        detectSessionInUrl: true,
-      }
-    });
-  } catch (error) {
-    console.error('Error creating Supabase server client:', error);
-    throw error;
-  }
-}
-
-// Initialize admin client with service role key
-function initAdminClient() {
-  // Ensure we're in browser environment for this client
-  if (typeof window === 'undefined') {
-    console.error('Admin client can only be initialized in browser context');
-    throw new Error('Admin client requires browser environment');
-  }
-
-  // Return existing instance if already created
-  if (adminClientInstance) {
-    return adminClientInstance;
-  }
-
-  // Get URL 
-  const { url } = debugKeys();
-  let supabaseUrl = url;
-  let serviceRoleKey = '';
-  
-  // Get service role key
-  if (window.ENV?.SUPABASE_SERVICE_ROLE_KEY) {
-    serviceRoleKey = window.ENV.SUPABASE_SERVICE_ROLE_KEY;
-  } else if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  }
-  
-  // Fallback values if needed
-  if (!isValidUrl(supabaseUrl) || !isValidKey(serviceRoleKey)) {
-    console.log('Using hardcoded fallback values for admin client');
-    supabaseUrl = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
-    serviceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Mzk0NzAwMSwiZXhwIjoyMDU5NTIzMDAxfQ.1fjCF_WyFoRq_8THFURMosh3txmDaLsx7degHyYIycw";
-  }
-  
-  try {
-    adminClientInstance = createClientOriginal(supabaseUrl, serviceRoleKey, {
+    // Server-side client
+    return createClientOriginal(config.url, config.anonKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
       }
     });
-    return adminClientInstance;
-  } catch (error) {
-    console.error('Error creating admin Supabase client:', error);
-    throw error;
+  } else {
+    // Client-side browser client
+    console.log('Creating Supabase browser client');
+    console.log('URL:', config.url);
+    console.log('Key valid:', isValidKey(config.anonKey));
+    
+    return createSupabaseBrowserClient(config.url, config.anonKey, {
+      auth: {
+        persistSession: true,
+        storageKey: 'supabase-auth',
+        flowType: 'pkce',
+      }
+    });
   }
-}
+};
 
-// Export Supabase client
-export const supabase = initSupabaseClient();
+// Create a single admin client instance
+const createAdminClient = () => {
+  if (typeof window === 'undefined') {
+    console.error('Admin client should not be used in server context');
+    return null;
+  }
+  
+  console.log('Creating Supabase admin client');
+  return createClientOriginal(config.url, config.serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    }
+  });
+};
 
-// Export admin client as a getter to ensure it's only initialized in browser context
-export const supabaseAdmin = typeof window !== 'undefined' ? initAdminClient() : null as any;
+// Single client instances
+const clientInstance = createClient();
+const adminClientInstance = typeof window !== 'undefined' ? createAdminClient() : null;
+
+// Export the client instances
+export const supabase = clientInstance;
+export const supabaseAdmin = adminClientInstance;
 
 // Connection test function to check configuration
 export async function testConnection() {
@@ -254,8 +162,11 @@ export async function deleteArtworkImage(filePath: string) {
     return;
   }
   
-  const adminClient = initAdminClient();
-  const { error } = await adminClient.storage.from('artwork-images').remove([filePath]);
+  if (!supabaseAdmin) {
+    throw new Error('Admin client not available');
+  }
+  
+  const { error } = await supabaseAdmin.storage.from('artwork-images').remove([filePath]);
   if (error) {
     throw new Error(`Failed to delete image: ${error.message}`);
   }
@@ -267,14 +178,17 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
     throw new Error('Cannot upload artwork image outside browser context');
   }
   
-  const adminClient = initAdminClient();
+  if (!supabaseAdmin) {
+    throw new Error('Admin client not available');
+  }
+  
   const fileExt = file.name.split('.').pop();
   const timestamp = Date.now();
   const fileName = `${timestamp}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
   const filePath = `${artworkId}/${fileName}`;
   
   // Upload the file
-  const { error: uploadError, data } = await adminClient.storage
+  const { error: uploadError, data } = await supabaseAdmin.storage
     .from('artwork-images')
     .upload(filePath, file, {
       cacheControl: '3600',
@@ -289,7 +203,7 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
   const publicUrl = formatSupabaseUrl(`artwork-images/${filePath}`);
   
   // Add record to artwork_images table
-  const { error: dbError } = await adminClient
+  const { error: dbError } = await supabaseAdmin
     .from('artwork_images')
     .insert({
       artwork_id: artworkId,
@@ -299,29 +213,18 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
   
   if (dbError) {
     // If DB insert fails, try to remove the uploaded file
-    await adminClient.storage.from('artwork-images').remove([filePath]);
+    await supabaseAdmin.storage.from('artwork-images').remove([filePath]);
     throw new Error(`Failed to save image record: ${dbError.message}`);
   }
   
   return publicUrl;
 }
 
-// Test function to check whether the client can connect to the database
-export function getConnectionStatus() {
-  const { url, key } = debugKeys();
-  return {
-    url: url || 'No URL found',
-    keyStatus: isValidKey(key) ? 'Valid key found' : 'Invalid or missing key',
-    connected: !!(url && isValidKey(key))
-  };
-}
-
 // Format Supabase URL to avoid duplicate paths
 export function formatSupabaseUrl(path: string): string {
   if (!path) return '';
   
-  const { url } = debugKeys();
-  const baseUrl = `${url}/storage/v1/object/public/`;
+  const baseUrl = `${config.url}/storage/v1/object/public/`;
   
   // Remove any duplicate bucket names in the path
   const parts = path.split('/');
