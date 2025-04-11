@@ -1,4 +1,4 @@
-import { createBrowserClient } from "@supabase/ssr";
+import { createBrowserClient as createSupabaseBrowserClient } from "@supabase/ssr";
 import { createClient as createClientOriginal } from '@supabase/supabase-js';
 
 // Add TypeScript declaration for Window with ENV
@@ -23,6 +23,8 @@ declare global {
       SUPABASE_SERVICE_ROLE_KEY?: string;
       [key: string]: any;
     };
+    // Add global reference to supabase client
+    supabaseClientInstance?: any;
   }
 }
 
@@ -83,8 +85,40 @@ function isValidKey(key: string): boolean {
   return /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(key);
 }
 
+// Create a global singleton Supabase client
+let supabaseClientInstance: any = null;
+let adminClientInstance: ReturnType<typeof createClientOriginal> | null = null;
+
 // Initialize Supabase client with built-in fallbacks
 function initSupabaseClient() {
+  // In server context, always create a new instance
+  if (typeof window === 'undefined') {
+    return createServerClient();
+  }
+  
+  // In browser context, use singleton pattern
+  // Check for existing instance in global scope
+  if (window.supabaseClientInstance) {
+    return window.supabaseClientInstance;
+  }
+  
+  // Check for our module-level instance
+  if (supabaseClientInstance) {
+    return supabaseClientInstance;
+  }
+  
+  // Create new instance if none exists
+  const client = createBrowserClientInstance();
+  
+  // Store reference in both module and window scope
+  supabaseClientInstance = client;
+  window.supabaseClientInstance = client;
+  
+  return client;
+}
+
+// Create a browser client
+function createBrowserClientInstance() {
   // Debug current keys
   const { url, key } = debugKeys();
   
@@ -105,26 +139,42 @@ function initSupabaseClient() {
   console.log('- Key valid:', isValidKey(supabaseAnonKey));
   
   try {
-    // Use the new ssr client for browser
-    if (typeof window !== 'undefined') {
-      return createBrowserClient(supabaseUrl, supabaseAnonKey);
-    } else {
-      // Use traditional client for SSR if not using middleware
-      return createClientOriginal(supabaseUrl, supabaseAnonKey, {
-        auth: {
-          persistSession: true,
-          detectSessionInUrl: true,
-        }
-      });
-    }
+    return createSupabaseBrowserClient(supabaseUrl, supabaseAnonKey);
   } catch (error) {
     console.error('Error creating Supabase client:', error);
     throw error;
   }
 }
 
-// Lazy-load admin client to avoid server-side initialization errors
-let adminClientInstance: ReturnType<typeof createClientOriginal> | null = null;
+// Create a server client
+function createServerClient() {
+  // Debug current keys
+  const { url, key } = debugKeys();
+  
+  // Final URL and key to use
+  let supabaseUrl = url;
+  let supabaseAnonKey = key;
+  
+  // Fallback values if needed
+  if (!isValidUrl(supabaseUrl) || !isValidKey(supabaseAnonKey)) {
+    console.log('Using hardcoded fallback values');
+    supabaseUrl = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
+    supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.yN5KM7w8AjsXFOwdpQ4Oy7-Pf7D58fohL1tgnFBK_os";
+  }
+  
+  try {
+    // Use traditional client for SSR
+    return createClientOriginal(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        detectSessionInUrl: true,
+      }
+    });
+  } catch (error) {
+    console.error('Error creating Supabase server client:', error);
+    throw error;
+  }
+}
 
 // Initialize admin client with service role key
 function initAdminClient() {
