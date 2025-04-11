@@ -1,5 +1,5 @@
-import { createBrowserClient } from "@supabase/ssr";
-import { createClient as createClientOriginal } from '@supabase/supabase-js';
+// This is a backup of the original Supabase implementation
+import { createClient } from '@supabase/supabase-js';
 
 // Add TypeScript declaration for Window with ENV
 declare global {
@@ -96,7 +96,7 @@ function initSupabaseClient() {
   if (!isValidUrl(supabaseUrl) || !isValidKey(supabaseAnonKey)) {
     console.log('Using hardcoded fallback values');
     supabaseUrl = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
-    supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.yN5KM7w8AjsXFOwdpQ4Oy7-Pf7D58fohL1tgnFBK_os";
+    supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw";
   }
   
   // Create client with the final URL and key
@@ -105,18 +105,12 @@ function initSupabaseClient() {
   console.log('- Key valid:', isValidKey(supabaseAnonKey));
   
   try {
-    // Use the new ssr client for browser
-    if (typeof window !== 'undefined') {
-      return createBrowserClient(supabaseUrl, supabaseAnonKey);
-    } else {
-      // Use traditional client for SSR if not using middleware
-      return createClientOriginal(supabaseUrl, supabaseAnonKey, {
-        auth: {
-          persistSession: true,
-          detectSessionInUrl: true,
-        }
-      });
-    }
+    return createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        detectSessionInUrl: true,
+      }
+    });
   } catch (error) {
     console.error('Error creating Supabase client:', error);
     throw error;
@@ -145,7 +139,7 @@ function initAdminClient() {
   }
   
   try {
-    return createClientOriginal(supabaseUrl, serviceRoleKey, {
+    return createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
@@ -196,4 +190,4 @@ export function getConnectionStatus() {
     keyStatus: isValidKey(key) ? 'Valid key found' : 'Invalid or missing key',
     connected: !!(url && isValidKey(key))
   };
-}
+} 
