@@ -2,9 +2,19 @@
 import ProductClient from './product-client';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { supabase } from '@/lib/supabase';
 
-// Remove the generateStaticParams function since we're using dynamic routes with export
-// Instead, make this a client component to handle dynamic data fetching
+// Add static params for build time generation
+export async function generateStaticParams() {
+  try {
+    // For static export, we'll generate a dummy ID
+    // The actual data fetching happens client-side
+    return [{ id: 'placeholder' }];
+  } catch (error) {
+    console.error('Error generating static params:', error);
+    return [{ id: 'placeholder' }];
+  }
+}
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

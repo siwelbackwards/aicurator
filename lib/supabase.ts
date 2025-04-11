@@ -211,6 +211,51 @@ export async function deleteArtworkImage(filePath: string) {
   }
 }
 
+// Upload artwork image function
+export async function uploadArtworkImage(file: File, artworkId: string, isPrimary: boolean = false) {
+  if (typeof window === 'undefined') {
+    throw new Error('Cannot upload artwork image outside browser context');
+  }
+  
+  const adminClient = initAdminClient();
+  const fileExt = file.name.split('.').pop();
+  const timestamp = Date.now();
+  const fileName = `${timestamp}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+  const filePath = `${artworkId}/${fileName}`;
+  
+  // Upload the file
+  const { error: uploadError, data } = await adminClient.storage
+    .from('artwork-images')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
+  
+  if (uploadError) {
+    throw new Error(`Failed to upload image: ${uploadError.message}`);
+  }
+  
+  // Get the public URL
+  const publicUrl = formatSupabaseUrl(`artwork-images/${filePath}`);
+  
+  // Add record to artwork_images table
+  const { error: dbError } = await adminClient
+    .from('artwork_images')
+    .insert({
+      artwork_id: artworkId,
+      file_path: filePath,
+      is_primary: isPrimary
+    });
+  
+  if (dbError) {
+    // If DB insert fails, try to remove the uploaded file
+    await adminClient.storage.from('artwork-images').remove([filePath]);
+    throw new Error(`Failed to save image record: ${dbError.message}`);
+  }
+  
+  return publicUrl;
+}
+
 // Test function to check whether the client can connect to the database
 export function getConnectionStatus() {
   const { url, key } = debugKeys();
@@ -219,4 +264,23 @@ export function getConnectionStatus() {
     keyStatus: isValidKey(key) ? 'Valid key found' : 'Invalid or missing key',
     connected: !!(url && isValidKey(key))
   };
+}
+
+// Format Supabase URL to avoid duplicate paths
+export function formatSupabaseUrl(path: string): string {
+  if (!path) return '';
+  
+  const { url } = debugKeys();
+  const baseUrl = `${url}/storage/v1/object/public/`;
+  
+  // Remove any duplicate bucket names in the path
+  const parts = path.split('/');
+  const bucketName = parts[0];
+  let cleanPath = path;
+  
+  if (parts.length > 1 && parts[1] === bucketName) {
+    cleanPath = parts.slice(0, 1).concat(parts.slice(2)).join('/');
+  }
+  
+  return `${baseUrl}${cleanPath}`;
 }
