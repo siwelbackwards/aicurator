@@ -9,6 +9,19 @@ declare global {
       SUPABASE_SERVICE_ROLE_KEY?: string;
       [key: string]: any;
     };
+    // For Netlify's environment injection
+    _env_?: {
+      NEXT_PUBLIC_SUPABASE_URL?: string;
+      NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
+      SUPABASE_SERVICE_ROLE_KEY?: string;
+      [key: string]: any;
+    };
+    netlifyEnv?: {
+      NEXT_PUBLIC_SUPABASE_URL?: string;
+      NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
+      SUPABASE_SERVICE_ROLE_KEY?: string;
+      [key: string]: any;
+    };
   }
 }
 
@@ -27,50 +40,86 @@ const isValidUrl = (urlString: string): boolean => {
 const AICURATOR_URL = 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
 const AICURATOR_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw';
 
-// Debugging function for environment variables
-const debugEnv = () => {
-  if (typeof window !== 'undefined') {
-    console.log('Environment loading debug:');
-    // Check window.env first (our custom object)
-    console.log('- window.env exists:', Boolean((window as any).env));
-    console.log('- NEXT_PUBLIC_SUPABASE_URL from window.env:', (window as any).env?.NEXT_PUBLIC_SUPABASE_URL || 'Not set');
-    // Then check window.ENV (from inject-env.js)
-    console.log('- window.ENV exists:', Boolean((window as any).ENV));
-    console.log('- NEXT_PUBLIC_SUPABASE_URL from window.ENV:', (window as any).ENV?.NEXT_PUBLIC_SUPABASE_URL || 'Not set');
-    // Finally check process.env
-    console.log('- process.env exists:', Boolean(process.env));
-    console.log('- NEXT_PUBLIC_SUPABASE_URL from process.env:', process.env.NEXT_PUBLIC_SUPABASE_URL || 'Not set');
-  }
-};
+// Debugging function to log all possible environment variable sources
+function debugEnvironment() {
+  if (typeof window === 'undefined') return;
+  
+  console.log('Environment debug:');
+  console.log('- window.ENV:', window.ENV);
+  console.log('- window._env_:', window._env_);
+  console.log('- window.netlifyEnv:', window.netlifyEnv);
+  console.log('- process.env.NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log('- Netlify host detection:', window.location.hostname.includes('netlify.app'));
+}
 
 // Validate environment variables
 function validateEnv() {
+  // Debug environment before getting variables
+  if (typeof window !== 'undefined') {
+    debugEnvironment();
+  }
+
   let supabaseUrl = '';
   let supabaseAnonKey = '';
   let supabaseServiceRoleKey = '';
 
-  // Check for variables in window.ENV (Netlify setup)
-  if (typeof window !== 'undefined' && window.ENV) {
-    supabaseUrl = window.ENV.NEXT_PUBLIC_SUPABASE_URL || '';
-    supabaseAnonKey = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    supabaseServiceRoleKey = window.ENV.SUPABASE_SERVICE_ROLE_KEY || '';
-    console.log('Using Supabase credentials from window.ENV');
-  } 
-  // Check for variables in process.env (standard setup)
-  else if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-    console.log('Using Supabase credentials from process.env');
+  // Check all possible environment variable sources
+  if (typeof window !== 'undefined') {
+    // First try Netlify env variables (directly injected by plugin)
+    if (window._env_ && window._env_.NEXT_PUBLIC_SUPABASE_URL) {
+      console.log('Using Supabase credentials from Netlify _env_');
+      supabaseUrl = window._env_.NEXT_PUBLIC_SUPABASE_URL;
+      supabaseAnonKey = window._env_.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      supabaseServiceRoleKey = window._env_.SUPABASE_SERVICE_ROLE_KEY || '';
+    }
+    // Then try window.ENV (our custom storage)
+    else if (window.ENV && window.ENV.NEXT_PUBLIC_SUPABASE_URL) {
+      console.log('Using Supabase credentials from window.ENV');
+      supabaseUrl = window.ENV.NEXT_PUBLIC_SUPABASE_URL;
+      supabaseAnonKey = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      supabaseServiceRoleKey = window.ENV.SUPABASE_SERVICE_ROLE_KEY || '';
+    }
+    // Then try Netlify runtime env
+    else if (window.netlifyEnv && window.netlifyEnv.NEXT_PUBLIC_SUPABASE_URL) {
+      console.log('Using Supabase credentials from netlifyEnv');
+      supabaseUrl = window.netlifyEnv.NEXT_PUBLIC_SUPABASE_URL;
+      supabaseAnonKey = window.netlifyEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      supabaseServiceRoleKey = window.netlifyEnv.SUPABASE_SERVICE_ROLE_KEY || '';
+    }
+    // Then try process.env (standard Next.js environment)
+    else if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.log('Using Supabase credentials from process.env');
+      supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    }
+    // Fallback for Netlify deployments (known URL)
+    else if (window.location.hostname.includes('netlify.app')) {
+      console.log('Using fallback values for Netlify deployment');
+      supabaseUrl = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
+      supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw";
+      supabaseServiceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Mzk0NzAwMSwiZXhwIjoyMDU5NTIzMDAxfQ.1fjCF_WyFoRq_8THFURMosh3txmDaLsx7degHyYIycw";
+    }
+    // Last fallback for localhost
+    else if (window.location.hostname === 'localhost') {
+      console.log('Using fallback Supabase credentials for localhost');
+      supabaseUrl = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
+      supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw";
+      supabaseServiceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Mzk0NzAwMSwiZXhwIjoyMDU5NTIzMDAxfQ.1fjCF_WyFoRq_8THFURMosh3txmDaLsx7degHyYIycw";
+    }
+  } else {
+    // Server-side rendering - use process.env
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.log('Using Supabase credentials from process.env (server)');
+      supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    }
   }
-  // Fallback values for development
-  else if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    supabaseUrl = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
-    supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw";
-    // Hardcoded service role key for localhost only
-    supabaseServiceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Mzk0NzAwMSwiZXhwIjoyMDU5NTIzMDAxfQ.1fjCF_WyFoRq_8THFURMosh3txmDaLsx7degHyYIycw";
-    console.log('Using fallback Supabase credentials for localhost');
-  }
+
+  console.log('Final Supabase URL:', supabaseUrl ? `${supabaseUrl.substring(0, 10)}...` : 'Not found');
+  console.log('Final Anon Key:', supabaseAnonKey ? 'Found (hidden)' : 'Not found');
+  console.log('Final Service Role Key:', supabaseServiceRoleKey ? 'Found (hidden)' : 'Not found');
 
   // Validate URL format
   if (!supabaseUrl || !supabaseUrl.startsWith('https://')) {
@@ -207,7 +256,7 @@ export async function testConnection() {
     const { data, error } = await supabase.from('artworks').select('count()', { count: 'exact' }).limit(1);
     
     if (error) {
-      console.error('Supabase connection test failed:', error.message);
+      console.error('Supabase connection test failed:', error);
       return false;
     }
     

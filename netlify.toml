@@ -9,6 +9,14 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+# Add netlify-plugin-inline-env to inject env variables
+[[plugins]]
+  package = "netlify-plugin-inline-env"
+  
+  [plugins.inputs]
+    # These are client-side env vars that need to be exposed
+    publicEnvVars = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]
+
 [[plugins]]
   package = "@netlify/plugin-lighthouse"
 
