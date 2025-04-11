@@ -15,7 +15,7 @@
   
   [plugins.inputs]
     # These are client-side env vars that need to be exposed
-    publicEnvVars = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]
+    include_vars = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]
 
 [[plugins]]
   package = "@netlify/plugin-lighthouse"
