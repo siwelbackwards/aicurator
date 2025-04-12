@@ -88,8 +88,10 @@ const config = getConfig();
 
 // Create a single Supabase client instance
 let client: ReturnType<typeof createClientOriginal> | null = null;
+let adminClient: ReturnType<typeof createClientOriginal> | null = null;
 
-const createClient = () => {
+// Initialize the client
+const initClient = () => {
   if (client) return client;
 
   if (typeof window === 'undefined') {
@@ -102,10 +104,6 @@ const createClient = () => {
     });
   } else {
     // Client-side browser client
-    console.log('Creating Supabase browser client');
-    console.log('URL:', config.url);
-    console.log('Key valid:', isValidKey(config.anonKey));
-    
     client = createBrowserClient(config.url, config.anonKey, {
       auth: {
         persistSession: true,
@@ -118,10 +116,8 @@ const createClient = () => {
   return client;
 };
 
-// Create a single admin client instance
-let adminClient: ReturnType<typeof createClientOriginal> | null = null;
-
-const createAdminClient = () => {
+// Initialize the admin client
+const initAdminClient = () => {
   if (adminClient) return adminClient;
 
   adminClient = createClientOriginal(config.url, config.serviceKey, {
@@ -134,14 +130,16 @@ const createAdminClient = () => {
   return adminClient;
 };
 
+// Initialize clients immediately
+const supabase = initClient();
+const supabaseAdmin = initAdminClient();
+
 // Export the singleton instances
-export const supabase = createClient();
-export const supabaseAdmin = createAdminClient();
+export { supabase, supabaseAdmin };
 
 // Connection test function to check configuration
 export async function testConnection() {
   try {
-    console.log('Testing Supabase connection...');
     const { data, error } = await supabase.from('artworks').select('count()', { count: 'exact' }).limit(1);
     
     if (error) {
@@ -149,7 +147,6 @@ export async function testConnection() {
       return false;
     }
     
-    console.log('Supabase connection test successful');
     return true;
   } catch (err) {
     console.error('Supabase connection error:', err);
