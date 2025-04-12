@@ -55,3 +55,12 @@ export function formatSupabaseUrl(url: string): string {
   // For other paths, simple join
   return `${baseUrl}/${cleanPath}`;
 }
+
+export function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}

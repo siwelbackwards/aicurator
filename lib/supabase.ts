@@ -1,5 +1,5 @@
-import { createBrowserClient as createSupabaseBrowserClient } from "@supabase/ssr";
 import { createClient as createClientOriginal } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
 // Add TypeScript declaration for Window with ENV
 declare global {
@@ -67,30 +67,34 @@ function getConfig() {
   return { url, anonKey, serviceKey };
 }
 
-// Validate URL
-function isValidUrl(url: string): boolean {
-  try {
-    new URL(url);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
 // Validate key format
 function isValidKey(key: string): boolean {
   // JWT tokens typically follow pattern: xxxxx.yyyyy.zzzzz
   return /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(key);
 }
 
+// Validate URL format
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Create clients with singleton pattern
 const config = getConfig();
 
 // Create a single Supabase client instance
+let client: ReturnType<typeof createClientOriginal> | null = null;
+
 const createClient = () => {
+  if (client) return client;
+
   if (typeof window === 'undefined') {
     // Server-side client
-    return createClientOriginal(config.url, config.anonKey, {
+    client = createClientOriginal(config.url, config.anonKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
@@ -102,7 +106,7 @@ const createClient = () => {
     console.log('URL:', config.url);
     console.log('Key valid:', isValidKey(config.anonKey));
     
-    return createSupabaseBrowserClient(config.url, config.anonKey, {
+    client = createBrowserClient(config.url, config.anonKey, {
       auth: {
         persistSession: true,
         storageKey: 'supabase-auth',
@@ -110,31 +114,29 @@ const createClient = () => {
       }
     });
   }
+
+  return client;
 };
 
 // Create a single admin client instance
+let adminClient: ReturnType<typeof createClientOriginal> | null = null;
+
 const createAdminClient = () => {
-  if (typeof window === 'undefined') {
-    console.error('Admin client should not be used in server context');
-    return null;
-  }
-  
-  console.log('Creating Supabase admin client');
-  return createClientOriginal(config.url, config.serviceKey, {
+  if (adminClient) return adminClient;
+
+  adminClient = createClientOriginal(config.url, config.serviceKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
     }
   });
+
+  return adminClient;
 };
 
-// Single client instances
-const clientInstance = createClient();
-const adminClientInstance = typeof window !== 'undefined' ? createAdminClient() : null;
-
-// Export the client instances
-export const supabase = clientInstance;
-export const supabaseAdmin = adminClientInstance;
+// Export the singleton instances
+export const supabase = createClient();
+export const supabaseAdmin = createAdminClient();
 
 // Connection test function to check configuration
 export async function testConnection() {
