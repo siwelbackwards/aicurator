@@ -89,10 +89,18 @@ function isValidUrl(url: string): boolean {
 // Get configuration
 const config = getConfig();
 
+// Cache for client and admin instances
+let cachedClient: ReturnType<typeof createClientOriginal> | null = null;
+let cachedAdminClient: ReturnType<typeof createClientOriginal> | null = null;
+
+// Track the last token used for client
+let lastClientToken: string | null = null;
+let lastAdminToken: string | null = null;
+
 /**
- * True singleton pattern using global reference and factory
+ * Get a Supabase client with token-based caching
  */
-export function getSupabase() {
+export function getSupabase(accessToken?: string | null) {
   // For server-side rendering, create a new instance each time
   if (typeof window === 'undefined') {
     return createClientOriginal(config.url, config.anonKey, {
@@ -103,35 +111,39 @@ export function getSupabase() {
     });
   }
 
-  // For client-side, use the global singleton if it exists
-  if (window.__SUPABASE_CLIENT__) {
-    return window.__SUPABASE_CLIENT__;
+  // If the token is the same and we have a cached client, return it
+  if (accessToken === lastClientToken && cachedClient !== null) {
+    return cachedClient;
   }
 
-  // Create the client with a unique storage key
+  // Update the last token
+  lastClientToken = accessToken || null;
+
+  // Create a new client with the token
   const client = createBrowserClient(config.url, config.anonKey, {
     auth: {
       persistSession: true,
-      storageKey: 'aicurator_supabase_auth', // Unique storage key
+      storageKey: 'aicurator_supabase_auth',
       flowType: 'pkce',
-      debug: false // Disable debug logs
+      debug: false,
+      autoRefreshToken: true,
     },
     global: {
-      headers: {
-        'x-client-info': 'aicurator-webapp'
-      }
+      headers: accessToken 
+        ? { Authorization: `Bearer ${accessToken}` }
+        : { 'x-client-info': 'aicurator-webapp' }
     }
   });
 
-  // Store the instance globally
-  window.__SUPABASE_CLIENT__ = client;
+  // Update the cached client
+  cachedClient = client;
   return client;
 }
 
 /**
- * Admin client singleton
+ * Get a Supabase admin client with token-based caching
  */
-export function getSupabaseAdmin() {
+export function getSupabaseAdmin(accessToken?: string | null) {
   // For server-side rendering, create a new instance each time
   if (typeof window === 'undefined') {
     return createClientOriginal(config.url, config.serviceKey, {
@@ -142,27 +154,39 @@ export function getSupabaseAdmin() {
     });
   }
 
-  // For client-side, use the global singleton if it exists
-  if (window.__SUPABASE_ADMIN_CLIENT__) {
-    return window.__SUPABASE_ADMIN_CLIENT__;
+  // If the token is the same and we have a cached admin client, return it
+  if (accessToken === lastAdminToken && cachedAdminClient !== null) {
+    return cachedAdminClient;
   }
 
-  // Create the client with a unique storage key
-  const adminClient = createClientOriginal(config.url, config.serviceKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      storageKey: 'aicurator_supabase_admin_auth', // Unique storage key
-      debug: false // Disable debug logs
-    }
-  });
+  // Update the last token
+  lastAdminToken = accessToken || null;
 
-  // Store the instance globally
-  window.__SUPABASE_ADMIN_CLIENT__ = adminClient;
+  // Create the client with the token
+  const adminClient = createClientOriginal(
+    config.url,
+    accessToken ? config.anonKey : config.serviceKey,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        storageKey: 'aicurator_supabase_admin_auth',
+        debug: false
+      },
+      global: {
+        headers: accessToken 
+          ? { Authorization: `Bearer ${accessToken}` }
+          : { 'x-client-info': 'aicurator-admin' }
+      }
+    }
+  );
+
+  // Update the cached admin client
+  cachedAdminClient = adminClient;
   return adminClient;
 }
 
-// Export the singleton accessors
+// Export singletons for common use cases
 export const supabase = getSupabase();
 export const supabaseAdmin = getSupabaseAdmin();
 
