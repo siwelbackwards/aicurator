@@ -23,6 +23,9 @@ declare global {
       SUPABASE_SERVICE_ROLE_KEY?: string;
       [key: string]: any;
     };
+    // Add global client references to ensure true singletons
+    __SUPABASE_CLIENT__?: any;
+    __SUPABASE_ADMIN_CLIENT__?: any;
   }
 }
 
@@ -83,59 +86,85 @@ function isValidUrl(url: string): boolean {
   }
 }
 
-// Create clients with singleton pattern
+// Get configuration
 const config = getConfig();
 
-// Create a single Supabase client instance
-let client: ReturnType<typeof createClientOriginal> | null = null;
-let adminClient: ReturnType<typeof createClientOriginal> | null = null;
-
-// Initialize the client
-const initClient = () => {
-  if (client) return client;
-
+/**
+ * True singleton pattern using global reference and factory
+ */
+export function getSupabase() {
+  // For server-side rendering, create a new instance each time
   if (typeof window === 'undefined') {
-    // Server-side client
-    client = createClientOriginal(config.url, config.anonKey, {
+    return createClientOriginal(config.url, config.anonKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
       }
     });
-  } else {
-    // Client-side browser client
-    client = createBrowserClient(config.url, config.anonKey, {
+  }
+
+  // For client-side, use the global singleton if it exists
+  if (window.__SUPABASE_CLIENT__) {
+    return window.__SUPABASE_CLIENT__;
+  }
+
+  // Create the client with a unique storage key
+  const client = createBrowserClient(config.url, config.anonKey, {
+    auth: {
+      persistSession: true,
+      storageKey: 'aicurator_supabase_auth', // Unique storage key
+      flowType: 'pkce',
+      debug: false // Disable debug logs
+    },
+    global: {
+      headers: {
+        'x-client-info': 'aicurator-webapp'
+      }
+    }
+  });
+
+  // Store the instance globally
+  window.__SUPABASE_CLIENT__ = client;
+  return client;
+}
+
+/**
+ * Admin client singleton
+ */
+export function getSupabaseAdmin() {
+  // For server-side rendering, create a new instance each time
+  if (typeof window === 'undefined') {
+    return createClientOriginal(config.url, config.serviceKey, {
       auth: {
-        persistSession: true,
-        storageKey: 'supabase-auth',
-        flowType: 'pkce',
+        persistSession: false,
+        autoRefreshToken: false,
       }
     });
   }
 
-  return client;
-};
+  // For client-side, use the global singleton if it exists
+  if (window.__SUPABASE_ADMIN_CLIENT__) {
+    return window.__SUPABASE_ADMIN_CLIENT__;
+  }
 
-// Initialize the admin client
-const initAdminClient = () => {
-  if (adminClient) return adminClient;
-
-  adminClient = createClientOriginal(config.url, config.serviceKey, {
+  // Create the client with a unique storage key
+  const adminClient = createClientOriginal(config.url, config.serviceKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
+      storageKey: 'aicurator_supabase_admin_auth', // Unique storage key
+      debug: false // Disable debug logs
     }
   });
 
+  // Store the instance globally
+  window.__SUPABASE_ADMIN_CLIENT__ = adminClient;
   return adminClient;
-};
+}
 
-// Initialize clients immediately
-const supabase = initClient();
-const supabaseAdmin = initAdminClient();
-
-// Export the singleton instances
-export { supabase, supabaseAdmin };
+// Export the singleton accessors
+export const supabase = getSupabase();
+export const supabaseAdmin = getSupabaseAdmin();
 
 // Connection test function to check configuration
 export async function testConnection() {
@@ -161,11 +190,9 @@ export async function deleteArtworkImage(filePath: string) {
     return;
   }
   
-  if (!supabaseAdmin) {
-    throw new Error('Admin client not available');
-  }
+  const admin = getSupabaseAdmin();
   
-  const { error } = await supabaseAdmin.storage.from('artwork-images').remove([filePath]);
+  const { error } = await admin.storage.from('artwork-images').remove([filePath]);
   if (error) {
     throw new Error(`Failed to delete image: ${error.message}`);
   }
@@ -177,9 +204,7 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
     throw new Error('Cannot upload artwork image outside browser context');
   }
   
-  if (!supabaseAdmin) {
-    throw new Error('Admin client not available');
-  }
+  const admin = getSupabaseAdmin();
   
   const fileExt = file.name.split('.').pop();
   const timestamp = Date.now();
@@ -187,7 +212,7 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
   const filePath = `${artworkId}/${fileName}`;
   
   // Upload the file
-  const { error: uploadError, data } = await supabaseAdmin.storage
+  const { error: uploadError, data } = await admin.storage
     .from('artwork-images')
     .upload(filePath, file, {
       cacheControl: '3600',
@@ -202,7 +227,7 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
   const publicUrl = formatSupabaseUrl(`artwork-images/${filePath}`);
   
   // Add record to artwork_images table
-  const { error: dbError } = await supabaseAdmin
+  const { error: dbError } = await admin
     .from('artwork_images')
     .insert({
       artwork_id: artworkId,
@@ -212,7 +237,7 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
   
   if (dbError) {
     // If DB insert fails, try to remove the uploaded file
-    await supabaseAdmin.storage.from('artwork-images').remove([filePath]);
+    await admin.storage.from('artwork-images').remove([filePath]);
     throw new Error(`Failed to save image record: ${dbError.message}`);
   }
   
