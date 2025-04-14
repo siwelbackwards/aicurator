@@ -1,4 +1,4 @@
-import { createClient as createClientOriginal } from '@supabase/supabase-js';
+import { createClient as createClientOriginal, SupabaseClient } from '@supabase/supabase-js';
 import { createBrowserClient } from '@supabase/ssr';
 
 // Add TypeScript declaration for Window with ENV
@@ -90,8 +90,8 @@ function isValidUrl(url: string): boolean {
 const config = getConfig();
 
 // Cache for client and admin instances
-let cachedClient: ReturnType<typeof createClientOriginal> | null = null;
-let cachedAdminClient: ReturnType<typeof createClientOriginal> | null = null;
+let cachedClient: SupabaseClient | null = null;
+let cachedAdminClient: SupabaseClient | null = null;
 
 // Track the last token used for client
 let lastClientToken: string | null = null;
