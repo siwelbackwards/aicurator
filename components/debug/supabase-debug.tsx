@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { debugSupabaseClients, resetSupabaseClients } from '@/lib/supabase';
 import { resetGoTrueClient, lockGoTrueClient } from '@/lib/gotrue-singleton';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,34 @@ export function SupabaseDebug() {
   const [isVisible, setIsVisible] = useState(false);
   const [clientStats, setClientStats] = useState<any>(null);
   const [multipleClientWarning, setMultipleClientWarning] = useState(false);
+  const [autoFixActive, setAutoFixActive] = useState(true); // Default to auto-fix enabled
+  const [isFixing, setIsFixing] = useState(false);
+  const fixTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Function to fix the multiple clients issue
+  const fixMultipleClients = () => {
+    // Prevent multiple concurrent fixes
+    if (isFixing) return;
+    
+    setIsFixing(true);
+    console.debug('[SupabaseDebug] Automatically fixing multiple client instances');
+    
+    // Reset both client and auth
+    resetGoTrueClient();
+    setTimeout(() => {
+      resetSupabaseClients();
+      // Lock the client to prevent further instances
+      setTimeout(() => {
+        lockGoTrueClient();
+        setMultipleClientWarning(false);
+        
+        // Reload client stats
+        const stats = debugSupabaseClients();
+        setClientStats(stats);
+        setIsFixing(false);
+      }, 100);
+    }, 100);
+  };
   
   // Check for any console warnings about multiple clients
   useEffect(() => {
@@ -43,6 +71,19 @@ export function SupabaseDebug() {
       if (args[0] && typeof args[0] === 'string' && 
           args[0].includes('Multiple GoTrueClient instances')) {
         setMultipleClientWarning(true);
+        
+        // Auto-fix if enabled
+        if (autoFixActive && !isFixing) {
+          // Clear any existing timeout
+          if (fixTimeoutRef.current) {
+            clearTimeout(fixTimeoutRef.current);
+          }
+          
+          // Set a slight delay to avoid multiple fixes
+          fixTimeoutRef.current = setTimeout(() => {
+            fixMultipleClients();
+          }, 500);
+        }
       }
       originalWarn.apply(console, args);
     };
@@ -58,26 +99,11 @@ export function SupabaseDebug() {
     // Restore original console.warn on cleanup
     return () => {
       console.warn = originalWarn;
+      if (fixTimeoutRef.current) {
+        clearTimeout(fixTimeoutRef.current);
+      }
     };
-  }, []);
-  
-  // Function to fix the multiple clients issue
-  const fixMultipleClients = () => {
-    // Reset both client and auth
-    resetGoTrueClient();
-    setTimeout(() => {
-      resetSupabaseClients();
-      // Lock the client to prevent further instances
-      setTimeout(() => {
-        lockGoTrueClient();
-        setMultipleClientWarning(false);
-        
-        // Reload client stats
-        const stats = debugSupabaseClients();
-        setClientStats(stats);
-      }, 100);
-    }, 100);
-  };
+  }, [autoFixActive, isFixing]);
   
   if (!isVisible) return null;
   
@@ -88,14 +114,25 @@ export function SupabaseDebug() {
       {multipleClientWarning && (
         <div className="mb-2 p-2 bg-red-800 rounded">
           <p className="font-bold text-red-200">⚠️ Multiple GoTrueClient instances detected</p>
-          <Button 
-            size="sm" 
-            variant="destructive"
-            className="mt-1 w-full text-xs"
-            onClick={fixMultipleClients}
-          >
-            Fix Multiple Clients
-          </Button>
+          <div className="flex justify-between items-center mt-1">
+            <Button 
+              size="sm" 
+              variant="destructive"
+              className="w-3/4 text-xs"
+              onClick={fixMultipleClients}
+              disabled={isFixing}
+            >
+              {isFixing ? 'Fixing...' : 'Fix Multiple Clients'}
+            </Button>
+            <Button
+              size="sm"
+              variant={autoFixActive ? "default" : "outline"}
+              className="ml-1 w-1/4 text-xs"
+              onClick={() => setAutoFixActive(!autoFixActive)}
+            >
+              {autoFixActive ? 'Auto' : 'Manual'}
+            </Button>
+          </div>
         </div>
       )}
       

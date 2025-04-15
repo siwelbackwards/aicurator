@@ -25,7 +25,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* GoTrueClient patch - must load first */}
+        {/* Pre-initialization script - must load absolutely first */}
+        <Script src="/pre-init.js" strategy="beforeInteractive" />
+        
+        {/* GoTrueClient patch - must load before modules */}
         <Script src="/gotrue-patch.js" strategy="beforeInteractive" />
         
         {/* Load environment variables before the app mounts */}
@@ -39,10 +42,18 @@ export default function RootLayout({
                 // This script runs before any React components
                 // Force consistent client state by cleaning up any existing instances
                 if (typeof window !== 'undefined') {
-                  // Reset or clear any problematic clients
-                  window.__SUPABASE_CLIENT__ = undefined;
-                  window.__SUPABASE_ADMIN__ = undefined;
-                  console.debug('[Supabase Cleanup] Reset global client instances for clean initialization');
+                  // If we have a reset function from pre-init, use it
+                  if (window.__RESET_SUPABASE) {
+                    console.debug('[Supabase Cleanup] Using pre-init reset function');
+                    window.__RESET_SUPABASE();
+                  } else {
+                    // Otherwise do a basic reset
+                    window.__SUPABASE_CLIENT__ = undefined;
+                    window.__SUPABASE_ADMIN__ = undefined;
+                    window.__SHARED_GOTRUE__ = undefined;
+                    window.__GO_TRUE_CLIENT__ = undefined;
+                    console.debug('[Supabase Cleanup] Reset global client instances for clean initialization');
+                  }
                 }
               } catch (err) {
                 console.error('[Supabase Cleanup] Error:', err);

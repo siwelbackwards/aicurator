@@ -213,13 +213,59 @@ export class SupabaseService {
   };
   
   /**
+   * Synchronize module-level clients with global window clients
+   * This ensures all references point to the same instances
+   */
+  private static syncClientReferences() {
+    if (typeof window === 'undefined') return;
+    
+    console.debug('[Supabase] Synchronizing client references');
+    
+    // Sync standard client
+    if (window.__SUPABASE_CLIENT__ && !SupabaseService._clients.standard) {
+      console.debug('[Supabase] Found global client, syncing to module');
+      SupabaseService._clients.standard = window.__SUPABASE_CLIENT__;
+      _clientSingleton = window.__SUPABASE_CLIENT__;
+    } else if (SupabaseService._clients.standard && !window.__SUPABASE_CLIENT__) {
+      console.debug('[Supabase] Found module client, syncing to global');
+      window.__SUPABASE_CLIENT__ = SupabaseService._clients.standard;
+      _clientSingleton = SupabaseService._clients.standard;
+    }
+    
+    // Sync admin client
+    if (window.__SUPABASE_ADMIN__ && !SupabaseService._clients.admin) {
+      console.debug('[Supabase] Found global admin, syncing to module');
+      SupabaseService._clients.admin = window.__SUPABASE_ADMIN__;
+      _adminSingleton = window.__SUPABASE_ADMIN__;
+    } else if (SupabaseService._clients.admin && !window.__SUPABASE_ADMIN__) {
+      console.debug('[Supabase] Found module admin, syncing to global');
+      window.__SUPABASE_ADMIN__ = SupabaseService._clients.admin;
+      _adminSingleton = SupabaseService._clients.admin;
+    }
+  }
+  
+  /**
    * Get Supabase client (browser or server)
    * Uses a singleton pattern to ensure only one client instance exists
    */
   static getClient(): SupabaseClient {
+    // Always ensure we're initialized
+    this.initialize();
+    
+    // Sync references to ensure module and global clients are in sync
+    this.syncClientReferences();
+    
+    // First, check all possible singletons
+    if (_clientSingleton) {
+      console.debug('[Supabase] Using existing module-level client singleton');
+      return _clientSingleton;
+    }
+    
     // First, check if we already have a client instance
     if (SupabaseService._clients.standard) {
       console.debug('[Supabase] Reusing existing standard client');
+      // Store in module singleton too
+      _clientSingleton = SupabaseService._clients.standard;
       return SupabaseService._clients.standard;
     }
     
@@ -233,6 +279,7 @@ export class SupabaseService {
     if (typeof window !== 'undefined' && window.__SUPABASE_CLIENT__) {
       console.debug('[Supabase] Using existing global client from window');
       SupabaseService._clients.standard = window.__SUPABASE_CLIENT__;
+      _clientSingleton = window.__SUPABASE_CLIENT__;
       return window.__SUPABASE_CLIENT__;
     }
     
@@ -240,6 +287,19 @@ export class SupabaseService {
     SupabaseService._clients.isInitializing.standard = true;
     
     try {
+      // Make sure we use any existing shared GoTrueClient
+      let sharedGoTrue = null;
+      
+      if (typeof window !== 'undefined') {
+        if (window.__SHARED_GOTRUE__) {
+          console.debug('[Supabase] Using existing shared GoTrueClient from window');
+          sharedGoTrue = window.__SHARED_GOTRUE__;
+        } else {
+          console.debug('[Supabase] Creating shared GoTrueClient');
+          sharedGoTrue = this.getSharedGoTrueClient();
+        }
+      }
+      
       const client = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -251,14 +311,19 @@ export class SupabaseService {
         }
       );
       
-      // Use shared GoTrueClient to prevent "Multiple GoTrueClient" warnings
-      const sharedAuth = this.getSharedGoTrueClient();
+      // Use shared GoTrueClient to prevent "Multiple GoTrueClient instances" warnings
+      if (sharedGoTrue) {
+        try {
+          // @ts-ignore - We're doing this to prevent multiple GoTrueClient instances
+          client.auth.gotrue = sharedGoTrue;
+        } catch (e) {
+          console.error('[Supabase] Failed to set shared GoTrueClient:', e);
+        }
+      }
       
-      // @ts-ignore - We're doing this to prevent multiple GoTrueClient instances
-      client.auth.gotrue = sharedAuth;
-      
-      // Store in static variable
+      // Store in all available singleton references
       SupabaseService._clients.standard = client;
+      _clientSingleton = client;
       
       // Store in global variable for cross-file access
       if (typeof window !== 'undefined') {
@@ -276,9 +341,23 @@ export class SupabaseService {
    * Uses a singleton pattern to ensure only one admin client instance exists
    */
   static getAdminClient(): SupabaseClient {
+    // Always ensure we're initialized
+    this.initialize();
+    
+    // Sync references to ensure module and global clients are in sync
+    this.syncClientReferences();
+    
+    // First check module singleton
+    if (_adminSingleton) {
+      console.debug('[Supabase] Using existing module-level admin singleton');
+      return _adminSingleton;
+    }
+    
     // First, check if we already have a client instance
     if (SupabaseService._clients.admin) {
       console.debug('[Supabase] Reusing existing admin client');
+      // Store in module singleton too
+      _adminSingleton = SupabaseService._clients.admin;
       return SupabaseService._clients.admin;
     }
     
@@ -292,6 +371,7 @@ export class SupabaseService {
     if (typeof window !== 'undefined' && window.__SUPABASE_ADMIN__) {
       console.debug('[Supabase] Using existing global admin client from window');
       SupabaseService._clients.admin = window.__SUPABASE_ADMIN__;
+      _adminSingleton = window.__SUPABASE_ADMIN__;
       return window.__SUPABASE_ADMIN__;
     }
     
@@ -299,6 +379,27 @@ export class SupabaseService {
     SupabaseService._clients.isInitializing.admin = true;
     
     try {
+      // CRITICAL: First get the shared GoTrueClient BEFORE creating the admin client
+      // This ensures we won't create a new GoTrueClient instance during admin client creation
+      let sharedGoTrue = null;
+      
+      if (typeof window !== 'undefined') {
+        // Try to get existing shared GoTrueClient from any possible source
+        if (window.__SHARED_GOTRUE__) {
+          console.debug('[Supabase] Using existing shared GoTrueClient from window');
+          sharedGoTrue = window.__SHARED_GOTRUE__;
+        } else if (this._clients.standard?.auth) {
+          console.debug('[Supabase] Using GoTrueClient from standard client');
+          // @ts-ignore
+          sharedGoTrue = this._clients.standard.auth.gotrue;
+        } else {
+          console.debug('[Supabase] Creating shared GoTrueClient for admin');
+          sharedGoTrue = this.getSharedGoTrueClient();
+        }
+      }
+      
+      // Create the admin client with minimal auth options
+      // The key is to avoid triggering a new GoTrueClient creation
       const adminClient = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -306,18 +407,25 @@ export class SupabaseService {
           auth: {
             persistSession: false, // No need to persist admin sessions
             autoRefreshToken: false,
+            detectSessionInUrl: false,
           },
         }
       );
       
-      // Use shared GoTrueClient to prevent "Multiple GoTrueClient" warnings
-      const sharedAuth = this.getSharedGoTrueClient();
+      // CRITICAL: Replace the auth.gotrue with our shared instance
+      if (sharedGoTrue) {
+        try {
+          // @ts-ignore - We're doing this to prevent multiple GoTrueClient instances
+          adminClient.auth.gotrue = sharedGoTrue;
+          console.debug('[Supabase] Attached shared GoTrueClient to admin client');
+        } catch (e) {
+          console.error('[Supabase] Failed to attach shared GoTrueClient to admin client:', e);
+        }
+      }
       
-      // @ts-ignore - We're doing this to prevent multiple GoTrueClient instances
-      adminClient.auth.gotrue = sharedAuth;
-      
-      // Store in static variable
+      // Store in all singleton locations
       SupabaseService._clients.admin = adminClient;
+      _adminSingleton = adminClient;
       
       // Store in global variable for cross-file access
       if (typeof window !== 'undefined') {
