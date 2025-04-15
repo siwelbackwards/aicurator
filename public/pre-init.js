@@ -1,90 +1,101 @@
 /**
- * Pre-initialization script to prevent multiple GoTrueClient instances
- * This runs before React initializes and before any Supabase code is loaded
+ * Pre-initialization script to help prevent multiple Supabase client instances
+ * This runs before any other scripts to ensure consistent global state
  */
 (function() {
-  console.log('[PreInit] Setting up early interception for GoTrueClient');
-  
-  // Create a shared container for all Supabase instances
-  window.__SUPABASE_SINGLETONS = {
-    goTrueClient: null,
-    standardClient: null,
-    adminClient: null,
-    storageKey: null
+  // Setup global namespace for tracking client instances
+  window.__SUPABASE_INSTANCES = {
+    count: 0,
+    lastReset: Date.now()
   };
   
-  // Early interception of GoTrueClient constructor
-  let _origGoTrueClient = null;
-  
-  // Create getters/setters for properties we want to intercept
-  Object.defineProperty(window, 'GoTrueClient', {
-    get: function() {
-      console.log('[PreInit] GoTrueClient getter called');
-      return _origGoTrueClient;
-    },
-    set: function(value) {
-      console.log('[PreInit] Intercepted GoTrueClient constructor');
-      
-      // Store the original constructor
-      _origGoTrueClient = function() {
-        console.log('[PreInit] GoTrueClient instantiation intercepted');
-        
-        // If we already have an instance, return it
-        if (window.__SUPABASE_SINGLETONS.goTrueClient) {
-          console.log('[PreInit] Returning existing GoTrueClient singleton');
-          return window.__SUPABASE_SINGLETONS.goTrueClient;
-        }
-        
-        // Otherwise create a new instance and store it
-        console.log('[PreInit] Creating new GoTrueClient singleton');
-        const instance = new value(...arguments);
-        window.__SUPABASE_SINGLETONS.goTrueClient = instance;
-        
-        // Also store in the standard locations for compatibility
-        window.__SHARED_GOTRUE__ = instance;
-        window.__GO_TRUE_CLIENT__ = instance;
-        
-        return instance;
-      };
-      
-      // Copy over prototype and static properties
-      _origGoTrueClient.prototype = value.prototype;
-      for (var prop in value) {
-        if (value.hasOwnProperty(prop)) {
-          _origGoTrueClient[prop] = value[prop];
-        }
-      }
-    },
-    configurable: true
-  });
-  
-  // Expose a reset function that can be called from anywhere
+  // Setup global reset function
   window.__RESET_SUPABASE = function() {
-    console.log('[PreInit] Resetting Supabase singletons');
-    window.__SUPABASE_SINGLETONS.goTrueClient = null;
-    window.__SUPABASE_SINGLETONS.standardClient = null;
-    window.__SUPABASE_SINGLETONS.adminClient = null;
-    window.__SHARED_GOTRUE__ = null;
-    window.__GO_TRUE_CLIENT__ = null;
-    window.__SUPABASE_CLIENT__ = null;
-    window.__SUPABASE_ADMIN__ = null;
-    
-    // Also clear any supabase auth related localStorage items
-    Object.keys(localStorage).forEach(key => {
-      if (key.includes('supabase.auth') || key.includes('gotrue') || key.includes('aicurator')) {
-        console.log(`[PreInit] Removing storage key: ${key}`);
-        localStorage.removeItem(key);
+    console.debug('[pre-init] Resetting Supabase client instances');
+    window.__SUPABASE_CLIENT__ = undefined;
+    window.__SUPABASE_ADMIN__ = undefined;
+    window.__SHARED_GOTRUE__ = undefined;
+    window.__GO_TRUE_CLIENT__ = undefined;
+    window.__SUPABASE_INSTANCES.count = 0;
+    window.__SUPABASE_INSTANCES.lastReset = Date.now();
+  };
+  
+  // Set up reload protection
+  window.__DETECT_RELOAD_LOOP = function() {
+    try {
+      // Get existing values from session storage
+      const now = Date.now();
+      const lastLoad = parseInt(sessionStorage.getItem('__SUPABASE_LAST_LOAD') || '0');
+      const loadCount = parseInt(sessionStorage.getItem('__SUPABASE_LOAD_COUNT') || '0');
+      
+      // Update session storage
+      sessionStorage.setItem('__SUPABASE_LAST_LOAD', now.toString());
+      
+      // If less than 3 seconds between loads, increment counter
+      // Otherwise reset counter
+      if (lastLoad > 0 && now - lastLoad < 3000) {
+        sessionStorage.setItem('__SUPABASE_LOAD_COUNT', (loadCount + 1).toString());
+      } else {
+        sessionStorage.setItem('__SUPABASE_LOAD_COUNT', '1');
       }
-    });
+      
+      // Return true if in a reload loop (3+ quick loads)
+      return loadCount >= 2;
+    } catch (e) {
+      // If there's an error (like sessionStorage not available), assume not in a loop
+      return false;
+    }
   };
   
-  // Add a function to simulate the multiple clients warning for testing
-  window.__SIMULATE_MULTIPLE_CLIENTS = function() {
-    console.log('[PreInit] Simulating multiple GoTrueClient instances warning');
-    setTimeout(function() {
-      console.warn('Multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key.');
-    }, 1000); // Delay to allow components to initialize
-  };
+  // Check for reload loops on initialization
+  const inReloadLoop = window.__DETECT_RELOAD_LOOP();
+  if (inReloadLoop) {
+    console.warn('[pre-init] Reload loop detected. Preventing automatic actions.');
+    
+    // Save to indicate we detected a loop
+    sessionStorage.setItem('__SUPABASE_IN_RELOAD_LOOP', 'true');
+    
+    // Try to break the loop by showing an alert to user after a delay
+    if (parseInt(sessionStorage.getItem('__SUPABASE_LOOP_ALERT') || '0') < 1) {
+      sessionStorage.setItem('__SUPABASE_LOOP_ALERT', '1');
+      setTimeout(() => {
+        try {
+          // Show an alert to the user and prevent further reloads
+          const alertElement = document.createElement('div');
+          alertElement.style.position = 'fixed';
+          alertElement.style.top = '0';
+          alertElement.style.left = '0';
+          alertElement.style.right = '0';
+          alertElement.style.padding = '10px';
+          alertElement.style.backgroundColor = '#f44336';
+          alertElement.style.color = 'white';
+          alertElement.style.textAlign = 'center';
+          alertElement.style.zIndex = '9999';
+          alertElement.innerHTML = 'Reload loop detected. <a href="/" style="color:white;text-decoration:underline">Click here</a> to reload manually.';
+          
+          // Add to body when ready
+          if (document.body) {
+            document.body.appendChild(alertElement);
+          } else {
+            // If body isn't ready, wait for it
+            window.addEventListener('DOMContentLoaded', () => {
+              document.body.appendChild(alertElement);
+            });
+          }
+        } catch (e) {
+          // Fail silently to avoid making things worse
+          console.error('[pre-init] Error showing reload alert:', e);
+        }
+      }, 1000);
+    }
+  } else {
+    // Clear any previous reload loop indicators
+    sessionStorage.removeItem('__SUPABASE_IN_RELOAD_LOOP');
+    sessionStorage.removeItem('__SUPABASE_LOOP_ALERT');
+  }
   
-  console.log('[PreInit] Early interception setup complete');
+  // Run an initial reset
+  window.__RESET_SUPABASE();
+  
+  console.debug('[pre-init] Supabase pre-initialization complete');
 })(); 

@@ -24,11 +24,34 @@ exports.handler = async function(event, context) {
       (function() {
         console.log('[NetlifySupabase] Initializing production client manager');
         
-        // Track warnings
+        // Track warnings and prevent infinite reload loops
         let goTrueWarningDetected = false;
+        let fixAttempted = false;
+        
+        // Check if we're in a reload loop
+        const checkReloadLoop = () => {
+          const now = Date.now();
+          const lastReload = parseInt(sessionStorage.getItem('lastReload') || '0');
+          const reloadCount = parseInt(sessionStorage.getItem('reloadCount') || '0');
+          
+          if (now - lastReload < 5000) {
+            sessionStorage.setItem('reloadCount', (reloadCount + 1).toString());
+          } else {
+            sessionStorage.setItem('reloadCount', '1');
+          }
+          
+          sessionStorage.setItem('lastReload', now.toString());
+          
+          // If more than 2 reloads in 5 seconds, we're in a loop
+          return reloadCount >= 2;
+        };
         
         // Fix function
         window.__NETLIFY_FIX_SUPABASE = function() {
+          // Prevent multiple fix attempts
+          if (fixAttempted) return;
+          fixAttempted = true;
+          
           console.log('[NetlifySupabase] Applying production fix for multiple clients');
           
           // Clear any existing instances
@@ -45,22 +68,10 @@ exports.handler = async function(event, context) {
             window.__SHARED_GOTRUE__ = null;
           }
           
-          // Clear localStorage keys related to auth
-          Object.keys(localStorage).forEach(key => {
-            if (key.includes('supabase.auth') || key.includes('gotrue') || key.includes('aicurator')) {
-              localStorage.removeItem(key);
-            }
-          });
-          
           console.log('[NetlifySupabase] Fix applied');
           
-          // Reload the page after a delay if the issue was detected
-          if (goTrueWarningDetected) {
-            console.log('[NetlifySupabase] Reloading page in 2 seconds');
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
-          }
+          // REMOVED: Auto page reload 
+          // We'll let the components handle refreshing if needed
         };
         
         // Intercept console warnings
@@ -70,10 +81,15 @@ exports.handler = async function(event, context) {
             goTrueWarningDetected = true;
             console.log('[NetlifySupabase] GoTrueClient warning detected, applying fix');
             
-            // Apply fix after a short delay
-            setTimeout(() => {
-              window.__NETLIFY_FIX_SUPABASE();
-            }, 500);
+            // Only apply fix if we're not in a reload loop
+            if (!checkReloadLoop()) {
+              // Apply fix after a short delay
+              setTimeout(() => {
+                window.__NETLIFY_FIX_SUPABASE();
+              }, 500);
+            } else {
+              console.warn('[NetlifySupabase] Reload loop detected! Skipping auto-fix.');
+            }
           }
           
           // Pass through to original console.warn

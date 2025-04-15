@@ -16,13 +16,41 @@ export function SupabaseDebug() {
   const [autoFixActive, setAutoFixActive] = useState(true); // Default to auto-fix enabled
   const [isFixing, setIsFixing] = useState(false);
   const [isProduction, setIsProduction] = useState(false);
+  const [inReloadLoop, setInReloadLoop] = useState(false);
   const fixTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fixAttemptCount = useRef(0);
+  
+  // Check for reload loops
+  const checkReloadLoop = () => {
+    if (typeof window === 'undefined') return false;
+    
+    const now = Date.now();
+    const lastReload = parseInt(sessionStorage.getItem('lastReload') || '0');
+    const reloadCount = parseInt(sessionStorage.getItem('reloadCount') || '0');
+    
+    if (now - lastReload < 5000) {
+      sessionStorage.setItem('reloadCount', (reloadCount + 1).toString());
+    } else {
+      sessionStorage.setItem('reloadCount', '1');
+    }
+    
+    sessionStorage.setItem('lastReload', now.toString());
+    
+    // If more than 2 reloads in 5 seconds, we're in a loop
+    return reloadCount >= 2;
+  };
   
   // Function to fix the multiple clients issue
   const fixMultipleClients = () => {
     // Prevent multiple concurrent fixes
     if (isFixing) return;
+    
+    // Check for reload loops first
+    if (checkReloadLoop()) {
+      console.warn('[SupabaseDebug] Possible reload loop detected - limiting fix attempts');
+      setInReloadLoop(true);
+      return;
+    }
     
     // Track fix attempts
     fixAttemptCount.current += 1;
@@ -34,7 +62,7 @@ export function SupabaseDebug() {
     }
     
     setIsFixing(true);
-    console.debug('[SupabaseDebug] Automatically fixing multiple client instances');
+    console.debug('[SupabaseDebug] Fixing multiple client instances');
     
     // Reset both client and auth
     try {
@@ -74,8 +102,12 @@ export function SupabaseDebug() {
           args[0].includes('Multiple GoTrueClient instances')) {
         setMultipleClientWarning(true);
         
-        // Auto-fix if enabled (always in production)
-        if ((autoFixActive || isProduction) && !isFixing) {
+        // Check for reload loops
+        const inLoop = checkReloadLoop();
+        setInReloadLoop(inLoop);
+        
+        // Auto-fix if enabled (always in production) and not in a reload loop
+        if ((autoFixActive || isProduction) && !isFixing && !inLoop) {
           // Clear any existing timeout
           if (fixTimeoutRef.current) {
             clearTimeout(fixTimeoutRef.current);
@@ -120,8 +152,11 @@ export function SupabaseDebug() {
     
     return (
       <div className="fixed bottom-0 right-0 m-4 p-2 bg-slate-900 bg-opacity-50 rounded-lg z-50 text-xs opacity-60">
-        {isFixing ? 
-          <div className="text-amber-300">Fixing Supabase issues...</div> :
+        {inReloadLoop ? (
+          <div className="text-red-300">Reload loop detected. Refresh manually.</div>
+        ) : isFixing ? (
+          <div className="text-amber-300">Fixing Supabase issues...</div>
+        ) : (
           <Button 
             size="sm" 
             variant="destructive"
@@ -130,7 +165,7 @@ export function SupabaseDebug() {
           >
             Fix Supabase
           </Button>
-        }
+        )}
       </div>
     );
   }
@@ -139,6 +174,13 @@ export function SupabaseDebug() {
   return (
     <div className="fixed bottom-0 right-0 m-4 p-4 bg-slate-900 text-white rounded-lg shadow-lg z-50 max-w-sm text-xs opacity-80 hover:opacity-100 transition-opacity">
       <h3 className="font-bold mb-2 text-sm">Supabase Debug</h3>
+      
+      {inReloadLoop && (
+        <div className="mb-2 p-2 bg-red-900 rounded">
+          <p className="font-bold text-red-200">⚠️ Reload loop detected</p>
+          <p className="text-red-200">Multiple fix attempts have triggered a reload loop. Manual intervention required.</p>
+        </div>
+      )}
       
       {multipleClientWarning && (
         <div className="mb-2 p-2 bg-red-800 rounded">
@@ -149,7 +191,7 @@ export function SupabaseDebug() {
               variant="destructive"
               className="w-3/4 text-xs"
               onClick={fixMultipleClients}
-              disabled={isFixing}
+              disabled={isFixing || inReloadLoop}
             >
               {isFixing ? 'Fixing...' : 'Fix Multiple Clients'}
             </Button>
@@ -158,6 +200,7 @@ export function SupabaseDebug() {
               variant={autoFixActive ? "default" : "outline"}
               className="ml-1 w-1/4 text-xs"
               onClick={() => setAutoFixActive(!autoFixActive)}
+              disabled={inReloadLoop}
             >
               {autoFixActive ? 'Auto' : 'Manual'}
             </Button>
@@ -198,6 +241,7 @@ export function SupabaseDebug() {
               setClientStats(stats);
             }, 100);
           }}
+          disabled={inReloadLoop}
         >
           Reset Clients
         </Button>
