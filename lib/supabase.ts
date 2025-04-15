@@ -1,15 +1,216 @@
 import { createClient as createClientOriginal, SupabaseClient } from '@supabase/supabase-js';
 import { createBrowserClient } from '@supabase/ssr';
 
-// Declare global namespace for our singletons
-declare global {
-  var __supabase__: {
-    client: SupabaseClient | null;
-    adminClient: SupabaseClient | null;
-    clientToken: string | null;
-    adminToken: string | null;
-  };
+/**
+ * Supabase client singleton class
+ * This implementation follows a true singleton pattern to ensure
+ * only one instance of each client exists in the entire application
+ */
+class SupabaseClientSingleton {
+  // Static instance storage
+  private static instance: SupabaseClientSingleton;
   
+  // Client instances
+  private _client: SupabaseClient | null = null;
+  private _adminClient: SupabaseClient | null = null;
+  
+  // Config
+  private _url: string = '';
+  private _anonKey: string = '';
+  private _serviceKey: string = '';
+  
+  // Initialization state
+  private _initialized: boolean = false;
+  
+  /**
+   * Private constructor to prevent direct instantiation
+   */
+  private constructor() {}
+  
+  /**
+   * Get the singleton instance
+   */
+  public static getInstance(): SupabaseClientSingleton {
+    if (!SupabaseClientSingleton.instance) {
+      SupabaseClientSingleton.instance = new SupabaseClientSingleton();
+    }
+    return SupabaseClientSingleton.instance;
+  }
+  
+  /**
+   * Initialize with configuration
+   */
+  public initialize(): void {
+    if (this._initialized) return;
+    
+    this._url = '';
+    this._anonKey = '';
+    this._serviceKey = '';
+    
+    // Get environment config - Browser environment
+    if (typeof window !== 'undefined') {
+      // Try window.ENV (from env.js)
+      if (window.ENV?.NEXT_PUBLIC_SUPABASE_URL) {
+        this._url = window.ENV.NEXT_PUBLIC_SUPABASE_URL;
+        this._anonKey = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+        this._serviceKey = window.ENV.SUPABASE_SERVICE_ROLE_KEY || '';
+      } 
+      // Try Netlify environment variables
+      else if (window._env_?.NEXT_PUBLIC_SUPABASE_URL) {
+        this._url = window._env_.NEXT_PUBLIC_SUPABASE_URL;
+        this._anonKey = window._env_.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+        this._serviceKey = window._env_.SUPABASE_SERVICE_ROLE_KEY || '';
+      }
+      // Then try process.env
+      else if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        this._url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        this._anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+        this._serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+      }
+    } 
+    // Server environment
+    else {
+      this._url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      this._anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      this._serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    }
+    
+    // Fallback values if needed
+    if (!this.isValidUrl(this._url) || !this.isValidKey(this._anonKey)) {
+      this._url = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
+      this._anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.yN5KM7w8AjsXFOwdpQ4Oy7-Pf7D58fohL1tgnFBK_os";
+    }
+    
+    if (!this.isValidKey(this._serviceKey)) {
+      this._serviceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Mzk0NzAwMSwiZXhwIjoyMDU5NTIzMDAxfQ.1fjCF_WyFoRq_8THFURMosh3txmDaLsx7degHyYIycw";
+    }
+    
+    this._initialized = true;
+  }
+  
+  /**
+   * Get the standard client
+   */
+  public getClient(): SupabaseClient {
+    if (!this._initialized) this.initialize();
+    
+    if (!this._client) {
+      try {
+        // Create unique storage key with app name and environment prefix
+        const storageKey = `aicurator_auth_${process.env.NODE_ENV || 'development'}`;
+        
+        if (typeof window === 'undefined') {
+          // Server-side client
+          this._client = createClientOriginal(this._url, this._anonKey, {
+            auth: {
+              persistSession: false,
+              autoRefreshToken: false,
+            }
+          });
+        } else {
+          // Browser client
+          this._client = createBrowserClient(this._url, this._anonKey, {
+            auth: {
+              persistSession: true,
+              storageKey,
+              flowType: 'pkce' as const,
+              debug: false,
+              autoRefreshToken: true,
+            },
+            global: {
+              headers: {
+                'x-client-info': 'aicurator-webapp',
+                'x-client-singleton': 'true'
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error creating Supabase client:', error);
+        
+        // Fallback to basic client
+        this._client = createClientOriginal(this._url, this._anonKey, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            storageKey: 'aicurator_auth_fallback'
+          }
+        });
+      }
+    }
+    
+    return this._client;
+  }
+  
+  /**
+   * Get the admin client
+   */
+  public getAdminClient(): SupabaseClient {
+    if (!this._initialized) this.initialize();
+    
+    if (!this._adminClient) {
+      // Create unique storage key with app name and environment prefix
+      const storageKey = `aicurator_admin_${process.env.NODE_ENV || 'development'}`;
+      
+      this._adminClient = createClientOriginal(this._url, this._serviceKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          storageKey,
+          debug: false
+        },
+        global: {
+          headers: {
+            'x-client-info': 'aicurator-admin',
+            'x-client-singleton': 'true'
+          }
+        }
+      });
+    }
+    
+    return this._adminClient;
+  }
+  
+  /**
+   * Get a client with a specific token
+   */
+  public getClientWithToken(token: string): SupabaseClient {
+    if (!this._initialized) this.initialize();
+    
+    return createClientOriginal(this._url, this._anonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        storageKey: `aicurator_token_client_${Date.now()}`
+      },
+      global: {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-client-info': 'aicurator-token-client'
+        }
+      }
+    });
+  }
+  
+  /**
+   * Helper methods
+   */
+  private isValidKey(key: string): boolean {
+    return /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(key);
+  }
+  
+  private isValidUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+// Add type definition for window
+declare global {
   interface Window {
     ENV?: {
       NEXT_PUBLIC_SUPABASE_URL?: string;
@@ -33,218 +234,35 @@ declare global {
   }
 }
 
-// Initialize the global singleton object if it doesn't exist
-if (typeof globalThis !== 'undefined' && !globalThis.__supabase__) {
-  globalThis.__supabase__ = {
-    client: null,
-    adminClient: null,
-    clientToken: null,
-    adminToken: null
-  };
-}
+// Initialize singleton instance
+const supabaseSingleton = SupabaseClientSingleton.getInstance();
+supabaseSingleton.initialize();
 
-// Get environment config
-function getConfig() {
-  let url = '';
-  let anonKey = '';
-  let serviceKey = '';
-  
-  // Browser environment
-  if (typeof window !== 'undefined') {
-    // Try window.ENV (from env.js)
-    if (window.ENV?.NEXT_PUBLIC_SUPABASE_URL) {
-      url = window.ENV.NEXT_PUBLIC_SUPABASE_URL;
-      anonKey = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-      serviceKey = window.ENV.SUPABASE_SERVICE_ROLE_KEY || '';
-    } 
-    // Try Netlify environment variables
-    else if (window._env_?.NEXT_PUBLIC_SUPABASE_URL) {
-      url = window._env_.NEXT_PUBLIC_SUPABASE_URL;
-      anonKey = window._env_.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-      serviceKey = window._env_.SUPABASE_SERVICE_ROLE_KEY || '';
-    }
-    // Then try process.env
-    else if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-      serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-    }
-  } 
-  // Server environment
-  else {
-    url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  }
-  
-  // Fallback values if needed
-  if (!isValidUrl(url) || !isValidKey(anonKey)) {
-    url = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
-    anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.yN5KM7w8AjsXFOwdpQ4Oy7-Pf7D58fohL1tgnFBK_os";
-  }
-  
-  if (!isValidKey(serviceKey)) {
-    serviceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Mzk0NzAwMSwiZXhwIjoyMDU5NTIzMDAxfQ.1fjCF_WyFoRq_8THFURMosh3txmDaLsx7degHyYIycw";
-  }
-  
-  return { url, anonKey, serviceKey };
-}
+// Export clients
+export const supabase = supabaseSingleton.getClient();
+export const supabaseAdmin = supabaseSingleton.getAdminClient();
 
-// Validate key format
-function isValidKey(key: string): boolean {
-  // JWT tokens typically follow pattern: xxxxx.yyyyy.zzzzz
-  return /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(key);
-}
-
-// Validate URL format
-function isValidUrl(url: string): boolean {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// Get configuration
-const config = getConfig();
-
-/**
- * Get a Supabase client with global singleton pattern
- */
-function initSupabaseClient(): SupabaseClient {
-  // For server-side rendering, create a new instance each time without caching
-  if (typeof globalThis === 'undefined' || typeof window === 'undefined') {
-    return createClientOriginal(config.url, config.anonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      }
-    });
-  }
-
-  // If we already have a client instance, return it
-  if (globalThis.__supabase__.client !== null) {
-    return globalThis.__supabase__.client;
-  }
-
-  // Create client headers
-  const headers: Record<string, string> = {
-    'x-client-info': 'aicurator-webapp'
-  };
-
-  // Create the client with the proper options
-  const clientOptions = {
-    auth: {
-      persistSession: true,
-      storageKey: 'aicurator_auth_token', // Unique storage key
-      flowType: 'pkce' as const,
-      debug: false,
-      autoRefreshToken: true,
-    },
-    global: {
-      headers
-    }
-  };
-
-  // Create a new client
-  try {
-    const client = createBrowserClient(config.url, config.anonKey, clientOptions);
-    globalThis.__supabase__.client = client;
-    return client;
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-    
-    // Create a fallback client if the browser client fails
-    const fallbackClient = createClientOriginal(config.url, config.anonKey, clientOptions);
-    globalThis.__supabase__.client = fallbackClient;
-    return fallbackClient;
-  }
-}
-
-/**
- * Get a Supabase admin client with global singleton pattern
- */
-function initSupabaseAdminClient(): SupabaseClient {
-  // For server-side rendering, create a new instance each time without caching
-  if (typeof globalThis === 'undefined' || typeof window === 'undefined') {
-    return createClientOriginal(config.url, config.serviceKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      }
-    });
-  }
-
-  // If we already have an admin client instance, return it
-  if (globalThis.__supabase__.adminClient !== null) {
-    return globalThis.__supabase__.adminClient;
-  }
-
-  // Create admin headers
-  const headers: Record<string, string> = {
-    'x-client-info': 'aicurator-admin'
-  };
-
-  // Create the client with the token
-  const adminClient = createClientOriginal(
-    config.url,
-    config.serviceKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        storageKey: 'aicurator_admin_token',
-        debug: false
-      },
-      global: {
-        headers
-      }
-    }
-  );
-
-  // Update the cached admin client
-  globalThis.__supabase__.adminClient = adminClient;
-  return adminClient;
-}
-
-// Export singleton instances directly
-export const supabase = initSupabaseClient();
-export const supabaseAdmin = initSupabaseAdminClient();
-
-// Function to get an authenticated client with a token
+// Export helper function for token-based clients
 export function getClientWithToken(token: string): SupabaseClient {
-  const headers: Record<string, string> = {
-    'Authorization': `Bearer ${token}`
-  };
-  
-  return createClientOriginal(config.url, config.anonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      storageKey: 'aicurator_auth_token'
-    },
-    global: {
-      headers
-    }
-  });
+  return supabaseSingleton.getClientWithToken(token);
 }
 
-// Connection test function to check configuration
-export async function testConnection() {
-  try {
-    const { data, error } = await supabase.from('artworks').select('count()', { count: 'exact' }).limit(1);
-    
-    if (error) {
-      console.error('Supabase connection test failed:', error);
-      return false;
-    }
-    
-    return true;
-  } catch (err) {
-    console.error('Supabase connection error:', err);
-    return false;
+// Format Supabase URL to avoid duplicate paths
+export function formatSupabaseUrl(path: string): string {
+  if (!path) return '';
+  
+  const baseUrl = `${supabaseSingleton['_url']}/storage/v1/object/public/`;
+  
+  // Remove any duplicate bucket names in the path
+  const parts = path.split('/');
+  const bucketName = parts[0];
+  let cleanPath = path;
+  
+  if (parts.length > 1 && parts[1] === bucketName) {
+    cleanPath = parts.slice(0, 1).concat(parts.slice(2)).join('/');
   }
+  
+  return `${baseUrl}${cleanPath}`;
 }
 
 // Artwork image functions
@@ -304,20 +322,19 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
   return publicUrl;
 }
 
-// Format Supabase URL to avoid duplicate paths
-export function formatSupabaseUrl(path: string): string {
-  if (!path) return '';
-  
-  const baseUrl = `${config.url}/storage/v1/object/public/`;
-  
-  // Remove any duplicate bucket names in the path
-  const parts = path.split('/');
-  const bucketName = parts[0];
-  let cleanPath = path;
-  
-  if (parts.length > 1 && parts[1] === bucketName) {
-    cleanPath = parts.slice(0, 1).concat(parts.slice(2)).join('/');
+// Connection test function to check configuration
+export async function testConnection() {
+  try {
+    const { data, error } = await supabase.from('artworks').select('count()', { count: 'exact' }).limit(1);
+    
+    if (error) {
+      console.error('Supabase connection test failed:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (err) {
+    console.error('Supabase connection error:', err);
+    return false;
   }
-  
-  return `${baseUrl}${cleanPath}`;
 }
