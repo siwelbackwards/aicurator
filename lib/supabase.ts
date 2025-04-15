@@ -112,7 +112,7 @@ const config = getConfig();
 /**
  * Get a Supabase client with global singleton pattern
  */
-export function getSupabase(accessToken?: string | null): SupabaseClient {
+function initSupabaseClient(): SupabaseClient {
   // For server-side rendering, create a new instance each time without caching
   if (typeof globalThis === 'undefined' || typeof window === 'undefined') {
     return createClientOriginal(config.url, config.anonKey, {
@@ -123,28 +123,22 @@ export function getSupabase(accessToken?: string | null): SupabaseClient {
     });
   }
 
-  // If the token is the same and we have a cached client, return it
-  if (accessToken === globalThis.__supabase__.clientToken && globalThis.__supabase__.client !== null) {
+  // If we already have a client instance, return it
+  if (globalThis.__supabase__.client !== null) {
     return globalThis.__supabase__.client;
   }
 
-  // Update the last token
-  globalThis.__supabase__.clientToken = accessToken || null;
-
   // Create client headers
-  const headers: Record<string, string> = {};
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  } else {
-    headers['x-client-info'] = 'aicurator-webapp';
-  }
+  const headers: Record<string, string> = {
+    'x-client-info': 'aicurator-webapp'
+  };
 
   // Create the client with the proper options
   const clientOptions = {
     auth: {
       persistSession: true,
       storageKey: 'aicurator_auth_token', // Unique storage key
-      flowType: 'pkce' as const, // Type assertion to allow TypeScript to infer the correct type
+      flowType: 'pkce' as const,
       debug: false,
       autoRefreshToken: true,
     },
@@ -171,7 +165,7 @@ export function getSupabase(accessToken?: string | null): SupabaseClient {
 /**
  * Get a Supabase admin client with global singleton pattern
  */
-export function getSupabaseAdmin(accessToken?: string | null): SupabaseClient {
+function initSupabaseAdminClient(): SupabaseClient {
   // For server-side rendering, create a new instance each time without caching
   if (typeof globalThis === 'undefined' || typeof window === 'undefined') {
     return createClientOriginal(config.url, config.serviceKey, {
@@ -182,26 +176,20 @@ export function getSupabaseAdmin(accessToken?: string | null): SupabaseClient {
     });
   }
 
-  // If the token is the same and we have a cached admin client, return it
-  if (accessToken === globalThis.__supabase__.adminToken && globalThis.__supabase__.adminClient !== null) {
+  // If we already have an admin client instance, return it
+  if (globalThis.__supabase__.adminClient !== null) {
     return globalThis.__supabase__.adminClient;
   }
 
-  // Update the last admin token
-  globalThis.__supabase__.adminToken = accessToken || null;
-
   // Create admin headers
-  const headers: Record<string, string> = {};
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  } else {
-    headers['x-client-info'] = 'aicurator-admin';
-  }
+  const headers: Record<string, string> = {
+    'x-client-info': 'aicurator-admin'
+  };
 
   // Create the client with the token
   const adminClient = createClientOriginal(
     config.url,
-    accessToken ? config.anonKey : config.serviceKey,
+    config.serviceKey,
     {
       auth: {
         persistSession: false,
@@ -220,30 +208,32 @@ export function getSupabaseAdmin(accessToken?: string | null): SupabaseClient {
   return adminClient;
 }
 
-// Create lazily initialized exports
-let _supabase: SupabaseClient | null = null;
-let _supabaseAdmin: SupabaseClient | null = null;
+// Export singleton instances directly
+export const supabase = initSupabaseClient();
+export const supabaseAdmin = initSupabaseAdminClient();
 
-// Getter functions for the exports
-export function supabase(): SupabaseClient {
-  if (_supabase === null) {
-    _supabase = getSupabase();
-  }
-  return _supabase;
-}
-
-export function supabaseAdmin(): SupabaseClient {
-  if (_supabaseAdmin === null) {
-    _supabaseAdmin = getSupabaseAdmin();
-  }
-  return _supabaseAdmin;
+// Function to get an authenticated client with a token
+export function getClientWithToken(token: string): SupabaseClient {
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${token}`
+  };
+  
+  return createClientOriginal(config.url, config.anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      storageKey: 'aicurator_auth_token'
+    },
+    global: {
+      headers
+    }
+  });
 }
 
 // Connection test function to check configuration
 export async function testConnection() {
   try {
-    const client = supabase();
-    const { data, error } = await client.from('artworks').select('count()', { count: 'exact' }).limit(1);
+    const { data, error } = await supabase.from('artworks').select('count()', { count: 'exact' }).limit(1);
     
     if (error) {
       console.error('Supabase connection test failed:', error);
@@ -264,9 +254,7 @@ export async function deleteArtworkImage(filePath: string) {
     return;
   }
   
-  const admin = getSupabaseAdmin();
-  
-  const { error } = await admin.storage.from('artwork-images').remove([filePath]);
+  const { error } = await supabaseAdmin.storage.from('artwork-images').remove([filePath]);
   if (error) {
     throw new Error(`Failed to delete image: ${error.message}`);
   }
@@ -278,15 +266,13 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
     throw new Error('Cannot upload artwork image outside browser context');
   }
   
-  const admin = getSupabaseAdmin();
-  
   const fileExt = file.name.split('.').pop();
   const timestamp = Date.now();
   const fileName = `${timestamp}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
   const filePath = `${artworkId}/${fileName}`;
   
   // Upload the file
-  const { error: uploadError, data } = await admin.storage
+  const { error: uploadError, data } = await supabaseAdmin.storage
     .from('artwork-images')
     .upload(filePath, file, {
       cacheControl: '3600',
@@ -301,7 +287,7 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
   const publicUrl = formatSupabaseUrl(`artwork-images/${filePath}`);
   
   // Add record to artwork_images table
-  const { error: dbError } = await admin
+  const { error: dbError } = await supabaseAdmin
     .from('artwork_images')
     .insert({
       artwork_id: artworkId,
@@ -311,7 +297,7 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
   
   if (dbError) {
     // If DB insert fails, try to remove the uploaded file
-    await admin.storage.from('artwork-images').remove([filePath]);
+    await supabaseAdmin.storage.from('artwork-images').remove([filePath]);
     throw new Error(`Failed to save image record: ${dbError.message}`);
   }
   
