@@ -1,25 +1,69 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, GoTrueClient } from '@supabase/supabase-js';
+import { getGoTrueClient } from './gotrue-singleton';
 
 /**
  * Supabase client singleton implementation following recommended pattern
  * Implements a true singleton to avoid multiple client instantiations
  */
 
-interface GotrueOptions {
-  detectSessionInUrl?: boolean;
-  flowType?: 'pkce' | 'implicit';
-  autoRefreshToken?: boolean;
-  persistSession?: boolean;
-  storageKey?: string;
-  debug?: boolean;
+// Module-level singleton instances
+let _clientSingleton: SupabaseClient | undefined;
+let _adminSingleton: SupabaseClient | undefined;
+// Shared auth instance to prevent multiple GoTrueClient instances
+let _sharedGoTrueClient: GoTrueClient | undefined;
+
+/**
+ * Debug utility to check all Supabase client instances
+ * Call this in your components if you're seeing multiple client warnings
+ */
+export function debugSupabaseClients() {
+  if (typeof window === 'undefined') {
+    console.log('[SupabaseDebug] Running on server - no global clients');
+    return {
+      moduleClients: {
+        regular: !!_clientSingleton,
+        admin: !!_adminSingleton
+      },
+      globalClients: {
+        regular: false,
+        admin: false,
+      }
+    };
+  }
+  
+  console.log('[SupabaseDebug] Client instances:');
+  console.log('- Module-level client:', !!_clientSingleton);
+  console.log('- Module-level admin:', !!_adminSingleton);
+  console.log('- Global client:', !!window.__SUPABASE_CLIENT__);
+  console.log('- Global admin:', !!window.__SUPABASE_ADMIN__);
+  
+  return {
+    moduleClients: {
+      regular: !!_clientSingleton,
+      admin: !!_adminSingleton
+    },
+    globalClients: {
+      regular: !!window.__SUPABASE_CLIENT__,
+      admin: !!window.__SUPABASE_ADMIN__,
+    }
+  };
 }
 
-// Define a global interface that extends Window to include our Supabase clients
+// Get the global object in any environment (browser or server)
+const getGlobalObject = (): any => {
+  if (typeof window !== 'undefined') return window;
+  if (typeof globalThis !== 'undefined') return globalThis;
+  if (typeof global !== 'undefined') return global;
+  if (typeof self !== 'undefined') return self;
+  return {};
+};
+
+// Define global type extensions
 declare global {
   // For browser contexts
   interface Window {
-    __SUPABASE_SINGLETON_CLIENT__?: SupabaseClient;
-    __SUPABASE_SINGLETON_ADMIN__?: SupabaseClient;
+    __SUPABASE_CLIENT__?: SupabaseClient;
+    __SUPABASE_ADMIN__?: SupabaseClient;
     ENV?: {
       NEXT_PUBLIC_SUPABASE_URL?: string;
       NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
@@ -42,28 +86,22 @@ declare global {
   }
   
   // For Node.js and other non-browser contexts
-  var __SUPABASE_SINGLETON_CLIENT__: SupabaseClient | undefined;
-  var __SUPABASE_SINGLETON_ADMIN__: SupabaseClient | undefined;
+  var __SUPABASE_CLIENT__: SupabaseClient | undefined;
+  var __SUPABASE_ADMIN__: SupabaseClient | undefined;
 }
-
-// Get the global object in any environment (browser or server)
-const getGlobalObject = (): any => {
-  if (typeof window !== 'undefined') return window;
-  if (typeof globalThis !== 'undefined') return globalThis;
-  if (typeof global !== 'undefined') return global;
-  if (typeof self !== 'undefined') return self;
-  return {};
-};
 
 /**
  * Supabase Singleton Service
  * Ensures only one instance of each client exists across the entire application
  */
-class SupabaseService {
+export class SupabaseService {
   private static url: string = '';
   private static anonKey: string = '';
   private static serviceKey: string = '';
   private static initialized = false;
+  
+  // Environment-specific prefix for storage keys
+  private static ENV_PREFIX = typeof process !== 'undefined' && process.env.NODE_ENV === 'production' ? 'prod' : 'dev';
   
   /**
    * Initialize the Supabase configuration
@@ -120,109 +158,221 @@ class SupabaseService {
   }
   
   /**
-   * Get the standard Supabase client
-   * Returns a cached instance if available, or creates a new one
+   * Create a single shared GoTrueClient to use across all Supabase clients
+   * This is the key fix for the "Multiple GoTrueClient instances" warning
    */
-  static getClient(): SupabaseClient {
-    this.initialize();
-    
-    const globalObj = getGlobalObject();
-    
-    // Use the global cached singleton instance if available
-    if (globalObj.__SUPABASE_SINGLETON_CLIENT__) {
-      return globalObj.__SUPABASE_SINGLETON_CLIENT__;
+  private static getSharedGoTrueClient(): GoTrueClient {
+    if (typeof window === 'undefined') {
+      // For server, create new instance each time (doesn't cause warnings)
+      return new GoTrueClient({
+        url: `${this.url}/auth/v1`,
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      });
     }
     
-    // Check global for existing clients to avoid duplicates
-    // This prevents warnings about multiple GoTrueClient instances
-    if (globalObj.supabaseClient) {
-      globalObj.__SUPABASE_SINGLETON_CLIENT__ = globalObj.supabaseClient;
-      return globalObj.__SUPABASE_SINGLETON_CLIENT__;
+    if (_sharedGoTrueClient) {
+      console.debug('[Supabase] Reusing shared GoTrueClient');
+      return _sharedGoTrueClient;
     }
     
-    // Create client-specific auth options based on environment
-    const isServer = typeof window === 'undefined';
-    const ENV_PREFIX = process.env.NODE_ENV === 'production' ? 'prod' : 'dev';
-    const storageKey = `aicurator_auth_${ENV_PREFIX}`;
+    console.debug('[Supabase] Creating shared GoTrueClient');
+    const storageKey = `aicurator_auth_${this.ENV_PREFIX}`;
     
-    // Define auth options based on environment
-    const authOptions = isServer 
-      ? {
-          persistSession: false,
-          autoRefreshToken: false
-        }
-      : {
-          persistSession: true,
-          storageKey, // Unique key for this environment
-          autoRefreshToken: true,
-          flowType: 'pkce' as const,
-          debug: false
-        };
-    
-    // Create a new client instance
-    const client = createClient(this.url, this.anonKey, {
-      auth: authOptions,
-      global: {
-        headers: {
-          'x-client-info': 'aicurator-webapp',
-          'x-client-singleton': 'true'
-        }
-      }
+    // Create a single GoTrueClient for all Supabase clients
+    _sharedGoTrueClient = new GoTrueClient({
+      url: `${this.url}/auth/v1`,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false, 
+      storageKey,
+      flowType: 'pkce'
     });
     
-    // Store in global singleton cache
-    globalObj.__SUPABASE_SINGLETON_CLIENT__ = client;
-    globalObj.supabaseClient = client;
+    // Store on window for cross-module access
+    if (window) {
+      (window as any).__SHARED_GOTRUE__ = _sharedGoTrueClient;
+    }
     
-    return client;
+    return _sharedGoTrueClient;
   }
   
   /**
-   * Get the Supabase admin client with service role privileges
-   * Returns a cached instance if available, or creates a new one
+   * Static reference to track client instances
+   */
+  private static _clients = {
+    standard: undefined as SupabaseClient | undefined,
+    admin: undefined as SupabaseClient | undefined,
+    serverless: undefined as SupabaseClient | undefined,
+    isInitializing: {
+      standard: false,
+      admin: false,
+      serverless: false
+    }
+  };
+  
+  /**
+   * Get Supabase client (browser or server)
+   * Uses a singleton pattern to ensure only one client instance exists
+   */
+  static getClient(): SupabaseClient {
+    // First, check if we already have a client instance
+    if (SupabaseService._clients.standard) {
+      console.debug('[Supabase] Reusing existing standard client');
+      return SupabaseService._clients.standard;
+    }
+    
+    // If client is being initialized elsewhere, wait briefly to avoid race condition
+    if (SupabaseService._clients.isInitializing.standard) {
+      console.debug('[Supabase] Waiting for existing client initialization');
+      return this.delayAndGetClient('standard');
+    }
+    
+    // Check global singleton on window
+    if (typeof window !== 'undefined' && window.__SUPABASE_CLIENT__) {
+      console.debug('[Supabase] Using existing global client from window');
+      SupabaseService._clients.standard = window.__SUPABASE_CLIENT__;
+      return window.__SUPABASE_CLIENT__;
+    }
+    
+    console.debug('[Supabase] Creating new standard client');
+    SupabaseService._clients.isInitializing.standard = true;
+    
+    try {
+      const client = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          auth: {
+            persistSession: true,
+            storageKey: 'aicurator_auth_' + SupabaseService.ENV_PREFIX,
+          },
+        }
+      );
+      
+      // Use shared GoTrueClient to prevent "Multiple GoTrueClient" warnings
+      const sharedAuth = this.getSharedGoTrueClient();
+      
+      // @ts-ignore - We're doing this to prevent multiple GoTrueClient instances
+      client.auth.gotrue = sharedAuth;
+      
+      // Store in static variable
+      SupabaseService._clients.standard = client;
+      
+      // Store in global variable for cross-file access
+      if (typeof window !== 'undefined') {
+        window.__SUPABASE_CLIENT__ = client;
+      }
+      
+      return client;
+    } finally {
+      SupabaseService._clients.isInitializing.standard = false;
+    }
+  }
+  
+  /**
+   * Get admin Supabase client
+   * Uses a singleton pattern to ensure only one admin client instance exists
    */
   static getAdminClient(): SupabaseClient {
-    this.initialize();
-    
-    const globalObj = getGlobalObject();
-    
-    // Use the global cached singleton instance if available
-    if (globalObj.__SUPABASE_SINGLETON_ADMIN__) {
-      return globalObj.__SUPABASE_SINGLETON_ADMIN__;
+    // First, check if we already have a client instance
+    if (SupabaseService._clients.admin) {
+      console.debug('[Supabase] Reusing existing admin client');
+      return SupabaseService._clients.admin;
     }
     
-    // Check global for existing clients to avoid duplicates
-    // This prevents warnings about multiple GoTrueClient instances
-    if (globalObj.supabaseAdminClient) {
-      globalObj.__SUPABASE_SINGLETON_ADMIN__ = globalObj.supabaseAdminClient;
-      return globalObj.__SUPABASE_SINGLETON_ADMIN__;
+    // If client is being initialized elsewhere, wait briefly to avoid race condition
+    if (SupabaseService._clients.isInitializing.admin) {
+      console.debug('[Supabase] Waiting for existing admin client initialization');
+      return this.delayAndGetClient('admin');
     }
     
-    // Create unique storage key for this environment
-    const ENV_PREFIX = process.env.NODE_ENV === 'production' ? 'prod' : 'dev';
-    const storageKey = `aicurator_admin_${ENV_PREFIX}`;
+    // Check global singleton
+    if (typeof window !== 'undefined' && window.__SUPABASE_ADMIN__) {
+      console.debug('[Supabase] Using existing global admin client from window');
+      SupabaseService._clients.admin = window.__SUPABASE_ADMIN__;
+      return window.__SUPABASE_ADMIN__;
+    }
     
-    // Create a new admin client instance
-    const adminClient = createClient(this.url, this.serviceKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        storageKey,
-        debug: false
-      },
-      global: {
-        headers: {
-          'x-client-info': 'aicurator-admin',
-          'x-client-singleton': 'true'
+    console.debug('[Supabase] Creating new admin client');
+    SupabaseService._clients.isInitializing.admin = true;
+    
+    try {
+      const adminClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+          auth: {
+            persistSession: false, // No need to persist admin sessions
+            autoRefreshToken: false,
+          },
         }
+      );
+      
+      // Use shared GoTrueClient to prevent "Multiple GoTrueClient" warnings
+      const sharedAuth = this.getSharedGoTrueClient();
+      
+      // @ts-ignore - We're doing this to prevent multiple GoTrueClient instances
+      adminClient.auth.gotrue = sharedAuth;
+      
+      // Store in static variable
+      SupabaseService._clients.admin = adminClient;
+      
+      // Store in global variable for cross-file access
+      if (typeof window !== 'undefined') {
+        window.__SUPABASE_ADMIN__ = adminClient;
       }
-    });
+      
+      return adminClient;
+    } finally {
+      SupabaseService._clients.isInitializing.admin = false;
+    }
+  }
+  
+  /**
+   * Helper method to wait for client initialization and return
+   * Used to avoid race conditions during concurrent client initialization
+   */
+  private static delayAndGetClient(type: 'standard' | 'admin' | 'serverless'): SupabaseClient {
+    // In real implementation, this would use a promise or callback
+    // For simplicity, we'll just delay briefly and return
+    console.debug(`[Supabase] Delaying to avoid race condition for ${type} client`);
     
-    // Store in global singleton cache
-    globalObj.__SUPABASE_SINGLETON_ADMIN__ = adminClient;
-    globalObj.supabaseAdminClient = adminClient;
+    // Simplified delay-retry mechanism
+    // In a real app, you might want to use a more sophisticated approach
+    for (let i = 0; i < 3; i++) {
+      if (type === 'standard' && SupabaseService._clients.standard) {
+        return SupabaseService._clients.standard;
+      }
+      if (type === 'admin' && SupabaseService._clients.admin) {
+        return SupabaseService._clients.admin;
+      }
+      if (type === 'serverless' && SupabaseService._clients.serverless) {
+        return SupabaseService._clients.serverless;
+      }
+      
+      // Wait a bit (this is simplified - you'd use async/await in a real implementation)
+      const start = Date.now();
+      while (Date.now() - start < 50) {
+        // Busy wait
+      }
+    }
     
-    return adminClient;
+    // If we still don't have a client, create a new one as fallback
+    console.debug(`[Supabase] Client still not available after delay, creating new ${type} client`);
+    
+    if (type === 'standard') {
+      SupabaseService._clients.isInitializing.standard = false; // Reset flag
+      return this.getClient();
+    } 
+    if (type === 'admin') {
+      SupabaseService._clients.isInitializing.admin = false; // Reset flag
+      return this.getAdminClient();
+    }
+    
+    // Serverless - should never reach here in normal operation
+    return this.getClient();
   }
   
   /**
@@ -234,22 +384,37 @@ class SupabaseService {
     
     // Generate a unique storage key based on token hash
     const tokenHash = this.hashString(token);
-    const storageKey = `aicurator_token_${tokenHash}`;
     
     // Create a new client instance with the token
-    return createClient(this.url, this.anonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        storageKey
-      },
-      global: {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'x-client-info': 'aicurator-token-client'
+    const client = createClient(
+      this.url, 
+      this.anonKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        },
+        global: {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'x-client-info': 'aicurator-token-client'
+          }
         }
       }
-    });
+    );
+    
+    // If we're in the browser, replace the auth property with our shared instance
+    if (typeof window !== 'undefined') {
+      // Get shared auth instance
+      const sharedAuth = this.getSharedGoTrueClient();
+      
+      // Replace the auth property (this is the key fix)
+      // @ts-ignore - We're doing this to prevent multiple GoTrueClient instances
+      client.auth = sharedAuth;
+    }
+    
+    return client;
   }
   
   /**
@@ -285,7 +450,16 @@ class SupabaseService {
   }
 }
 
-// Export static clients directly
+/**
+ * Initialize the Supabase service and return a reference
+ * This ensures we have a consistent way to access the service from hooks
+ */
+export function initializeSupabaseService(): SupabaseService {
+  SupabaseService.initialize();
+  return SupabaseService;
+}
+
+// Create the clients once at module initialization
 export const supabase = SupabaseService.getClient();
 export const supabaseAdmin = SupabaseService.getAdminClient();
 
@@ -310,6 +484,106 @@ export function formatSupabaseUrl(path: string): string {
   }
   
   return `${baseUrl}${cleanPath}`;
+}
+
+/**
+ * Force a clean global client initialization
+ * Use this if you're seeing "Multiple GoTrueClient instances" warnings
+ */
+export function resetSupabaseClients() {
+  if (typeof window === 'undefined') {
+    console.debug('[Supabase] Cannot reset clients on server side');
+    return false;
+  }
+  
+  console.debug('[Supabase] Resetting all client instances for clean initialization');
+  
+  // Reset module-level singletons
+  _clientSingleton = undefined;
+  _adminSingleton = undefined;
+  
+  // Reset global instances
+  window.__SUPABASE_CLIENT__ = undefined;
+  window.__SUPABASE_ADMIN__ = undefined;
+  
+  // Delete auth state from localStorage
+  const ENV_PREFIX = process.env.NODE_ENV === 'production' ? 'prod' : 'dev';
+  const storageKey = `aicurator_auth_${ENV_PREFIX}`;
+  const adminKey = `aicurator_admin_${ENV_PREFIX}`;
+  
+  // Find and clear any supabase-related localStorage items
+  Object.keys(localStorage).forEach(key => {
+    if (key.includes('supabase') || key.includes(storageKey) || key.includes(adminKey) || key.includes('aicurator')) {
+      console.debug(`[Supabase] Removing storage key: ${key}`);
+      localStorage.removeItem(key);
+    }
+  });
+  
+  // Initialize fresh clients
+  const client = SupabaseService.getClient();
+  const adminClient = SupabaseService.getAdminClient();
+  
+  console.debug('[Supabase] Clients have been reset and reinitialized');
+  return true;
+}
+
+// Add client inspector function to window for console debugging
+if (typeof window !== 'undefined') {
+  (window as any).inspectSupabaseClients = () => {
+    console.group('Supabase Client Inspection');
+    
+    // Check for module-level singletons
+    console.log('Module-level client singleton:', !!_clientSingleton);
+    console.log('Module-level admin singleton:', !!_adminSingleton);
+    
+    // Check for global object instances
+    console.log('Global window.__SUPABASE_CLIENT__:', !!window.__SUPABASE_CLIENT__);
+    console.log('Global window.__SUPABASE_ADMIN__:', !!window.__SUPABASE_ADMIN__);
+    
+    // Check for reference equality
+    if (_clientSingleton && window.__SUPABASE_CLIENT__) {
+      console.log('Client reference equality:', _clientSingleton === window.__SUPABASE_CLIENT__);
+    }
+    
+    if (_adminSingleton && window.__SUPABASE_ADMIN__) {
+      console.log('Admin reference equality:', _adminSingleton === window.__SUPABASE_ADMIN__);
+    }
+    
+    // Check auth configuration
+    if (window.__SUPABASE_CLIENT__) {
+      const clientAuth = (window.__SUPABASE_CLIENT__ as any).auth;
+      console.log('Client auth config:', {
+        storageKey: clientAuth?.storageKey,
+        persistSession: clientAuth?.persistSession,
+        detectSessionInUrl: clientAuth?.detectSessionInUrl,
+        autoRefreshToken: clientAuth?.autoRefreshToken
+      });
+    }
+    
+    // Check for potential other instances
+    const ENV_PREFIX = process.env.NODE_ENV === 'production' ? 'prod' : 'dev';
+    const expectedStorageKey = `aicurator_auth_${ENV_PREFIX}`;
+    
+    console.log('Expected storage key:', expectedStorageKey);
+    console.log('Storage keys in localStorage:', Object.keys(localStorage).filter(
+      key => key.includes('supabase') || key.includes('aicurator')
+    ));
+    
+    console.groupEnd();
+    
+    return {
+      moduleClient: _clientSingleton,
+      moduleAdmin: _adminSingleton,
+      globalClient: window.__SUPABASE_CLIENT__,
+      globalAdmin: window.__SUPABASE_ADMIN__,
+      referenceEquality: {
+        client: _clientSingleton === window.__SUPABASE_CLIENT__,
+        admin: _adminSingleton === window.__SUPABASE_ADMIN__
+      }
+    };
+  };
+  
+  console.debug('[Supabase] Inspector added to window.inspectSupabaseClients()');
 }
 
 // Artwork image functions

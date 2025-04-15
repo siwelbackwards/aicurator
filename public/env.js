@@ -20,6 +20,25 @@
     window.process.env[key] = window.ENV[key];
   });
 
+  // Add global initialization guard to prevent multiple client creation
+  window.__SUPABASE_INITIALIZED = false;
+  window.__SUPABASE_INIT_GUARD = function() {
+    if (window.__SUPABASE_INITIALIZED) return;
+    
+    // Set a flag to prevent multiple initializations
+    window.__SUPABASE_INITIALIZED = true;
+    
+    // Create storage keys that match the ones used in the clients
+    const ENV_PREFIX = process.env.NODE_ENV === 'production' ? 'prod' : 'dev';
+    window.__SUPABASE_STORAGE_KEY = `aicurator_auth_${ENV_PREFIX}`;
+    
+    console.log('Supabase initialization guard activated');
+    console.log('Storage key set to:', window.__SUPABASE_STORAGE_KEY);
+  };
+  
+  // Call the guard immediately to set things up
+  window.__SUPABASE_INIT_GUARD();
+
   console.log('Environment variables loaded successfully');
   console.log('Supabase URL available: ' + (window.ENV.NEXT_PUBLIC_SUPABASE_URL ? '✓' : '✗'));
   console.log('Supabase Anon Key available: ' + (window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✓' : '✗'));
