@@ -14,12 +14,12 @@ interface GotrueOptions {
   debug?: boolean;
 }
 
-// Global namespace declaration to hold client instances
+// Define a global interface that extends Window to include our Supabase clients
 declare global {
-  var supabase: SupabaseClient | undefined;
-  var supabaseAdmin: SupabaseClient | undefined;
-  
+  // For browser contexts
   interface Window {
+    __SUPABASE_SINGLETON_CLIENT__?: SupabaseClient;
+    __SUPABASE_SINGLETON_ADMIN__?: SupabaseClient;
     ENV?: {
       NEXT_PUBLIC_SUPABASE_URL?: string;
       NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
@@ -40,21 +40,43 @@ declare global {
       [key: string]: any;
     };
   }
+  
+  // For Node.js and other non-browser contexts
+  var __SUPABASE_SINGLETON_CLIENT__: SupabaseClient | undefined;
+  var __SUPABASE_SINGLETON_ADMIN__: SupabaseClient | undefined;
 }
 
+// Get the global object in any environment (browser or server)
+const getGlobalObject = (): any => {
+  if (typeof window !== 'undefined') return window;
+  if (typeof globalThis !== 'undefined') return globalThis;
+  if (typeof global !== 'undefined') return global;
+  if (typeof self !== 'undefined') return self;
+  return {};
+};
+
+/**
+ * Supabase Singleton Service
+ * Ensures only one instance of each client exists across the entire application
+ */
 class SupabaseService {
   private static url: string = '';
   private static anonKey: string = '';
   private static serviceKey: string = '';
   private static initialized = false;
   
+  /**
+   * Initialize the Supabase configuration
+   */
   static initialize() {
     if (this.initialized) return;
     
-    // Get environment config
+    // Reset to default empty values
     this.url = '';
     this.anonKey = '';
     this.serviceKey = '';
+    
+    const globalObj = getGlobalObject();
     
     // Browser environment
     if (typeof window !== 'undefined') {
@@ -97,76 +119,113 @@ class SupabaseService {
     this.initialized = true;
   }
   
+  /**
+   * Get the standard Supabase client
+   * Returns a cached instance if available, or creates a new one
+   */
   static getClient(): SupabaseClient {
     this.initialize();
     
-    // Use the global variable to maintain the singleton
-    if (!global.supabase) {
-      // Check if we're on the server or client
-      const isServer = typeof window === 'undefined';
-      
-      // Create client-specific auth options
-      const authOptions: GotrueOptions = isServer 
-        ? {
-            persistSession: false,
-            autoRefreshToken: false
-          }
-        : {
-            persistSession: true,
-            storageKey: 'aicurator_auth_token',
-            autoRefreshToken: true,
-            flowType: 'pkce',
-            debug: false
-          };
-      
-      // Create the client
-      global.supabase = createClient(this.url, this.anonKey, {
-        auth: authOptions,
-        global: {
-          headers: {
-            'x-client-info': 'aicurator-webapp',
-            'x-client-singleton': 'true'
-          }
-        }
-      });
+    const globalObj = getGlobalObject();
+    
+    // Use the global cached singleton instance if available
+    if (globalObj.__SUPABASE_SINGLETON_CLIENT__) {
+      return globalObj.__SUPABASE_SINGLETON_CLIENT__;
     }
     
-    return global.supabase;
+    // Create client-specific auth options based on environment
+    const isServer = typeof window === 'undefined';
+    const ENV_PREFIX = process.env.NODE_ENV === 'production' ? 'prod' : 'dev';
+    const storageKey = `aicurator_auth_${ENV_PREFIX}`;
+    
+    // Define auth options based on environment
+    const authOptions = isServer 
+      ? {
+          persistSession: false,
+          autoRefreshToken: false
+        }
+      : {
+          persistSession: true,
+          storageKey, // Unique key for this environment
+          autoRefreshToken: true,
+          flowType: 'pkce' as const,
+          debug: false
+        };
+    
+    // Create a new client instance
+    const client = createClient(this.url, this.anonKey, {
+      auth: authOptions,
+      global: {
+        headers: {
+          'x-client-info': 'aicurator-webapp',
+          'x-client-singleton': 'true'
+        }
+      }
+    });
+    
+    // Store in global singleton cache
+    globalObj.__SUPABASE_SINGLETON_CLIENT__ = client;
+    
+    return client;
   }
   
+  /**
+   * Get the Supabase admin client with service role privileges
+   * Returns a cached instance if available, or creates a new one
+   */
   static getAdminClient(): SupabaseClient {
     this.initialize();
     
-    // Use the global variable to maintain the singleton
-    if (!global.supabaseAdmin) {
-      global.supabaseAdmin = createClient(this.url, this.serviceKey, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          storageKey: 'aicurator_admin_token',
-          debug: false
-        },
-        global: {
-          headers: {
-            'x-client-info': 'aicurator-admin',
-            'x-client-singleton': 'true'
-          }
-        }
-      });
+    const globalObj = getGlobalObject();
+    
+    // Use the global cached singleton instance if available
+    if (globalObj.__SUPABASE_SINGLETON_ADMIN__) {
+      return globalObj.__SUPABASE_SINGLETON_ADMIN__;
     }
     
-    return global.supabaseAdmin;
+    // Create unique storage key for this environment
+    const ENV_PREFIX = process.env.NODE_ENV === 'production' ? 'prod' : 'dev';
+    const storageKey = `aicurator_admin_${ENV_PREFIX}`;
+    
+    // Create a new admin client instance
+    const adminClient = createClient(this.url, this.serviceKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        storageKey,
+        debug: false
+      },
+      global: {
+        headers: {
+          'x-client-info': 'aicurator-admin',
+          'x-client-singleton': 'true'
+        }
+      }
+    });
+    
+    // Store in global singleton cache
+    globalObj.__SUPABASE_SINGLETON_ADMIN__ = adminClient;
+    
+    return adminClient;
   }
   
+  /**
+   * Get a client with a specific authentication token
+   * Note: These clients are NOT cached as they are specific to individual tokens
+   */
   static getClientWithToken(token: string): SupabaseClient {
     this.initialize();
     
-    // For token-based clients, create a new instance each time
+    // Generate a unique storage key based on token hash
+    const tokenHash = this.hashString(token);
+    const storageKey = `aicurator_token_${tokenHash}`;
+    
+    // Create a new client instance with the token
     return createClient(this.url, this.anonKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
-        storageKey: `aicurator_token_client_${Date.now()}`
+        storageKey
       },
       global: {
         headers: {
@@ -177,10 +236,29 @@ class SupabaseService {
     });
   }
   
+  /**
+   * Helper method to hash a string (for creating unique token-based storage keys)
+   */
+  private static hashString(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(36).substring(0, 8);
+  }
+  
+  /**
+   * Validate JWT token format
+   */
   private static isValidKey(key: string): boolean {
     return /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(key);
   }
   
+  /**
+   * Validate URL format
+   */
   private static isValidUrl(url: string): boolean {
     try {
       new URL(url);
