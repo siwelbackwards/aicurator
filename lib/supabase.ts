@@ -1,8 +1,15 @@
 import { createClient as createClientOriginal, SupabaseClient } from '@supabase/supabase-js';
 import { createBrowserClient } from '@supabase/ssr';
 
-// Add TypeScript declaration for Window with ENV
+// Declare global namespace for our singletons
 declare global {
+  var __supabase__: {
+    client: SupabaseClient | null;
+    adminClient: SupabaseClient | null;
+    clientToken: string | null;
+    adminToken: string | null;
+  };
+  
   interface Window {
     ENV?: {
       NEXT_PUBLIC_SUPABASE_URL?: string;
@@ -23,10 +30,17 @@ declare global {
       SUPABASE_SERVICE_ROLE_KEY?: string;
       [key: string]: any;
     };
-    // Add global client references to ensure true singletons
-    __SUPABASE_CLIENT__?: any;
-    __SUPABASE_ADMIN_CLIENT__?: any;
   }
+}
+
+// Initialize the global singleton object if it doesn't exist
+if (typeof globalThis !== 'undefined' && !globalThis.__supabase__) {
+  globalThis.__supabase__ = {
+    client: null,
+    adminClient: null,
+    clientToken: null,
+    adminToken: null
+  };
 }
 
 // Get environment config
@@ -43,6 +57,12 @@ function getConfig() {
       anonKey = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
       serviceKey = window.ENV.SUPABASE_SERVICE_ROLE_KEY || '';
     } 
+    // Try Netlify environment variables
+    else if (window._env_?.NEXT_PUBLIC_SUPABASE_URL) {
+      url = window._env_.NEXT_PUBLIC_SUPABASE_URL;
+      anonKey = window._env_.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      serviceKey = window._env_.SUPABASE_SERVICE_ROLE_KEY || '';
+    }
     // Then try process.env
     else if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -89,20 +109,12 @@ function isValidUrl(url: string): boolean {
 // Get configuration
 const config = getConfig();
 
-// Cache for client and admin instances
-let cachedClient: SupabaseClient | null = null;
-let cachedAdminClient: SupabaseClient | null = null;
-
-// Track the last token used for client
-let lastClientToken: string | null = null;
-let lastAdminToken: string | null = null;
-
 /**
- * Get a Supabase client with token-based caching
+ * Get a Supabase client with global singleton pattern
  */
-export function getSupabase(accessToken?: string | null) {
-  // For server-side rendering, create a new instance each time
-  if (typeof window === 'undefined') {
+export function getSupabase(accessToken?: string | null): SupabaseClient {
+  // For server-side rendering, create a new instance each time without caching
+  if (typeof globalThis === 'undefined' || typeof window === 'undefined') {
     return createClientOriginal(config.url, config.anonKey, {
       auth: {
         persistSession: false,
@@ -112,40 +124,56 @@ export function getSupabase(accessToken?: string | null) {
   }
 
   // If the token is the same and we have a cached client, return it
-  if (accessToken === lastClientToken && cachedClient !== null) {
-    return cachedClient;
+  if (accessToken === globalThis.__supabase__.clientToken && globalThis.__supabase__.client !== null) {
+    return globalThis.__supabase__.client;
   }
 
   // Update the last token
-  lastClientToken = accessToken || null;
+  globalThis.__supabase__.clientToken = accessToken || null;
 
-  // Create a new client with the token
-  const client = createBrowserClient(config.url, config.anonKey, {
+  // Create client headers
+  const headers: Record<string, string> = {};
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  } else {
+    headers['x-client-info'] = 'aicurator-webapp';
+  }
+
+  // Create the client with the proper options
+  const clientOptions = {
     auth: {
       persistSession: true,
-      storageKey: 'aicurator_supabase_auth',
-      flowType: 'pkce',
+      storageKey: 'aicurator_auth_token', // Unique storage key
+      flowType: 'pkce' as const, // Type assertion to allow TypeScript to infer the correct type
       debug: false,
       autoRefreshToken: true,
     },
     global: {
-      headers: accessToken 
-        ? { Authorization: `Bearer ${accessToken}` }
-        : { 'x-client-info': 'aicurator-webapp' }
+      headers
     }
-  });
+  };
 
-  // Update the cached client
-  cachedClient = client;
-  return client;
+  // Create a new client
+  try {
+    const client = createBrowserClient(config.url, config.anonKey, clientOptions);
+    globalThis.__supabase__.client = client;
+    return client;
+  } catch (error) {
+    console.error('Error creating Supabase client:', error);
+    
+    // Create a fallback client if the browser client fails
+    const fallbackClient = createClientOriginal(config.url, config.anonKey, clientOptions);
+    globalThis.__supabase__.client = fallbackClient;
+    return fallbackClient;
+  }
 }
 
 /**
- * Get a Supabase admin client with token-based caching
+ * Get a Supabase admin client with global singleton pattern
  */
-export function getSupabaseAdmin(accessToken?: string | null) {
-  // For server-side rendering, create a new instance each time
-  if (typeof window === 'undefined') {
+export function getSupabaseAdmin(accessToken?: string | null): SupabaseClient {
+  // For server-side rendering, create a new instance each time without caching
+  if (typeof globalThis === 'undefined' || typeof window === 'undefined') {
     return createClientOriginal(config.url, config.serviceKey, {
       auth: {
         persistSession: false,
@@ -155,12 +183,20 @@ export function getSupabaseAdmin(accessToken?: string | null) {
   }
 
   // If the token is the same and we have a cached admin client, return it
-  if (accessToken === lastAdminToken && cachedAdminClient !== null) {
-    return cachedAdminClient;
+  if (accessToken === globalThis.__supabase__.adminToken && globalThis.__supabase__.adminClient !== null) {
+    return globalThis.__supabase__.adminClient;
   }
 
-  // Update the last token
-  lastAdminToken = accessToken || null;
+  // Update the last admin token
+  globalThis.__supabase__.adminToken = accessToken || null;
+
+  // Create admin headers
+  const headers: Record<string, string> = {};
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  } else {
+    headers['x-client-info'] = 'aicurator-admin';
+  }
 
   // Create the client with the token
   const adminClient = createClientOriginal(
@@ -170,30 +206,44 @@ export function getSupabaseAdmin(accessToken?: string | null) {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
-        storageKey: 'aicurator_supabase_admin_auth',
+        storageKey: 'aicurator_admin_token',
         debug: false
       },
       global: {
-        headers: accessToken 
-          ? { Authorization: `Bearer ${accessToken}` }
-          : { 'x-client-info': 'aicurator-admin' }
+        headers
       }
     }
   );
 
   // Update the cached admin client
-  cachedAdminClient = adminClient;
+  globalThis.__supabase__.adminClient = adminClient;
   return adminClient;
 }
 
-// Export singletons for common use cases
-export const supabase = getSupabase();
-export const supabaseAdmin = getSupabaseAdmin();
+// Create lazily initialized exports
+let _supabase: SupabaseClient | null = null;
+let _supabaseAdmin: SupabaseClient | null = null;
+
+// Getter functions for the exports
+export function supabase(): SupabaseClient {
+  if (_supabase === null) {
+    _supabase = getSupabase();
+  }
+  return _supabase;
+}
+
+export function supabaseAdmin(): SupabaseClient {
+  if (_supabaseAdmin === null) {
+    _supabaseAdmin = getSupabaseAdmin();
+  }
+  return _supabaseAdmin;
+}
 
 // Connection test function to check configuration
 export async function testConnection() {
   try {
-    const { data, error } = await supabase.from('artworks').select('count()', { count: 'exact' }).limit(1);
+    const client = supabase();
+    const { data, error } = await client.from('artworks').select('count()', { count: 'exact' }).limit(1);
     
     if (error) {
       console.error('Supabase connection test failed:', error);
