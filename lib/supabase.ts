@@ -133,6 +133,13 @@ class SupabaseService {
       return globalObj.__SUPABASE_SINGLETON_CLIENT__;
     }
     
+    // Check global for existing clients to avoid duplicates
+    // This prevents warnings about multiple GoTrueClient instances
+    if (globalObj.supabaseClient) {
+      globalObj.__SUPABASE_SINGLETON_CLIENT__ = globalObj.supabaseClient;
+      return globalObj.__SUPABASE_SINGLETON_CLIENT__;
+    }
+    
     // Create client-specific auth options based on environment
     const isServer = typeof window === 'undefined';
     const ENV_PREFIX = process.env.NODE_ENV === 'production' ? 'prod' : 'dev';
@@ -165,6 +172,7 @@ class SupabaseService {
     
     // Store in global singleton cache
     globalObj.__SUPABASE_SINGLETON_CLIENT__ = client;
+    globalObj.supabaseClient = client;
     
     return client;
   }
@@ -180,6 +188,13 @@ class SupabaseService {
     
     // Use the global cached singleton instance if available
     if (globalObj.__SUPABASE_SINGLETON_ADMIN__) {
+      return globalObj.__SUPABASE_SINGLETON_ADMIN__;
+    }
+    
+    // Check global for existing clients to avoid duplicates
+    // This prevents warnings about multiple GoTrueClient instances
+    if (globalObj.supabaseAdminClient) {
+      globalObj.__SUPABASE_SINGLETON_ADMIN__ = globalObj.supabaseAdminClient;
       return globalObj.__SUPABASE_SINGLETON_ADMIN__;
     }
     
@@ -205,6 +220,7 @@ class SupabaseService {
     
     // Store in global singleton cache
     globalObj.__SUPABASE_SINGLETON_ADMIN__ = adminClient;
+    globalObj.supabaseAdminClient = adminClient;
     
     return adminClient;
   }
