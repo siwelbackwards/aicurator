@@ -22,6 +22,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Determine if we're in production
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isNetlify = process.env.NETLIFY === 'true';
+  
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -33,6 +37,14 @@ export default function RootLayout({
         
         {/* Load environment variables before the app mounts */}
         <Script src="/env.js" strategy="beforeInteractive" />
+        
+        {/* Add Netlify-specific script in production */}
+        {isProduction && (
+          <Script 
+            src="/.netlify/functions/handle-supabase-clients" 
+            strategy="beforeInteractive"
+          />
+        )}
         
         {/* Cleanup script to ensure consistent client initialization */}
         <Script id="supabase-cleanup" strategy="beforeInteractive">
@@ -79,7 +91,7 @@ export default function RootLayout({
               <Footer />
             </div>
             <Toaster />
-            {/* Debug component only appears in development */}
+            {/* Debug component appears in development and conditionally in production */}
             <SupabaseDebug />
           </ThemeProvider>
         </ErrorBoundary>

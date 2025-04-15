@@ -5,26 +5,9 @@ import { debugSupabaseClients, resetSupabaseClients } from '@/lib/supabase';
 import { resetGoTrueClient, lockGoTrueClient } from '@/lib/gotrue-singleton';
 import { Button } from '@/components/ui/button';
 
-// Define a type for the client state
-interface ClientState {
-  moduleClients?: {
-    regular: boolean;
-    admin: boolean;
-  };
-  globalClients?: {
-    regular: boolean;
-    admin: boolean;
-  };
-  warningDetected?: boolean;
-  lastWarning?: string;
-  storageKeys?: string[];
-  clientEquality?: boolean;
-  adminEquality?: boolean;
-}
-
 /**
  * Component to display Supabase debug information and provide tools to fix common issues
- * Only visible in development mode
+ * Production mode will still apply fixes but with minimal UI
  */
 export function SupabaseDebug() {
   const [isVisible, setIsVisible] = useState(false);
@@ -32,36 +15,55 @@ export function SupabaseDebug() {
   const [multipleClientWarning, setMultipleClientWarning] = useState(false);
   const [autoFixActive, setAutoFixActive] = useState(true); // Default to auto-fix enabled
   const [isFixing, setIsFixing] = useState(false);
+  const [isProduction, setIsProduction] = useState(false);
   const fixTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const fixAttemptCount = useRef(0);
   
   // Function to fix the multiple clients issue
   const fixMultipleClients = () => {
     // Prevent multiple concurrent fixes
     if (isFixing) return;
     
+    // Track fix attempts
+    fixAttemptCount.current += 1;
+    
+    // Limit fix attempts to prevent infinite loops
+    if (fixAttemptCount.current > 3) {
+      console.warn('[SupabaseDebug] Multiple fix attempts detected - limiting further attempts');
+      return;
+    }
+    
     setIsFixing(true);
     console.debug('[SupabaseDebug] Automatically fixing multiple client instances');
     
     // Reset both client and auth
-    resetGoTrueClient();
-    setTimeout(() => {
-      resetSupabaseClients();
-      // Lock the client to prevent further instances
+    try {
+      resetGoTrueClient();
       setTimeout(() => {
-        lockGoTrueClient();
-        setMultipleClientWarning(false);
-        
-        // Reload client stats
-        const stats = debugSupabaseClients();
-        setClientStats(stats);
-        setIsFixing(false);
-      }, 100);
-    }, 100);
+        resetSupabaseClients();
+        // Lock the client to prevent further instances
+        setTimeout(() => {
+          lockGoTrueClient();
+          setMultipleClientWarning(false);
+          
+          // Reload client stats
+          const stats = debugSupabaseClients();
+          setClientStats(stats);
+          setIsFixing(false);
+        }, 200);
+      }, 200);
+    } catch (error) {
+      console.error('[SupabaseDebug] Error during fix:', error);
+      setIsFixing(false);
+    }
   };
   
   // Check for any console warnings about multiple clients
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    
+    // Check if we're in production
+    setIsProduction(process.env.NODE_ENV === 'production');
     
     // Save original console.warn
     const originalWarn = console.warn;
@@ -72,8 +74,8 @@ export function SupabaseDebug() {
           args[0].includes('Multiple GoTrueClient instances')) {
         setMultipleClientWarning(true);
         
-        // Auto-fix if enabled
-        if (autoFixActive && !isFixing) {
+        // Auto-fix if enabled (always in production)
+        if ((autoFixActive || isProduction) && !isFixing) {
           // Clear any existing timeout
           if (fixTimeoutRef.current) {
             clearTimeout(fixTimeoutRef.current);
@@ -88,13 +90,17 @@ export function SupabaseDebug() {
       originalWarn.apply(console, args);
     };
     
-    // Check for dev mode
+    // In development, always show the debug UI
+    // In production, only show if there's an issue
     const isDev = process.env.NODE_ENV !== 'production';
-    setIsVisible(isDev);
+    setIsVisible(isDev || multipleClientWarning);
     
     // Get client statistics
     const stats = debugSupabaseClients();
     setClientStats(stats);
+    
+    // Reset count on each mount
+    fixAttemptCount.current = 0;
     
     // Restore original console.warn on cleanup
     return () => {
@@ -103,10 +109,33 @@ export function SupabaseDebug() {
         clearTimeout(fixTimeoutRef.current);
       }
     };
-  }, [autoFixActive, isFixing]);
+  }, [autoFixActive, isFixing, isProduction, multipleClientWarning]);
   
+  // Don't render anything in production unless there's an issue
   if (!isVisible) return null;
   
+  // In production, only show minimal UI and only when there's an issue
+  if (isProduction) {
+    if (!multipleClientWarning) return null;
+    
+    return (
+      <div className="fixed bottom-0 right-0 m-4 p-2 bg-slate-900 bg-opacity-50 rounded-lg z-50 text-xs opacity-60">
+        {isFixing ? 
+          <div className="text-amber-300">Fixing Supabase issues...</div> :
+          <Button 
+            size="sm" 
+            variant="destructive"
+            className="text-xs"
+            onClick={fixMultipleClients}
+          >
+            Fix Supabase
+          </Button>
+        }
+      </div>
+    );
+  }
+  
+  // Full debug UI for development
   return (
     <div className="fixed bottom-0 right-0 m-4 p-4 bg-slate-900 text-white rounded-lg shadow-lg z-50 max-w-sm text-xs opacity-80 hover:opacity-100 transition-opacity">
       <h3 className="font-bold mb-2 text-sm">Supabase Debug</h3>
