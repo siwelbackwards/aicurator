@@ -7,7 +7,7 @@ import { Menu as MenuIcon, X, UserIcon, Settings, LogOut, ShoppingBag, ShieldAle
 import { Menu } from '@headlessui/react';
 import { Button } from '@/components/ui/button';
 import AuthDialog from '@/components/auth/auth-dialog';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { ErrorBoundary } from '@/components/error-boundary';
 
 const navigation = [
@@ -27,6 +27,9 @@ export default function Navbar() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
@@ -50,6 +53,9 @@ export default function Navbar() {
   }, []);
 
   const handleSignOut = async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    
     await supabase.auth.signOut();
     router.refresh();
   };

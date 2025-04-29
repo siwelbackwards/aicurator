@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import ArtworkUploadForm from '@/components/artwork/artwork-upload-form';
 
 export default function UploadPage() {
@@ -10,7 +10,19 @@ export default function UploadPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        router.push('/sign-in');
+        return;
+      }
+
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error('Auth error:', error);
+        router.push('/sign-in');
+        return;
+      }
+
       if (!user) {
         router.push('/sign-in');
       }
