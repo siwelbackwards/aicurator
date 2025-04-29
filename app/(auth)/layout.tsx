@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSupabaseClient } from '@/lib/supabase';
+import { useSupabase } from '@/components/providers/supabase-provider';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -13,16 +13,11 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const supabase = useSupabase();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
-      const supabase = getSupabaseClient();
-      if (!supabase) {
-        setLoading(false);
-        return;
-      }
-
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error) {
         console.error('Auth error:', error);
@@ -37,16 +32,10 @@ export default function AuthLayout({
     };
 
     checkAuth();
-  }, [router]);
+  }, [router, supabase]);
 
   const handleSignOut = async () => {
     try {
-      const supabase = getSupabaseClient();
-      if (!supabase) {
-        toast.error('Failed to initialize Supabase client');
-        return;
-      }
-
       const { error } = await supabase.auth.signOut();
       if (error) {
         toast.error('Failed to sign out. Please try again.');
