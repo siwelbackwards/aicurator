@@ -32,19 +32,32 @@ export default function SearchResults() {
   // Check authentication status and fetch wishlist if authenticated
   useEffect(() => {
     const checkAuthAndFetchWishlist = async () => {
-      const supabase = getSupabaseClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      setIsAuthenticated(!!user);
-
-      if (user) {
-        const { data } = await supabase
-          .from('wishlist')
-          .select('artwork_id')
-          .eq('user_id', user.id);
-        
-        if (data) {
-          setWishlist(new Set(data.map(item => item.artwork_id as string)));
+      try {
+        const supabase = getSupabaseClient();
+        if (!supabase) {
+          throw new Error('Supabase client not initialized');
         }
+
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
+        
+        setIsAuthenticated(!!user);
+
+        if (user) {
+          const { data, error: wishlistError } = await supabase
+            .from('wishlist')
+            .select('artwork_id')
+            .eq('user_id', user.id);
+          
+          if (wishlistError) throw wishlistError;
+          
+          if (data) {
+            setWishlist(new Set(data.map(item => item.artwork_id as string)));
+          }
+        }
+      } catch (err) {
+        console.error('Error checking auth status:', err);
+        setIsAuthenticated(false);
       }
     };
 
@@ -65,6 +78,10 @@ export default function SearchResults() {
 
       try {
         const supabase = getSupabaseClient();
+        if (!supabase) {
+          throw new Error('Supabase client not initialized');
+        }
+
         let queryBuilder = supabase
           .from('artworks')
           .select(`
@@ -85,12 +102,12 @@ export default function SearchResults() {
           queryBuilder = queryBuilder.eq('category', category);
         }
 
-        const { data, error } = await queryBuilder;
-
-        if (error) throw error;
+        const { data, error: queryError } = await queryBuilder;
+        if (queryError) throw queryError;
 
         setResults(data as SearchResult[]);
       } catch (err) {
+        console.error('Search error:', err);
         setError(err instanceof Error ? err.message : 'An error occurred while searching');
       } finally {
         setLoading(false);
@@ -114,33 +131,38 @@ export default function SearchResults() {
 
     try {
       const supabase = getSupabaseClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      if (!supabase) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
       const isInWishlist = wishlist.has(artworkId);
       
       if (isInWishlist) {
-        const { error } = await supabase
+        const { error: deleteError } = await supabase
           .from('wishlist')
           .delete()
           .eq('user_id', user.id)
           .eq('artwork_id', artworkId);
         
-        if (error) throw error;
+        if (deleteError) throw deleteError;
         setWishlist(prev => {
           const newSet = new Set(prev);
           newSet.delete(artworkId);
           return newSet;
         });
       } else {
-        const { error } = await supabase
+        const { error: insertError } = await supabase
           .from('wishlist')
           .insert({
             user_id: user.id,
             artwork_id: artworkId
           });
         
-        if (error) throw error;
+        if (insertError) throw insertError;
         setWishlist(prev => {
           const newSet = new Set(prev);
           newSet.add(artworkId);
