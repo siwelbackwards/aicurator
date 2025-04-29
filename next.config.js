@@ -8,7 +8,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://cpzzmpgbyzc
 const supabaseHostname = supabaseUrl.replace(/^https?:\/\//, '');
 
 const nextConfig = {
-  // Restore static export for Netlify deployment
+  // Static export for Netlify deployment
   output: 'export',
   // Disable image optimization for static export
   images: {
