@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Heart, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { getSupabaseClient } from '@/lib/supabase';
-import SupabaseImage from '@/components/ui/supabase-image';
+import { supabase } from '@/lib/supabase-client';
+import { generateEmbedding } from '@/lib/openai';
+import Image from 'next/image';
 
 interface SearchResult {
   id: string;
@@ -17,12 +18,13 @@ interface SearchResult {
   images: { url: string; is_primary: boolean; }[];
 }
 
-export default function SearchResults() {
+interface SearchProps {
+  query: string;
+  category?: string;
+}
+
+export default function SearchResults({ query, category }: SearchProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const query = searchParams.get('q') || '';
-  const category = searchParams.get('category') || 'all';
-  
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,83 +34,64 @@ export default function SearchResults() {
   // Check authentication status and fetch wishlist if authenticated
   useEffect(() => {
     const checkAuthAndFetchWishlist = async () => {
-      try {
-        const supabase = getSupabaseClient();
-        if (!supabase) {
-          throw new Error('Supabase client not initialized');
-        }
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError) throw authError;
+      if (user) {
+        const { data } = await supabase
+          .from('wishlist')
+          .select('artwork_id')
+          .eq('user_id', user.id);
         
-        setIsAuthenticated(!!user);
-
-        if (user) {
-          const { data, error: wishlistError } = await supabase
-            .from('wishlist')
-            .select('artwork_id')
-            .eq('user_id', user.id);
-          
-          if (wishlistError) throw wishlistError;
-          
-          if (data) {
-            setWishlist(new Set(data.map(item => item.artwork_id as string)));
-          }
+        if (data) {
+          setWishlist(new Set(data.map(item => item.artwork_id)));
         }
-      } catch (err) {
-        console.error('Error checking auth status:', err);
-        setIsAuthenticated(false);
       }
     };
 
     checkAuthAndFetchWishlist();
   }, []);
 
-  // Fetch search results
   useEffect(() => {
     const fetchResults = async () => {
-      if (!query) {
-        setResults([]);
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-
       try {
-        const supabase = getSupabaseClient();
-        if (!supabase) {
-          throw new Error('Supabase client not initialized');
-        }
+        setLoading(true);
+        setError(null);
 
         let queryBuilder = supabase
           .from('artworks')
           .select(`
-            id,
-            title,
-            artist_name,
-            price,
-            category,
-            images:artwork_images(
-              url,
-              is_primary
-            )
+            *,
+            images:artwork_images(url, is_primary)
           `)
-          .eq('status', 'approved')
-          .ilike('title', `%${query}%`);
+          .eq('status', 'approved');
 
-        if (category !== 'all') {
+        // Handle category filtering if not 'all'
+        if (category && category !== 'all') {
           queryBuilder = queryBuilder.eq('category', category);
         }
 
-        const { data, error: queryError } = await queryBuilder;
-        if (queryError) throw queryError;
+        // Handle text search if query exists
+        if (query) {
+          queryBuilder = queryBuilder.or(
+            `title.ilike.%${query}%,artist_name.ilike.%${query}%,description.ilike.%${query}%`
+          );
+        }
 
-        setResults(data as SearchResult[]);
+        const { data, error: searchError } = await queryBuilder;
+
+        if (searchError) {
+          throw searchError;
+        }
+
+        if (!data || data.length === 0) {
+          setResults([]);
+        } else {
+          setResults(data);
+        }
       } catch (err) {
         console.error('Search error:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred while searching');
+        setError('Failed to fetch search results');
       } finally {
         setLoading(false);
       }
@@ -118,7 +101,7 @@ export default function SearchResults() {
   }, [query, category]);
 
   const handleProductClick = (id: string) => {
-    router.push(`/artwork/${id}`);
+    router.push(`/product/${id}`);
   };
 
   const handleWishlist = async (e: React.MouseEvent, artworkId: string) => {
@@ -129,61 +112,37 @@ export default function SearchResults() {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     try {
-      const supabase = getSupabaseClient();
-      if (!supabase) {
-        throw new Error('Supabase client not initialized');
-      }
-
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-      if (!user) throw new Error('Not authenticated');
-
-      const isInWishlist = wishlist.has(artworkId);
-      
-      if (isInWishlist) {
-        const { error: deleteError } = await supabase
+      if (wishlist.has(artworkId)) {
+        await supabase
           .from('wishlist')
           .delete()
           .eq('user_id', user.id)
           .eq('artwork_id', artworkId);
-        
-        if (deleteError) throw deleteError;
-        setWishlist(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(artworkId);
-          return newSet;
-        });
+        wishlist.delete(artworkId);
       } else {
-        const { error: insertError } = await supabase
+        await supabase
           .from('wishlist')
-          .insert({
-            user_id: user.id,
-            artwork_id: artworkId
-          });
-        
-        if (insertError) throw insertError;
-        setWishlist(prev => {
-          const newSet = new Set(prev);
-          newSet.add(artworkId);
-          return newSet;
-        });
+          .insert({ user_id: user.id, artwork_id: artworkId });
+        wishlist.add(artworkId);
       }
-    } catch (err) {
-      console.error('Error updating wishlist:', err);
+      setWishlist(new Set(wishlist));
+    } catch (error) {
+      console.error('Wishlist error:', error);
     }
   };
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[...Array(6)].map((_, i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[...Array(8)].map((_, i) => (
           <div key={i} className="animate-pulse">
-            <div className="aspect-square bg-gray-200 rounded-lg" />
-            <div className="mt-4 space-y-2">
-              <div className="h-4 bg-gray-200 rounded w-3/4" />
-              <div className="h-4 bg-gray-200 rounded w-1/2" />
-            </div>
+            <div className="aspect-square bg-gray-200 rounded-lg mb-4" />
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+            <div className="h-4 bg-gray-200 rounded w-1/2" />
           </div>
         ))}
       </div>
@@ -192,57 +151,91 @@ export default function SearchResults() {
 
   if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
+      <div className="text-center py-8">
+        <p className="text-red-500">{error}</p>
+        <Button 
+          variant="outline" 
+          className="mt-4"
+          onClick={() => window.location.reload()}
+        >
+          Try Again
+        </Button>
+      </div>
     );
   }
 
   if (results.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">No results found for "{query}"</p>
+      <div className="text-center py-8">
+        <p className="text-gray-500">
+          {category && !query 
+            ? `No results found in category "${category}"`
+            : query && !category
+            ? `No results found for "${query}"`
+            : `No results found for "${query}" in category "${category}"`
+          }
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {results.map((artwork) => (
-        <div
-          key={artwork.id}
-          className="group cursor-pointer"
-          onClick={() => handleProductClick(artwork.id)}
-        >
-          <div className="relative aspect-square overflow-hidden rounded-lg">
-            <SupabaseImage
-              src={artwork.images[0]?.url || ''}
-              alt={artwork.title}
-              fill
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-2 right-2 bg-white/80 hover:bg-white/90"
-              onClick={(e) => handleWishlist(e, artwork.id)}
-            >
-              <Heart
-                className={`h-5 w-5 ${
-                  wishlist.has(artwork.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'
-                }`}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {results.map((product) => {
+        const primaryImage = product.images?.find(img => img.is_primary);
+        const imageUrl = primaryImage?.url || '/images/placeholder.webp';
+
+        return (
+          <div 
+            key={product.id} 
+            className="group cursor-pointer"
+            onClick={() => handleProductClick(product.id)}
+          >
+            <div className="relative aspect-square overflow-hidden rounded-lg mb-4 bg-gray-100">
+              <Image
+                src={imageUrl}
+                alt={product.title}
+                fill
+                className="object-cover object-center transition-transform duration-500 group-hover:scale-110"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                onError={(e) => {
+                  console.error('Image failed to load:', imageUrl);
+                  const img = e.target as HTMLImageElement;
+                  img.src = '/images/placeholder.webp';
+                }}
               />
-            </Button>
+            </div>
+            <h3 className="font-medium text-lg mb-2">{product.title}</h3>
+            <p className="text-sm text-gray-600 mb-2">By: {product.artist_name}</p>
+            <p className="text-sm text-gray-500 mb-2">Category: {product.category}</p>
+            <p className="text-green-600 font-bold">£{product.price.toLocaleString()}</p>
+            <div className="flex flex-col items-end justify-between">
+              {isAuthenticated ? (
+                <Button 
+                  variant={wishlist.has(product.id) ? "default" : "outline"}
+                  className="gap-2"
+                  onClick={(e) => handleWishlist(e, product.id)}
+                >
+                  <Heart className="w-4 h-4" fill={wishlist.has(product.id) ? "currentColor" : "none"} />
+                  {wishlist.has(product.id) ? 'Added to wishlist' : 'Add to wishlist'}
+                </Button>
+              ) : (
+                <Button 
+                  variant="outline"
+                  className="gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push('/login');
+                  }}
+                >
+                  <Heart className="w-4 h-4" />
+                  Login to save
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="mt-4">
-            <h3 className="text-lg font-medium">{artwork.title}</h3>
-            <p className="text-sm text-gray-500">{artwork.artist_name}</p>
-            <p className="mt-1 font-medium">${artwork.price.toFixed(2)}</p>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

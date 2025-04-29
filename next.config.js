@@ -8,7 +8,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://cpzzmpgbyzc
 const supabaseHostname = supabaseUrl.replace(/^https?:\/\//, '');
 
 const nextConfig = {
-  // Static export for Netlify deployment
+  // Restore static export for Netlify deployment
   output: 'export',
   // Disable image optimization for static export
   images: {
@@ -38,8 +38,7 @@ const nextConfig = {
   // Disable all server-side features
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', '*.netlify.app'],
-      bodySizeLimit: '2mb'
+      allowedOrigins: ['localhost:3000', 'aicurator.netlify.app']
     }
   },
   // Define environment variables to be available at build time

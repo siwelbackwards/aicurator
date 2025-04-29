@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-client';
 import { formatSupabaseUrl } from '@/lib/utils';
 
 interface ImageFile {
@@ -99,14 +99,6 @@ export default function NewItemPage() {
       const userId = session.user.id;
       console.log('User authenticated:', userId);
       
-      // Check available buckets to debug
-      const { data: buckets, error: bucketsError } = await supabaseAdmin.storage.listBuckets();
-      console.log('Available buckets:', buckets);
-      
-      if (bucketsError) {
-        console.error('Error listing buckets:', bucketsError);
-      }
-      
       // Create a unique file name with user ID and timestamp
       const timestamp = Date.now();
       const fileExt = file.name.split('.').pop();
@@ -115,8 +107,8 @@ export default function NewItemPage() {
       
       console.log('Attempting to upload to path:', filePath);
       
-      // Upload to user-specific folder in artwork-images bucket using admin client
-      const { data, error } = await supabaseAdmin.storage
+      // Upload to user-specific folder in artwork-images bucket
+      const { data, error } = await supabase.storage
         .from('artwork-images')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -130,7 +122,7 @@ export default function NewItemPage() {
         const publicPath = `public/${fileName}`;
         console.log('Trying alternative simple path:', publicPath);
         
-        const { data: publicData, error: publicError } = await supabaseAdmin.storage
+        const { data: publicData, error: publicError } = await supabase.storage
           .from('artwork-images')
           .upload(publicPath, file, {
             cacheControl: '3600',
@@ -142,7 +134,7 @@ export default function NewItemPage() {
         }
         
         // Return the URL for the uploaded file
-        const { data: publicUrl } = supabaseAdmin.storage
+        const { data: publicUrl } = supabase.storage
           .from('artwork-images')
           .getPublicUrl(publicPath);
           
@@ -150,7 +142,7 @@ export default function NewItemPage() {
       }
       
       // Return the URL for the uploaded file
-      const { data: url } = supabaseAdmin.storage
+      const { data: url } = supabase.storage
         .from('artwork-images')
         .getPublicUrl(filePath);
         
@@ -171,7 +163,7 @@ export default function NewItemPage() {
       if (sessionError) throw sessionError;
       if (!session) throw new Error('No session found');
 
-      // Upload images using admin client
+      // Upload images
       const uploadedImages = await Promise.all(
         images.map(async (img) => ({
           url: await uploadImage(img.file),
@@ -179,8 +171,8 @@ export default function NewItemPage() {
         }))
       );
 
-      // Insert artwork using admin client
-      const { data: artwork, error: artworkError } = await supabaseAdmin
+      // Insert artwork
+      const { data: artwork, error: artworkError } = await supabase
         .from('artworks')
         .insert({
           user_id: session.user.id,
@@ -208,8 +200,8 @@ export default function NewItemPage() {
         throw new Error(`Failed to create artwork: ${artworkError.message}`);
       }
 
-      // Insert images using admin client
-      const { error: imagesError } = await supabaseAdmin
+      // Insert images
+      const { error: imagesError } = await supabase
         .from('artwork_images')
         .insert(
           uploadedImages.map(img => ({

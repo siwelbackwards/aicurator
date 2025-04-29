@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { supabase, uploadArtworkImage } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
 
 interface ArtworkImageUploadProps {
@@ -36,7 +36,14 @@ export default function ArtworkImageUpload({ artworkId, onUploadComplete }: Artw
         throw new Error('Image size must be less than 5MB');
       }
 
-      await uploadArtworkImage(file, artworkId, isPrimary);
+      await supabase.storage.from('artworks').upload(
+        `artwork-${artworkId}-${isPrimary ? 'primary' : 'secondary'}-${Date.now()}.${fileExt}`,
+        file,
+        {
+          cacheControl: '3600',
+          upsert: true
+        }
+      );
       toast.success('Image uploaded successfully');
       onUploadComplete();
     } catch (error) {

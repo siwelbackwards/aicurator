@@ -1,6 +1,6 @@
 // This file injects environment variables for static builds
 (function() {
-  console.log('Initializing environment variables');
+  console.log("Initializing environment variables");
   
   // Create window.ENV container
   window.ENV = {
@@ -16,12 +16,12 @@
   }
 
   // Copy environment variables to process.env
-  Object.keys(window.ENV).forEach(key => {
+  Object.keys(window.ENV).forEach(function(key) {
     window.process.env[key] = window.ENV[key];
   });
 
-  console.log('Environment variables loaded successfully');
-  console.log('Supabase URL available: ' + (window.ENV.NEXT_PUBLIC_SUPABASE_URL ? '✓' : '✗'));
-  console.log('Supabase Anon Key available: ' + (window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✓' : '✗'));
-  console.log('Service Role Key available: ' + (window.ENV.SUPABASE_SERVICE_ROLE_KEY ? '✓' : '✗'));
+  console.log("Environment variables loaded successfully");
+  console.log("Supabase URL available: " + (window.ENV.NEXT_PUBLIC_SUPABASE_URL ? "✓" : "✗"));
+  console.log("Supabase Anon Key available: " + (window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✓" : "✗"));
+  console.log("Service Role Key available: " + (window.ENV.SUPABASE_SERVICE_ROLE_KEY ? "✓" : "✗"));
 })(); 

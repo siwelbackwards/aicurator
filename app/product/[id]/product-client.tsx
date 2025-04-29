@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Heart, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ConfirmationDialog from '@/components/product/confirmation-dialog';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-client';
 import { SupabaseImage } from '@/components/ui/supabase-image';
 import { useRouter } from 'next/navigation';
 

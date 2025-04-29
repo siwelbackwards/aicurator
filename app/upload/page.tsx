@@ -2,29 +2,22 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSupabase } from '@/components/providers/supabase-provider';
+import { supabase } from '@/lib/supabase-client';
 import ArtworkUploadForm from '@/components/artwork/artwork-upload-form';
 
 export default function UploadPage() {
   const router = useRouter();
-  const supabase = useSupabase();
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) {
-        console.error('Auth error:', error);
-        router.push('/sign-in');
-        return;
-      }
-
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/sign-in');
       }
     };
 
     checkAuth();
-  }, [router, supabase]);
+  }, [router]);
 
   return (
     <div className="container mx-auto py-8">

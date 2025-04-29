@@ -34,24 +34,38 @@ export function formatSupabaseUrl(url: string): string {
   // If already a full URL, return it
   if (url.startsWith('https://')) return url;
   
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
+  // Use the environment variable or fallback
+  const supabaseUrl = typeof window !== 'undefined' && window.ENV?.NEXT_PUBLIC_SUPABASE_URL 
+    ? window.ENV.NEXT_PUBLIC_SUPABASE_URL 
+    : process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
   
   // Fix common issues with Supabase storage paths
   let cleanPath = url;
   
   // Remove duplicate path segments
   cleanPath = cleanPath.replace(/artwork-images\/artwork-images/g, 'artwork-images');
+  cleanPath = cleanPath.replace(/avatars\/avatars/g, 'avatars');
   
   // Ensure no leading slash for bucket path portions
   if (cleanPath.startsWith('/')) {
     cleanPath = cleanPath.substring(1);
   }
   
-  // For Supabase storage, use the storage API pattern
-  if (cleanPath.includes('artwork-images') || cleanPath.includes('storage/')) {
-    return `${baseUrl}/storage/v1/object/public/${cleanPath}`;
+  // Handle different bucket types consistently
+  if (!cleanPath.includes('storage/v1/object/public/')) {
+    // Check if path includes bucket name already
+    const bucketNames = ['artwork-images', 'avatars', 'profiles'];
+    const hasBucket = bucketNames.some(bucket => cleanPath.startsWith(bucket + '/'));
+    
+    if (!hasBucket) {
+      // Default to artwork-images bucket if no bucket specified
+      cleanPath = `artwork-images/${cleanPath}`;
+    }
+    
+    // For Supabase storage, use the storage API pattern
+    return `${supabaseUrl}/storage/v1/object/public/${cleanPath}`;
   }
   
-  // For other paths, simple join
-  return `${baseUrl}/${cleanPath}`;
+  // If it already has the storage path pattern, just ensure the base URL is correct
+  return `${supabaseUrl}/${cleanPath.replace(/^.*?storage\/v1\/object\/public\//, 'storage/v1/object/public/')}`;
 }

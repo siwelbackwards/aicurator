@@ -7,9 +7,6 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from "@/components/ui/toaster";
 import type { Metadata } from "next";
 import Script from 'next/script';
-import { createBrowserClient } from '@supabase/ssr';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { SupabaseProvider } from '@/components/providers/supabase-provider';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -37,14 +34,12 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <SupabaseProvider>
-              <div className="flex min-h-screen flex-col">
-                <Navbar />
-                <main className="flex-grow container mx-auto">{children}</main>
-                <Footer />
-              </div>
-              <Toaster />
-            </SupabaseProvider>
+            <div className="flex min-h-screen flex-col">
+              <Navbar />
+              <main className="flex-grow container mx-auto">{children}</main>
+              <Footer />
+            </div>
+            <Toaster />
           </ThemeProvider>
         </ErrorBoundary>
       </body>

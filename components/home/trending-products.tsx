@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-client';
 import Image from 'next/image';
 import { formatSupabaseUrl } from '@/lib/utils';
 import { SupabaseImage } from '@/components/ui/supabase-image';

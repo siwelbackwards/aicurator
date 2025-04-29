@@ -1,6 +1,6 @@
 // This is a Server Component
 import ProductClient from './product-client';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase-client';
 
 // Add static params for build time generation
 export async function generateStaticParams() {
