@@ -37,7 +37,10 @@ const nextConfig = {
   },
   // Disable all server-side features
   experimental: {
-    serverActions: false
+    serverActions: {
+      allowedOrigins: ['localhost:3000', '*.netlify.app'],
+      bodySizeLimit: '2mb'
+    }
   },
   // Define environment variables to be available at build time
   env: {

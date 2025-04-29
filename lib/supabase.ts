@@ -120,16 +120,12 @@ export const supabase = (() => {
 
 // Create a single admin client instance
 export const createAdminClient = () => {
-  if (!adminClient) {
-    adminClient = createClientOriginal(config.url, config.serviceKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      }
-    });
-  }
-  return adminClient;
+  const { url, serviceKey } = getConfig();
+  return createClientOriginal(url, serviceKey);
 };
+
+// Create and export the admin client instance
+export const supabaseAdmin = createAdminClient();
 
 // Connection test function to check configuration
 export async function testConnection() {
