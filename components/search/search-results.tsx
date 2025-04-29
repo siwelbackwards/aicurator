@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Heart, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { supabase } from '@/lib/supabase';
-import Image from 'next/image';
+import { getSupabaseClient } from '@/lib/supabase';
+import SupabaseImage from '@/components/ui/supabase-image';
 
 interface SearchResult {
   id: string;
@@ -32,6 +32,7 @@ export default function SearchResults() {
   // Check authentication status and fetch wishlist if authenticated
   useEffect(() => {
     const checkAuthAndFetchWishlist = async () => {
+      const supabase = getSupabaseClient();
       const { data: { user } } = await supabase.auth.getUser();
       setIsAuthenticated(!!user);
 
@@ -63,6 +64,7 @@ export default function SearchResults() {
       setError(null);
 
       try {
+        const supabase = getSupabaseClient();
         let queryBuilder = supabase
           .from('artworks')
           .select(`
@@ -111,6 +113,7 @@ export default function SearchResults() {
     }
 
     try {
+      const supabase = getSupabaseClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
@@ -192,8 +195,8 @@ export default function SearchResults() {
           onClick={() => handleProductClick(artwork.id)}
         >
           <div className="relative aspect-square overflow-hidden rounded-lg">
-            <Image
-              src={artwork.images[0]?.url || '/placeholder.svg'}
+            <SupabaseImage
+              src={artwork.images[0]?.url || ''}
               alt={artwork.title}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"

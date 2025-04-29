@@ -83,67 +83,70 @@ function isValidKey(key: string): boolean {
   return /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(key);
 }
 
-// Create clients with singleton pattern
-const config = getConfig();
-
 // Create a single Supabase client instance
 let supabaseClient: ReturnType<typeof createClientOriginal> | null = null;
 let adminClient: ReturnType<typeof createClientOriginal> | null = null;
 
-// Create a single Supabase client instance
-export const supabase = (() => {
+// Get or create the Supabase client
+export const getSupabaseClient = () => {
+  if (supabaseClient) return supabaseClient;
+
+  const config = getConfig();
+  
   if (typeof window === 'undefined') {
     // Server-side client
-    if (!supabaseClient) {
-      supabaseClient = createClientOriginal(config.url, config.anonKey, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        }
-      });
-    }
-    return supabaseClient;
+    supabaseClient = createClientOriginal(config.url, config.anonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      }
+    });
   } else {
     // Client-side browser client
-    if (!supabaseClient) {
-      supabaseClient = createBrowserClient(config.url, config.anonKey, {
-        auth: {
-          persistSession: true,
-          storageKey: 'supabase-auth',
-          flowType: 'pkce',
-        }
-      });
-    }
-    return supabaseClient;
+    supabaseClient = createBrowserClient(config.url, config.anonKey, {
+      auth: {
+        persistSession: true,
+        storageKey: 'supabase-auth',
+        flowType: 'pkce',
+      }
+    });
   }
-})();
 
-// Create a single admin client instance
-export const createAdminClient = () => {
-  const { url, serviceKey } = getConfig();
-  return createClientOriginal(url, serviceKey);
+  return supabaseClient;
 };
 
-// Create and export the admin client instance
-export const supabaseAdmin = createAdminClient();
+// Get or create the admin client
+export const getAdminClient = () => {
+  if (adminClient) return adminClient;
 
-// Connection test function to check configuration
-export async function testConnection() {
-  try {
-    console.log('Testing Supabase connection...');
-    const { data, error } = await supabase().from('artworks').select('count()', { count: 'exact' }).limit(1);
-    
-    if (error) {
-      console.error('Supabase connection test failed:', error);
-      return false;
+  const config = getConfig();
+  adminClient = createClientOriginal(config.url, config.serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
     }
-    
-    console.log('Supabase connection test successful');
-    return true;
-  } catch (err) {
-    console.error('Supabase connection error:', err);
-    return false;
+  });
+
+  return adminClient;
+};
+
+// Format Supabase URL to avoid duplicate paths
+export function formatSupabaseUrl(path: string): string {
+  if (!path) return '';
+  
+  const config = getConfig();
+  const baseUrl = `${config.url}/storage/v1/object/public/`;
+  
+  // Remove any duplicate bucket names in the path
+  const parts = path.split('/');
+  const bucketName = parts[0];
+  let cleanPath = path;
+  
+  if (parts.length > 1 && parts[1] === bucketName) {
+    cleanPath = parts.slice(0, 1).concat(parts.slice(2)).join('/');
   }
+  
+  return `${baseUrl}${cleanPath}`;
 }
 
 // Artwork image functions
@@ -153,11 +156,8 @@ export async function deleteArtworkImage(filePath: string) {
     return;
   }
   
-  if (!adminClient) {
-    throw new Error('Admin client not available');
-  }
-  
-  const { error } = await adminClient.storage.from('artwork-images').remove([filePath]);
+  const admin = getAdminClient();
+  const { error } = await admin.storage.from('artwork-images').remove([filePath]);
   if (error) {
     throw new Error(`Failed to delete image: ${error.message}`);
   }
@@ -169,17 +169,14 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
     throw new Error('Cannot upload artwork image outside browser context');
   }
   
-  if (!adminClient) {
-    throw new Error('Admin client not available');
-  }
-  
+  const admin = getAdminClient();
   const fileExt = file.name.split('.').pop();
   const timestamp = Date.now();
   const fileName = `${timestamp}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
   const filePath = `${artworkId}/${fileName}`;
   
   // Upload the file
-  const { error: uploadError, data } = await adminClient.storage
+  const { error: uploadError, data } = await admin.storage
     .from('artwork-images')
     .upload(filePath, file, {
       cacheControl: '3600',
@@ -194,7 +191,7 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
   const publicUrl = formatSupabaseUrl(`artwork-images/${filePath}`);
   
   // Add record to artwork_images table
-  const { error: dbError } = await adminClient
+  const { error: dbError } = await admin
     .from('artwork_images')
     .insert({
       artwork_id: artworkId,
@@ -204,27 +201,29 @@ export async function uploadArtworkImage(file: File, artworkId: string, isPrimar
   
   if (dbError) {
     // If DB insert fails, try to remove the uploaded file
-    await adminClient.storage.from('artwork-images').remove([filePath]);
+    await admin.storage.from('artwork-images').remove([filePath]);
     throw new Error(`Failed to save image record: ${dbError.message}`);
   }
   
   return publicUrl;
 }
 
-// Format Supabase URL to avoid duplicate paths
-export function formatSupabaseUrl(path: string): string {
-  if (!path) return '';
-  
-  const baseUrl = `${config.url}/storage/v1/object/public/`;
-  
-  // Remove any duplicate bucket names in the path
-  const parts = path.split('/');
-  const bucketName = parts[0];
-  let cleanPath = path;
-  
-  if (parts.length > 1 && parts[1] === bucketName) {
-    cleanPath = parts.slice(0, 1).concat(parts.slice(2)).join('/');
+// Connection test function
+export async function testConnection() {
+  try {
+    console.log('Testing Supabase connection...');
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase.from('artworks').select('count()', { count: 'exact' }).limit(1);
+    
+    if (error) {
+      console.error('Supabase connection test failed:', error);
+      return false;
+    }
+    
+    console.log('Supabase connection test successful');
+    return true;
+  } catch (err) {
+    console.error('Supabase connection error:', err);
+    return false;
   }
-  
-  return `${baseUrl}${cleanPath}`;
 }
