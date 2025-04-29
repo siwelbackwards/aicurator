@@ -32,20 +32,21 @@ export default function Navbar() {
       setUser(currentUser);
       
       if (currentUser) {
-        // Check if user has admin role
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', currentUser.id)
           .single();
-          
+        
         setIsAdmin(profile?.role === 'admin');
       } else {
         setIsAdmin(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSignOut = async () => {

@@ -10,7 +10,7 @@ export default function AuctionPage() {
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `url('/images/services/private-collection.webp')`,
+            backgroundImage: `url('/images/categories/home page/home_page_art.webp')`,
             filter: "brightness(0.7)",
           }}
         />

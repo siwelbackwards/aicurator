@@ -18,7 +18,7 @@ const carouselItems = [
     description: "Explore our curated collection of rare and unique art pieces from emerging and established artists around the globe."
   },
   {
-    image: "/images/categories/accessories.webp",
+    image: "/images/categories/home page/home_page_accessories.webp",
     title: "Premium Accessories",
     description: "Browse our selection of high-end accessories and collectibles, each piece carefully selected for its uniqueness and value."
   }
