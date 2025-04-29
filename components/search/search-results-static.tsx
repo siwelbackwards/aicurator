@@ -23,14 +23,16 @@ interface Product {
 }
 
 export default function SearchResultsStatic({ query, category }: { query?: string; category?: string }) {
+  // Check if we're on the server for static generation
+  const isServer = typeof window === 'undefined';
+
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isServer);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Skip data fetching during static build
-    if (typeof window === 'undefined') {
-      setLoading(false);
+    if (isServer) {
       return;
     }
 
@@ -85,10 +87,10 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
     };
 
     fetchProducts();
-  }, [query, category]);
+  }, [query, category, isServer]);
 
   // During static build, return an empty state
-  if (typeof window === 'undefined') {
+  if (isServer) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500 mb-4">Loading search results...</p>

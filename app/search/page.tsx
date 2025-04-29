@@ -25,8 +25,11 @@ const CATEGORIES = [
 ];
 
 export default function SearchPage() {
+  // Check if we're on the server for static generation
+  const isServer = typeof window === 'undefined';
+  
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = !isServer ? useSearchParams() : null;
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -35,7 +38,7 @@ export default function SearchPage() {
 
   // Initialize from URL parameters
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (isServer) return;
     
     const query = searchParams?.get('q') || '';
     const category = searchParams?.get('category') || 'all';
@@ -44,7 +47,7 @@ export default function SearchPage() {
     setSelectedCategory(category);
     setAppliedQuery(query);
     setAppliedCategory(category);
-  }, [searchParams]);
+  }, [searchParams, isServer]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +64,33 @@ export default function SearchPage() {
     setAppliedQuery(searchQuery);
     setAppliedCategory(selectedCategory);
   };
+
+  // During static build or SSR, return a simplified placeholder
+  if (isServer) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8 p-8 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50">
+          <h1 className="text-3xl font-bold mb-6 text-center">Search Artwork</h1>
+          
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-grow h-10 rounded-md border border-input bg-background" />
+            <div className="w-full md:w-[180px] h-10 rounded-md border border-input bg-background" />
+            <div className="md:w-[120px] h-10 rounded-md bg-primary" />
+          </div>
+        </div>
+        
+        <div>
+          <h2 className="text-2xl font-semibold mb-6">
+            All Available Artwork
+          </h2>
+          
+          <div className="text-center py-12">
+            <p className="text-gray-500 mb-4">Loading search results...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
