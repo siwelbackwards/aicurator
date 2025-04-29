@@ -12,6 +12,10 @@
 [[plugins]]
   package = "@netlify/plugin-lighthouse"
 
+# Custom plugin to inject environment variables
+[[plugins]]
+  package = "./netlify/plugins/inject-env"
+
 # Post processing command to replace environment variables in the client JS files
 [build.processing]
   skip_processing = false
@@ -20,10 +24,6 @@
   pretty_urls = true
 
 [build.processing.js]
-  bundle = false
-  minify = false
-
-[build.processing.css]
   bundle = false
   minify = false
 
@@ -51,4 +51,8 @@
   to = "/index.html"
   status = 200
   force = false
-  conditions = {Country = ["*"]} 
+  conditions = {Country = ["*"]}
+
+# Define functions directory
+[functions]
+  directory = "netlify/functions"

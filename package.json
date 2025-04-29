@@ -7,7 +7,7 @@
     "prebuild": "node scripts/prebuild.js",
     "build": "next build && npm run postbuild",
     "postbuild": "node scripts/fix-html.js",
-    "inject-env": "node scripts/inject-env.js",
+    "setup-netlify": "node scripts/setup-netlify.js",
     "start": "next start",
     "lint": "next lint"
   },
@@ -52,7 +52,6 @@
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.10.4",
-    "glob": "^11.0.1",
-    "netlify-plugin-inline-env": "^1.0.2"
+    "glob": "^11.0.2"
   }
 }

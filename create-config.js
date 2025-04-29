@@ -9,6 +9,11 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: 'cpzzmpgbyzcqbwkaaqdy.supabase.co',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
         hostname: '**',
       },
     ],
@@ -22,9 +27,10 @@ const nextConfig = {
     ignoreBuildErrors: true
   },
   staticPageGenerationTimeout: 180,
+  trailingSlash: true,
 };
 
 module.exports = nextConfig;`;
 
 fs.writeFileSync(path.join(__dirname, 'next.config.js'), configContent, 'utf8');
-console.log('Successfully created simplified next.config.js file'); 
+console.log('Successfully created next.config.js file with Supabase hostname'); 

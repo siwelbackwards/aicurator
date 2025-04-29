@@ -6,6 +6,11 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: 'cpzzmpgbyzcqbwkaaqdy.supabase.co',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
         hostname: '**',
       },
     ],
@@ -19,6 +24,7 @@ const nextConfig = {
     ignoreBuildErrors: true
   },
   staticPageGenerationTimeout: 180,
+  trailingSlash: true,
 };
 
 module.exports = nextConfig;
