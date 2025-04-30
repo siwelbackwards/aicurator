@@ -7,13 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ShoppingCart, Store } from "lucide-react";
 
 interface SignUpProps {
   onModeChange: () => void;
   onClose: () => void;
+  onSignUpComplete?: (userId: string, userEmail: string) => void;
+  onSellerSignUp?: () => void;
 }
 
-export default function SignUp({ onModeChange, onClose }: SignUpProps) {
+export default function SignUp({ onModeChange, onClose, onSignUpComplete, onSellerSignUp }: SignUpProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
@@ -76,92 +80,27 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
     setLoading(true);
     setError(null);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
     try {
-      // First, sign up the user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            title: formData.title,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            user_type: formData.userType,
-          },
-        },
-      });
-
-      if (authError) {
-        throw authError;
-      }
-
-      if (authData.user) {
-        // Create the profile with a retry mechanism
-        let retries = 3;
-        let profileError = null;
-
-        while (retries > 0) {
-          const { error } = await supabase
-            .from('profiles')
-            .insert({
-              id: authData.user.id,
-              title: formData.title,
-              first_name: formData.firstName,
-              last_name: formData.lastName,
-              user_type: formData.userType,
-              email: formData.email,
-            });
-
-          if (!error) {
-            profileError = null;
-            break;
-          }
-
-          profileError = error;
-          retries--;
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-        }
-
-        if (profileError) {
-          console.error('Failed to create profile after retries:', profileError);
-          // Don't throw here, as the user is still created
-        }
-
-        // Sign in the user immediately after signup
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-
-        if (signInError) {
-          console.error('Error signing in after signup:', signInError);
-          toast.error('Account created but failed to sign in automatically. Please sign in manually.');
+      // If buyer type and onSignUpComplete exists, trigger onboarding
+      if (formData.userType === 'buyer' && onSignUpComplete) {
+        // Just pass a temporary ID - real registration will happen in onboarding
+        onSignUpComplete("temp-id", "");
+        setLoading(false);
+        return;
+      } else {
+        // For sellers, redirect to seller registration if available
+        if (onSellerSignUp) {
+          onSellerSignUp();
         } else {
-          toast.success('Account created and signed in successfully!');
+          // Fallback if seller registration is not available
+          toast.info('Seller registration coming soon!');
           onClose();
-          router.refresh();
-          router.push('/'); // Redirect to home page instead of dashboard
         }
       }
     } catch (error) {
-      console.error('Error signing up:', error);
-      
+      console.error('Error in selection process:', error);
       if (error instanceof Error) {
-        if (error.message.includes('Email already registered')) {
-          setError('This email is already registered. Please sign in instead.');
-        } else if (error.message.includes('fetch') || error.message.includes('network')) {
-          setError('Cannot connect to authentication service. Please check your internet connection.');
-          setConnectionError(true);
-        } else {
-          setError(error.message);
-        }
+        setError(error.message);
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
@@ -196,9 +135,11 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="px-6 pb-6">
+      <h3 className="font-semibold text-xl mb-4 text-center">Choose Your Path</h3>
+
       {connectionError && (
-        <div className="p-3 bg-red-100 border border-red-300 rounded text-sm text-red-700">
+        <div className="p-3 bg-red-100 border border-red-300 rounded text-sm text-red-700 mb-4">
           <p className="font-bold">Connection error: Cannot connect to authentication service.</p>
           <p>This may be due to:</p>
           <ul className="list-disc ml-4 mt-1">
@@ -209,116 +150,51 @@ export default function SignUp({ onModeChange, onClose }: SignUpProps) {
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="title">Title</Label>
-        <select
-          id="title"
-          name="title"
-          value={formData.title}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-          required
-        >
-          <option value="">Select title</option>
-          <option value="Mr">Mr</option>
-          <option value="Mrs">Mrs</option>
-          <option value="Ms">Ms</option>
-          <option value="Dr">Dr</option>
-        </select>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="firstName">First Name</Label>
-        <Input
-          id="firstName"
-          name="firstName"
-          value={formData.firstName}
-          onChange={handleChange}
-          required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="lastName">Last Name</Label>
-        <Input
-          id="lastName"
-          name="lastName"
-          value={formData.lastName}
-          onChange={handleChange}
-          required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="userType">I want to</Label>
-        <select
-          id="userType"
-          name="userType"
-          value={formData.userType}
-          onChange={handleChange}
-          className="w-full p-2 border rounded"
-          required
-        >
-          <option value="buyer">Buy Art</option>
-          <option value="seller">Sell Art</option>
-        </select>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          value={formData.email}
-          onChange={handleChange}
-          required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          value={formData.password}
-          onChange={handleChange}
-          required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm Password</Label>
-        <Input
-          id="confirmPassword"
-          name="confirmPassword"
-          type="password"
-          value={formData.confirmPassword}
-          onChange={handleChange}
-          required
-        />
-      </div>
-
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onModeChange}
-          className="text-sm text-blue-600 hover:underline"
-        >
-          Already have an account? Sign in
-        </button>
-      </div>
-
       {error && (
-        <div className="p-3 bg-red-100 border border-red-300 rounded text-sm text-red-700">
+        <div className="p-3 bg-red-100 border border-red-300 rounded text-sm text-red-700 mb-4">
           <p className="font-bold">{error}</p>
         </div>
       )}
 
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? 'Creating account...' : 'Create Account'}
-      </Button>
-    </form>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-4 mb-6">
+          <RadioGroup 
+            value={formData.userType}
+            onValueChange={(value) => setFormData(prev => ({ ...prev, userType: value as 'buyer' | 'seller' }))}
+            className="grid grid-cols-2 gap-4"
+          >
+            <div 
+              className={`flex flex-col items-center justify-center p-6 border rounded-lg cursor-pointer hover:border-primary transition-colors ${formData.userType === 'buyer' ? 'border-primary bg-primary/5' : 'border-gray-200'}`}
+              onClick={() => setFormData(prev => ({ ...prev, userType: 'buyer' }))}
+            >
+              <ShoppingCart className="h-10 w-10 mb-2 text-gray-500" />
+              <span className="font-medium">Buy</span>
+            </div>
+            <div 
+              className={`flex flex-col items-center justify-center p-6 border rounded-lg cursor-pointer hover:border-primary transition-colors ${formData.userType === 'seller' ? 'border-primary bg-primary/5' : 'border-gray-200'}`}
+              onClick={() => setFormData(prev => ({ ...prev, userType: 'seller' }))}
+            >
+              <Store className="h-10 w-10 mb-2 text-gray-500" />
+              <span className="font-medium">Sell</span>
+            </div>
+          </RadioGroup>
+        </div>
+
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? 'Processing...' : 'Continue'}
+        </Button>
+        
+        <div className="text-center text-sm mt-4">
+          Already have an account?{' '}
+          <button
+            type="button"
+            onClick={onModeChange}
+            className="text-blue-600 hover:underline font-medium"
+          >
+            Sign In
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

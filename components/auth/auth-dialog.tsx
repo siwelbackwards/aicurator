@@ -1,41 +1,136 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import SignIn from './sign-in';
 import SignUp from './sign-up';
+import BuyerOnboarding from './buyer-onboarding';
+import SellerRegistration from './seller-registration';
+import { supabase } from "@/lib/supabase-client";
+
+type AuthMode = "signIn" | "signUp" | "buyerOnboarding" | "sellerRegistration";
 
 interface AuthDialogProps {
-  open: boolean;
+  isOpen?: boolean;
+  open?: boolean; // Support both naming conventions
   onOpenChange: (open: boolean) => void;
-  initialMode?: 'signin' | 'signup';
+  initialMode?: AuthMode;
+  redirectPath?: string;
 }
 
-export default function AuthDialog({ open, onOpenChange, initialMode = 'signin' }: AuthDialogProps) {
-  const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
+export default function AuthDialog({
+  isOpen,
+  open,
+  onOpenChange,
+  initialMode = "signIn",
+  redirectPath,
+}: AuthDialogProps) {
+  // Support both open and isOpen props
+  const isDialogOpen = isOpen !== undefined ? isOpen : open;
+  const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        setUserEmail(user.email || '');
+      }
+    };
+    
+    if (isDialogOpen) {
+      checkUser();
+    }
+  }, [isDialogOpen]);
+
+  const handleModeChange = () => {
+    setMode(mode === "signIn" ? "signUp" : "signIn");
+  };
+
+  const handleSignUpComplete = (id: string, email: string) => {
+    setUserId(id);
+    setUserEmail(email);
+    setMode("buyerOnboarding");
+  };
+
+  const handleSellerSignUp = () => {
+    setMode("sellerRegistration");
+  };
+
+  const handleRegistrationComplete = () => {
+    onOpenChange(false);
+  };
+
+  const getTitle = () => {
+    switch (mode) {
+      case "signIn":
+        return "Sign In";
+      case "signUp":
+        return "Get Started";
+      case "buyerOnboarding":
+        return "Buyer Registration";
+      case "sellerRegistration":
+        return "Seller Registration";
+      default:
+        return "Authentication";
+    }
+  };
+
+  const getDialogWidth = () => {
+    switch (mode) {
+      case "buyerOnboarding":
+      case "sellerRegistration":
+        return "sm:max-w-md p-0 overflow-hidden";
+      default: 
+        return "sm:max-w-[425px] p-0 overflow-hidden";
+    }
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{mode === 'signin' ? 'Sign In' : 'Create Account'}</DialogTitle>
-          <DialogDescription>
-            {mode === 'signin' 
-              ? 'Enter your credentials to access your account'
-              : 'Create a new account to start selling your artwork'
-            }
-          </DialogDescription>
+    <Dialog open={isDialogOpen} onOpenChange={onOpenChange}>
+      <DialogContent className={getDialogWidth()}>
+        <DialogHeader className="p-6 pb-0">
+          <DialogTitle className="text-xl font-semibold text-center">
+            {getTitle()}
+          </DialogTitle>
         </DialogHeader>
-        {mode === 'signin' ? (
-          <SignIn onModeChange={() => setMode('signup')} onClose={() => onOpenChange(false)} />
-        ) : (
-          <SignUp onModeChange={() => setMode('signin')} onClose={() => onOpenChange(false)} />
+        
+        {mode === "signIn" && (
+          <SignIn
+            onModeChange={() => setMode("signUp")}
+            onClose={() => onOpenChange(false)}
+          />
+        )}
+        
+        {mode === "signUp" && (
+          <SignUp
+            onModeChange={() => setMode("signIn")}
+            onSignUpComplete={handleSignUpComplete}
+            onSellerSignUp={handleSellerSignUp}
+            onClose={() => onOpenChange(false)}
+          />
+        )}
+
+        {mode === "buyerOnboarding" && (
+          <BuyerOnboarding
+            userId={userId || ""}
+            userEmail={userEmail || ""}
+            onComplete={handleRegistrationComplete}
+          />
+        )}
+
+        {mode === "sellerRegistration" && (
+          <SellerRegistration
+            onComplete={handleRegistrationComplete}
+          />
         )}
       </DialogContent>
     </Dialog>

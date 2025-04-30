@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,11 +15,10 @@ interface SignInProps {
 
 export default function SignIn({ onModeChange, onClose }: SignInProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
+    password: ''
   });
   const [connectionError, setConnectionError] = useState(false);
   const [envStatus, setEnvStatus] = useState<{hasUrl: boolean, hasKey: boolean}>({
@@ -51,6 +50,7 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
       try {
         const { data, error } = await supabase.from('profiles').select('count').limit(1);
         if (error) throw error;
+        console.log('Connection test successful');
         setConnectionError(false);
       } catch (error) {
         console.error('Connection test failed:', error);
@@ -72,34 +72,32 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
-      if (error) {
+      if (error) throw error;
+
+      toast.success('Signed in successfully!');
+      onClose();
+      router.refresh();
+      router.push('/');
+    } catch (error) {
+      console.error('Error signing in:', error);
+      
+      if (error instanceof Error) {
         if (error.message.includes('Invalid login credentials')) {
-          setError('Invalid email or password. Please try again.');
-        } else if (error.message.includes('Email not confirmed')) {
-          setError('Please confirm your email before signing in.');
+          setError('Incorrect email or password. Please try again.');
+        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+          setError('Cannot connect to authentication service. Please check your internet connection.');
+          setConnectionError(true);
         } else {
           setError(error.message);
         }
-        return;
-      }
-
-      toast.success('Successfully signed in!');
-      onClose();
-      
-      // Get the redirect URL from the query parameters
-      const redirectedFrom = searchParams.get('redirectedFrom');
-      if (redirectedFrom) {
-        router.push(redirectedFrom);
       } else {
-        router.refresh();
+        setError('An unexpected error occurred. Please try again.');
       }
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -131,9 +129,13 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="px-6 pb-6">
+      <p className="mb-6 text-gray-700">
+        Sign in to continue exploring our collection of unique artworks.
+      </p>
+      
       {connectionError && (
-        <div className="p-3 bg-red-100 border border-red-300 rounded text-sm text-red-700">
+        <div className="p-3 mb-4 bg-red-100 border border-red-300 rounded text-sm text-red-700">
           <p className="font-bold">Connection error: Cannot connect to authentication service.</p>
           <p>This may be due to:</p>
           <ul className="list-disc ml-4 mt-1">
@@ -145,54 +147,64 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
       )}
 
       {error && (
-        <div className="p-3 bg-red-100 border border-red-300 rounded text-sm text-red-700">
-          <p className="font-bold">Error: {error}</p>
+        <div className="p-3 mb-4 bg-red-100 border border-red-300 rounded text-sm text-red-700">
+          <p className="font-bold">{error}</p>
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          value={formData.email}
-          onChange={handleChange}
-          required
-        />
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+          />
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          value={formData.password}
-          onChange={handleChange}
-          required
-        />
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+          />
+        </div>
 
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onModeChange}
-          className="text-sm text-blue-600 hover:underline"
-        >
-          Create an account
-        </button>
-        <button
-          type="button"
-          className="text-sm text-blue-600 hover:underline"
-        >
-          Forgot password?
-        </button>
-      </div>
+        <div className="text-right">
+          <button
+            type="button"
+            className="text-sm text-blue-600 hover:underline"
+            onClick={() => {
+              // Password recovery functionality would be implemented here
+              toast.info('Password recovery functionality coming soon!');
+            }}
+          >
+            Forgot password?
+          </button>
+        </div>
 
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? 'Signing in...' : 'Sign In'}
-      </Button>
-    </form>
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? 'Signing in...' : 'Get Started'}
+        </Button>
+        
+        <div className="text-center text-sm mt-4">
+          New to our platform?{' '}
+          <button
+            type="button"
+            onClick={onModeChange}
+            className="text-blue-600 hover:underline font-medium"
+          >
+            Get Started
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

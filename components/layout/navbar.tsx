@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import AuthDialog from '@/components/auth/auth-dialog';
 import { supabase } from '@/lib/supabase-client';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { AuthChangeEvent, Session } from '@supabase/supabase-js';
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -27,7 +28,7 @@ export default function Navbar() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       
@@ -265,6 +266,7 @@ export default function Navbar() {
         <AuthDialog
           open={authDialogOpen}
           onOpenChange={setAuthDialogOpen}
+          initialMode="signIn"
         />
       </ErrorBoundary>
     </header>
