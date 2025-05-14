@@ -4,7 +4,7 @@
   ignore = "false"  # Never ignore the build
 
 [build.environment]
-  NODE_VERSION = "18.17.0"  # Specify exact version for consistency
+  NODE_VERSION = "18.18.0"  # Updated to match Next.js 15.3.1 requirements
   SECRETS_SCAN_ENABLED = "false"
   NEXT_PRIVATE_TARGET = "server"
   NEXT_PRIVATE_STANDALONE = "true"

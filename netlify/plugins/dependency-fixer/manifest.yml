@@ -1,0 +1,3 @@
+name: dependency-fixer
+description: Automatically installs commonly missing dependencies during build
+inputs: [] 

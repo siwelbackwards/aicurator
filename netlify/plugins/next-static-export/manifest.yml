@@ -1,0 +1,3 @@
+name: next-static-export
+description: Handles Next.js static export for Netlify deployment
+inputs: [] 
