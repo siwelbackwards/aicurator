@@ -53,6 +53,7 @@ const nextConfig = {
       exclude: ['error', 'warn'],
     } : false,
   },
+  swcMinify: true,
 };
 
 module.exports = nextConfig;
