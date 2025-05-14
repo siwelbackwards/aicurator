@@ -719,32 +719,6 @@ export default function NewItemPage() {
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h1 className="text-2xl font-bold mb-6">List a New Item</h1>
           
-          {/* Debugging tools */}
-          <div className="mb-4 p-2 bg-gray-100 rounded text-sm">
-            <details>
-              <summary className="cursor-pointer text-gray-600 font-medium">Authentication Troubleshooting</summary>
-              <div className="mt-2 space-y-2">
-                <div className="text-xs">If you're having issues, these actions might help:</div>
-                <div className="flex space-x-2">
-                  <button
-                    type="button"
-                    onClick={refreshAuthSession}
-                    className="px-2 py-1 bg-blue-500 text-white rounded text-xs"
-                  >
-                    Refresh Session
-                  </button>
-                  <button
-                    type="button"
-                    onClick={signOutAndRedirect}
-                    className="px-2 py-1 bg-red-500 text-white rounded text-xs"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              </div>
-            </details>
-          </div>
-          
           <form 
             onSubmit={(e) => {
               console.log('🟢 FORM SUBMIT EVENT FIRED');
@@ -943,10 +917,6 @@ export default function NewItemPage() {
                     )}
                   </div>
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Enter numbers only. Formatting will be applied automatically.
-                  Maximum allowed price is 99,999,999.99.
-                </div>
               </div>
             </div>
 
@@ -1098,28 +1068,6 @@ export default function NewItemPage() {
               >
                 {loading ? 'Submitting...' : 'Submit Item'}
               </Button>
-            </div>
-            
-            {/* Fallback direct action button */}
-            <div className="mt-4 text-center">
-              <Button
-                type="button"
-                onClick={(e) => {
-                  console.log('🟠 FALLBACK BUTTON CLICKED');
-                  if (images.length === 0) {
-                    toast.error('Please upload at least one image');
-                    return;
-                  }
-                  submitArtwork(e as any);
-                }}
-                className="bg-amber-500 hover:bg-amber-600"
-                disabled={loading}
-              >
-                Try Alternative Submit
-              </Button>
-              <div className="text-xs text-gray-500 mt-1">
-                If the normal submit button doesn't work, try this one
-              </div>
             </div>
           </form>
         </div>
