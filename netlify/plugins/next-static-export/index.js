@@ -10,6 +10,11 @@ module.exports = {
     console.log('Next.js Static Export Plugin: Starting');
     
     try {
+      // Install required babel dependencies
+      console.log('Installing Babel dependencies...');
+      execSync('npm install --no-save @babel/core @babel/plugin-transform-react-jsx @babel/preset-env @babel/preset-react @babel/preset-typescript', 
+        { stdio: 'inherit' });
+      
       // Run the pre-build scripts
       console.log('Running prebuild script...');
       execSync('node scripts/prebuild.js', { stdio: 'inherit' });

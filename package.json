@@ -54,6 +54,11 @@
     "@types/react-dom": "18.2.7"
   },
   "devDependencies": {
+    "@babel/core": "^7.27.1",
+    "@babel/plugin-transform-react-jsx": "^7.27.1",
+    "@babel/preset-env": "^7.27.2",
+    "@babel/preset-react": "^7.27.1",
+    "@babel/preset-typescript": "^7.27.1",
     "glob": "^11.0.2",
     "rimraf": "^5.0.10"
   }

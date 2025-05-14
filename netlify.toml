@@ -7,6 +7,10 @@
   SECRETS_SCAN_ENABLED = "false"
   NEXT_PRIVATE_TARGET = "server"
   NEXT_PRIVATE_STANDALONE = "true"
+  # Add Babel environment variables
+  BABEL_ENV = "production"
+  NODE_ENV = "production"
+  NPM_FLAGS = "--prefer-offline --no-audit --progress=false"
 
 # Use our custom Next.js static export plugin
 [[plugins]]
