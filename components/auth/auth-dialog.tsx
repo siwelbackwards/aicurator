@@ -21,6 +21,7 @@ interface AuthDialogProps {
   onOpenChange: (open: boolean) => void;
   initialMode?: AuthMode;
   redirectPath?: string;
+  onAuthSuccess?: () => void; // New callback for successful authentication
 }
 
 export default function AuthDialog({
@@ -29,6 +30,7 @@ export default function AuthDialog({
   onOpenChange,
   initialMode = "signIn",
   redirectPath,
+  onAuthSuccess,
 }: AuthDialogProps) {
   // Support both open and isOpen props
   const isDialogOpen = isOpen !== undefined ? isOpen : open;
@@ -67,6 +69,16 @@ export default function AuthDialog({
 
   const handleRegistrationComplete = () => {
     onOpenChange(false);
+    if (onAuthSuccess) {
+      onAuthSuccess();
+    }
+  };
+
+  const handleAuthSuccess = () => {
+    onOpenChange(false);
+    if (onAuthSuccess) {
+      onAuthSuccess();
+    }
   };
 
   const getTitle = () => {
@@ -107,6 +119,8 @@ export default function AuthDialog({
           <SignIn
             onModeChange={() => setMode("signUp")}
             onClose={() => onOpenChange(false)}
+            onAuthSuccess={handleAuthSuccess}
+            redirectPath={redirectPath}
           />
         )}
         
@@ -116,6 +130,8 @@ export default function AuthDialog({
             onSignUpComplete={handleSignUpComplete}
             onSellerSignUp={handleSellerSignUp}
             onClose={() => onOpenChange(false)}
+            onAuthSuccess={handleAuthSuccess}
+            redirectPath={redirectPath}
           />
         )}
 
@@ -124,12 +140,16 @@ export default function AuthDialog({
             userId={userId || ""}
             userEmail={userEmail || ""}
             onComplete={handleRegistrationComplete}
+            onAuthSuccess={handleAuthSuccess}
+            redirectPath={redirectPath}
           />
         )}
 
         {mode === "sellerRegistration" && (
           <SellerRegistration
             onComplete={handleRegistrationComplete}
+            onAuthSuccess={handleAuthSuccess}
+            redirectPath={redirectPath}
           />
         )}
       </DialogContent>

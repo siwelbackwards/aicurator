@@ -13,33 +13,33 @@ import {
 import { Button } from '@/components/ui/button';
 import SearchResultsStatic from '@/components/search/search-results-static';
 
-// Define categories for dropdown
+// Define categories to match the featured categories and hero dropdown
 const CATEGORIES = [
   { value: 'all', label: 'All Categories' },
   { value: 'paintings', label: 'Paintings' },
   { value: 'sculptures', label: 'Sculptures' },
-  { value: 'photography', label: 'Photography' },
-  { value: 'digital', label: 'Digital Art' },
-  { value: 'mixed-media', label: 'Mixed Media' },
   { value: 'other', label: 'Other' },
+  { value: 'accessories', label: 'Accessories' },
+  { value: 'consumables', label: 'Consumables' },
+  { value: 'photography', label: 'Photography' },
+  { value: 'mixed-media', label: 'Mixed Media' }
 ];
 
 export default function SearchPage() {
-  // Check if we're on the server for static generation
-  const isServer = typeof window === 'undefined';
-  
   const router = useRouter();
-  const searchParams = !isServer ? useSearchParams() : null;
+  const searchParams = useSearchParams();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [appliedQuery, setAppliedQuery] = useState('');
   const [appliedCategory, setAppliedCategory] = useState('all');
+  const [isClient, setIsClient] = useState(false);
 
-  // Initialize from URL parameters
+  // Set client-side flag to prevent hydration issues
   useEffect(() => {
-    if (isServer) return;
+    setIsClient(true);
     
+    // Initialize from URL parameters after mounting
     const query = searchParams?.get('q') || '';
     const category = searchParams?.get('category') || 'all';
     
@@ -47,9 +47,10 @@ export default function SearchPage() {
     setSelectedCategory(category);
     setAppliedQuery(query);
     setAppliedCategory(category);
-  }, [searchParams, isServer]);
+  }, [searchParams]);
 
   const handleSearch = (e: React.FormEvent) => {
+    if (!isClient) return;
     e.preventDefault();
     
     // Update URL with search parameters
@@ -65,33 +66,6 @@ export default function SearchPage() {
     setAppliedCategory(selectedCategory);
   };
 
-  // During static build or SSR, return a simplified placeholder
-  if (isServer) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8 p-8 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50">
-          <h1 className="text-3xl font-bold mb-6 text-center">Search Artwork</h1>
-          
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-grow h-10 rounded-md border border-input bg-background" />
-            <div className="w-full md:w-[180px] h-10 rounded-md border border-input bg-background" />
-            <div className="md:w-[120px] h-10 rounded-md bg-primary" />
-          </div>
-        </div>
-        
-        <div>
-          <h2 className="text-2xl font-semibold mb-6">
-            All Available Artwork
-          </h2>
-          
-          <div className="text-center py-12">
-            <p className="text-gray-500 mb-4">Loading search results...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8 p-8 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50">
@@ -102,27 +76,34 @@ export default function SearchPage() {
             type="text"
             placeholder="Search for artwork..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => isClient && setSearchQuery(e.target.value)}
             className="flex-grow"
+            disabled={!isClient}
           />
           
-          <Select 
-            value={selectedCategory}
-            onChange={setSelectedCategory}
-          >
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              {CATEGORIES.map((category) => (
-                <SelectItem key={category.value} value={category.value}>
-                  {category.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="relative w-full md:w-[180px]">
+            <Select value={selectedCategory} disabled={!isClient}>
+              <SelectTrigger className="bg-white">
+                <SelectValue placeholder="Category">
+                  {isClient ? CATEGORIES.find(c => c.value === selectedCategory)?.label : 'Category'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {CATEGORIES.map((category) => (
+                  <SelectItem 
+                    key={category.value} 
+                    value={category.value}
+                    onClick={() => isClient && setSelectedCategory(category.value)}
+                    className="cursor-pointer"
+                  >
+                    {category.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           
-          <Button type="submit" className="md:w-[120px]">
+          <Button type="submit" className="md:w-[120px]" disabled={!isClient}>
             Search
           </Button>
         </form>
@@ -130,15 +111,20 @@ export default function SearchPage() {
       
       <div>
         <h2 className="text-2xl font-semibold mb-6">
-          {appliedQuery 
+          {isClient && (appliedQuery 
             ? `Results for "${appliedQuery}"${appliedCategory !== 'all' ? ` in ${CATEGORIES.find(c => c.value === appliedCategory)?.label}` : ''}`
-            : 'All Available Artwork'}
+            : appliedCategory !== 'all' 
+              ? `${CATEGORIES.find(c => c.value === appliedCategory)?.label}`
+              : 'All Available Artwork')}
+          {!isClient && 'All Available Artwork'}
         </h2>
         
-        <SearchResultsStatic 
-          query={appliedQuery} 
-          category={appliedCategory} 
-        />
+        {isClient && (
+          <SearchResultsStatic 
+            query={appliedQuery} 
+            category={appliedCategory} 
+          />
+        )}
       </div>
     </div>
   );

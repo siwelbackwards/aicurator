@@ -15,9 +15,11 @@ const artCategories = ["Paintings", "Sculptures", "Digital Art", "Photography", 
 
 interface SellerRegistrationProps {
   onComplete: () => void;
+  onAuthSuccess?: () => void;
+  redirectPath?: string;
 }
 
-export default function SellerRegistration({ onComplete }: SellerRegistrationProps) {
+export default function SellerRegistration({ onComplete, onAuthSuccess, redirectPath }: SellerRegistrationProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +118,15 @@ export default function SellerRegistration({ onComplete }: SellerRegistrationPro
         }
 
         onComplete();
-        router.push('/dashboard');
+        
+        // If onAuthSuccess is provided, call it instead of redirecting
+        if (onAuthSuccess) {
+          onAuthSuccess();
+        } else if (redirectPath) {
+          router.push(redirectPath);
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch (error) {
       console.error('Error during seller registration:', error);

@@ -1,21 +1,37 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase-client';
 
-const categories = [
+interface CategoryStats {
+  items: string;
+  artists: string;
+  avgValue: string;
+}
+
+interface Category {
+  title: string;
+  image: string;
+  description: string;
+  extendedDescription: string;
+  stats: CategoryStats;
+}
+
+const categoriesData: Category[] = [
   {
-    title: 'Art',
+    title: 'Paintings',
     image: '/images/categories/art.webp',
-    description: 'Discover unique pieces from emerging and established artists',
-    extendedDescription: 'Immerse yourself in a world of artistic excellence. Our curated art collection spans from contemporary masterpieces to timeless classics, featuring paintings, digital art, and mixed media works that push the boundaries of creative expression.',
+    description: 'Discover unique paintings from emerging and established artists',
+    extendedDescription: 'Immerse yourself in a world of artistic excellence. Our curated paintings collection spans from contemporary masterpieces to timeless classics, featuring works that push the boundaries of creative expression.',
     stats: {
-      items: '2,500+',
-      artists: '450+',
-      avgValue: '$33,000'
+      items: '1,500+',
+      artists: '350+',
+      avgValue: '$28,000'
     }
   },
   {
-    title: 'Sculpture',
+    title: 'Sculptures',
     image: '/images/categories/sculpture.webp',
     description: 'Explore three-dimensional masterpieces',
     extendedDescription: 'Experience the power of form and space through our exceptional sculpture collection. From classical marble works to contemporary installations, each piece tells a unique story through its three-dimensional presence.',
@@ -23,6 +39,39 @@ const categories = [
       items: '1,200+',
       artists: '280+',
       avgValue: '$56,000'
+    }
+  },
+  {
+    title: 'Photography',
+    image: '/images/categories/photography.jpg',
+    description: 'Captivating moments frozen in time',
+    extendedDescription: 'Explore our collection of photographic art that captures unique perspectives and powerful moments. From documentary photography to abstract compositions, each piece represents the photographer\'s distinct vision and technical mastery.',
+    stats: {
+      items: '1,800+',
+      artists: '320+',
+      avgValue: '$18,000'
+    }
+  },
+  {
+    title: 'Digital',
+    image: '/images/categories/digital-art.webp',
+    description: 'Cutting-edge digital art and NFTs',
+    extendedDescription: 'Discover the frontier of artistic innovation through our digital art collection. Featuring works created with cutting-edge technology, from generative algorithms to AI-assisted compositions and certified digital assets.',
+    stats: {
+      items: '2,200+',
+      artists: '380+',
+      avgValue: '$15,000'
+    }
+  },
+  {
+    title: 'Mixed-Media',
+    image: '/images/categories/mixedmedia.jpg',
+    description: 'Boundary-pushing works combining multiple techniques',
+    extendedDescription: 'Our mixed-media collection showcases works that transcend traditional artistic boundaries. These pieces combine various materials, methods, and concepts to create rich, multi-layered artistic experiences.',
+    stats: {
+      items: '1,100+',
+      artists: '240+',
+      avgValue: '$32,000'
     }
   },
   {
@@ -48,7 +97,7 @@ const categories = [
     }
   },
   {
-    title: 'Others',
+    title: 'Other',
     image: '/images/categories/others.webp',
     description: 'Unique items that defy categorization',
     extendedDescription: 'Explore our most intriguing offerings that transcend traditional categories. This carefully curated selection features one-of-a-kind pieces that represent the intersection of art, innovation, and collectible value.',
@@ -62,6 +111,145 @@ const categories = [
 
 export default function CategoriesPage() {
   const router = useRouter();
+  const [categories, setCategories] = useState<Category[]>(categoriesData);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchCategoryStats() {
+      try {
+        // Fetch all artwork data
+        const { data: artworks, error } = await supabase
+          .from('artworks')
+          .select('id, category, artist_name, price')
+          .eq('status', 'approved');
+
+        // Check for error with improved handling
+        if (error && error.message) {
+          console.error('Error fetching artworks:', error.message);
+          setIsLoading(false);
+          return;
+        }
+
+        // Check if we received artworks data
+        if (!artworks || artworks.length === 0) {
+          console.log('No approved artworks found or empty response');
+          setIsLoading(false);
+          return;
+        }
+
+        console.log(`Fetched ${artworks.length} approved artworks`);
+
+        // Process data by category
+        const categoryData: Record<string, { items: number; artists: Set<string>; totalValue: number }> = {};
+        
+        interface Artwork {
+          id: string;
+          category?: string;
+          artist_name: string;
+          price?: number;
+        }
+
+        // Create a mapping between database category names and UI category names
+        const categoryMapping: Record<string, string> = {
+          // Map variations of category names to our standardized categories
+          'painting': 'paintings',
+          'paintings': 'paintings',
+          'sculpture': 'sculptures', 
+          'sculptures': 'sculptures',
+          'photography': 'photography',
+          'digital': 'digital',
+          'mixed-media': 'mixed-media',
+          'mixed media': 'mixed-media',
+          'accessory': 'accessories',
+          'accessories': 'accessories',
+          'consumable': 'consumables',
+          'consumables': 'consumables',
+          'other': 'other',
+          // Legacy mappings
+          'art': 'paintings',
+          'others': 'other',
+          // Default for any unmapped categories
+          'default': 'other'
+        };
+
+        // Process each artwork and categorize it
+        artworks?.forEach((artwork: Artwork) => {
+          // Normalize the category name (lowercase, trim)
+          const rawCategory = (artwork.category || 'other').toLowerCase().trim();
+          
+          // Map the raw category to our standardized category
+          const mappedCategory = categoryMapping[rawCategory] || 'other';
+          
+          console.log(`Artwork category: ${rawCategory}, mapped to: ${mappedCategory}`);
+          
+          if (!categoryData[mappedCategory]) {
+            categoryData[mappedCategory] = {
+              items: 0,
+              artists: new Set<string>(),
+              totalValue: 0
+            };
+          }
+          
+          categoryData[mappedCategory].items++;
+          categoryData[mappedCategory].artists.add(artwork.artist_name);
+          categoryData[mappedCategory].totalValue += artwork.price || 0;
+        });
+
+        console.log('Processed category data:', 
+          Object.entries(categoryData).map(([key, value]) => ({
+            category: key,
+            items: value.items,
+            artists: value.artists.size,
+            totalValue: value.totalValue
+          }))
+        );
+
+        // Update categories with real data
+        const updatedCategories = categories.map(category => {
+          // Normalize the category title for matching
+          const categoryKey = category.title.toLowerCase().trim();
+          
+          // Try to find the matching category data
+          const stats = categoryData[categoryKey] || { items: 0, artists: new Set(), totalValue: 0 };
+          
+          console.log(`Processing UI category: ${category.title} (key: ${categoryKey}), found stats:`, 
+            { items: stats.items, artists: stats.artists.size, totalValue: stats.totalValue }
+          );
+          
+          // Calculate average value and multiply by 1.5
+          const avgValue = stats.items > 0 
+            ? (stats.totalValue / stats.items) * 1.5 
+            : 0;
+          
+          // Format numbers
+          const formattedAvgValue = avgValue > 0 
+            ? avgValue >= 1000000 
+              ? `$${(avgValue / 1000000).toFixed(1)}M` 
+              : avgValue >= 1000 
+                ? `$${(avgValue / 1000).toFixed(1)}K` 
+                : `$${Math.round(avgValue).toLocaleString()}`
+            : '$0';
+            
+          return {
+            ...category,
+            stats: {
+              items: stats.items > 0 ? `${stats.items.toLocaleString()}+` : '0',
+              artists: stats.artists.size > 0 ? `${stats.artists.size}+` : '0',
+              avgValue: formattedAvgValue
+            }
+          };
+        });
+        
+        setCategories(updatedCategories);
+      } catch (error) {
+        console.error('Error in fetchCategoryStats:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchCategoryStats();
+  }, []);
 
   const handleCategoryClick = (category: string) => {
     const params = new URLSearchParams({
@@ -94,49 +282,55 @@ export default function CategoriesPage() {
 
       {/* Categories Grid */}
       <div className="max-w-7xl mx-auto px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {categories.map((category) => (
-            <div
-              key={category.title}
-              className="group cursor-pointer bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-              onClick={() => handleCategoryClick(category.title)}
-            >
-              <div className="aspect-[16/9] relative overflow-hidden">
-                <div
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                  style={{ backgroundImage: `url(${category.image})` }}
-                />
-                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors duration-300" />
-                <div className="absolute inset-0 p-6 flex flex-col justify-end">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-2xl font-bold text-white">{category.title}</h3>
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading category statistics...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {categories.map((category) => (
+              <div
+                key={category.title}
+                className="group cursor-pointer bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                onClick={() => handleCategoryClick(category.title)}
+              >
+                <div className="aspect-[16/9] relative overflow-hidden">
+                  <div
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                    style={{ backgroundImage: `url(${category.image})` }}
+                  />
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors duration-300" />
+                  <div className="absolute inset-0 p-6 flex flex-col justify-end">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-2xl font-bold text-white">{category.title}</h3>
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <div className="p-6">
-                <p className="text-gray-600 mb-6 leading-relaxed">
-                  {category.extendedDescription}
-                </p>
                 
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-500 mb-1">Items</div>
-                    <div className="font-bold text-lg">{category.stats.items}</div>
-                  </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-500 mb-1">Artists</div>
-                    <div className="font-bold text-lg">{category.stats.artists}</div>
-                  </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-sm text-gray-500 mb-1">Avg. Value</div>
-                    <div className="font-bold text-lg">{category.stats.avgValue}</div>
+                <div className="p-6">
+                  <p className="text-gray-600 mb-6 leading-relaxed">
+                    {category.extendedDescription}
+                  </p>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-sm text-gray-500 mb-1">Items</div>
+                      <div className="font-bold text-lg">{category.stats.items}</div>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-sm text-gray-500 mb-1">Artists</div>
+                      <div className="font-bold text-lg">{category.stats.artists}</div>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-sm text-gray-500 mb-1">Avg. Value</div>
+                      <div className="font-bold text-lg">{category.stats.avgValue}</div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

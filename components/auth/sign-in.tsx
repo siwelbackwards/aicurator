@@ -11,9 +11,11 @@ import { toast } from "sonner";
 interface SignInProps {
   onModeChange: () => void;
   onClose: () => void;
+  onAuthSuccess?: () => void;
+  redirectPath?: string;
 }
 
-export default function SignIn({ onModeChange, onClose }: SignInProps) {
+export default function SignIn({ onModeChange, onClose, onAuthSuccess, redirectPath }: SignInProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -81,8 +83,19 @@ export default function SignIn({ onModeChange, onClose }: SignInProps) {
 
       toast.success('Signed in successfully!');
       onClose();
-      router.refresh();
-      router.push('/');
+      
+      // If onAuthSuccess callback is provided, use it instead of redirecting
+      if (onAuthSuccess) {
+        onAuthSuccess();
+      } else if (redirectPath) {
+        // Redirect to the specified path if available
+        router.refresh();
+        router.push(redirectPath);
+      } else {
+        // Otherwise do the default navigation
+        router.refresh();
+        router.push('/');
+      }
     } catch (error) {
       console.error('Error signing in:', error);
       

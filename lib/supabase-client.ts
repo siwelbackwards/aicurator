@@ -12,45 +12,38 @@ declare global {
   }
 }
 
-// Get environment config
+// Hard-coded fallback values for development
+const FALLBACK_URL = 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
+const FALLBACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.yN5KM7w8AjsXFOwdpQ4Oy7-Pf7D58fohL1tgnFBK_os';
+
+// Get environment config with more direct approach
 function getConfig() {
-  let url = '';
-  let anonKey = '';
-  let serviceKey = '';
+  // First check for explicit environment variables
+  let url = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  let anonKey = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   
-  // Browser environment
-  if (typeof window !== 'undefined') {
-    // Try window.ENV (from env.js)
-    if (window.ENV?.NEXT_PUBLIC_SUPABASE_URL) {
+  // Try window.ENV as a fallback (client-side only)
+  if (typeof window !== 'undefined' && window.ENV) {
+    if (!url && window.ENV.NEXT_PUBLIC_SUPABASE_URL) {
       url = window.ENV.NEXT_PUBLIC_SUPABASE_URL;
-      anonKey = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-      serviceKey = window.ENV.SUPABASE_SERVICE_ROLE_KEY || '';
-    } 
-    // Then try process.env
-    else if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-      serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
     }
-  } 
-  // Server environment
-  else {
-    url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    if (!anonKey && window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      anonKey = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    }
   }
   
-  // Fallback values if needed
-  if (!isValidUrl(url) || !isValidKey(anonKey)) {
-    url = "https://cpzzmpgbyzcqbwkaaqdy.supabase.co";
-    anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.yN5KM7w8AjsXFOwdpQ4Oy7-Pf7D58fohL1tgnFBK_os";
+  // Use fallbacks if needed
+  if (!url || !isValidUrl(url)) {
+    console.warn('Using fallback Supabase URL');
+    url = FALLBACK_URL;
   }
   
-  if (!isValidKey(serviceKey)) {
-    serviceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Mzk0NzAwMSwiZXhwIjoyMDU5NTIzMDAxfQ.1fjCF_WyFoRq_8THFURMosh3txmDaLsx7degHyYIycw";
+  if (!anonKey || !isValidKey(anonKey)) {
+    console.warn('Using fallback Supabase API key');
+    anonKey = FALLBACK_KEY;
   }
   
-  return { url, anonKey, serviceKey };
+  return { url, anonKey };
 }
 
 // Validate URL
@@ -68,24 +61,61 @@ function isValidKey(key: string): boolean {
   return /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(key);
 }
 
-// Create clients with singleton pattern
+// Create config with more direct approach to avoid hydration issues
 const config = getConfig();
+
+// Log configuration (without sensitive data)
+console.log('Supabase URL configured:', config.url);
+console.log('Supabase API key available:', !!config.anonKey);
 
 // Create a single Supabase client instance
 let supabaseClient: ReturnType<typeof createBrowserClient> | null = null;
 
 // Create and export the Supabase client
 export const supabase = (() => {
-  if (!supabaseClient) {
-    supabaseClient = createBrowserClient(config.url, config.anonKey, {
-      auth: {
-        persistSession: true,
-        storageKey: 'supabase-auth',
-        flowType: 'pkce',
+  try {
+    if (!supabaseClient) {
+      // Make sure URL and key are valid before creating client
+      if (!config.url || !config.anonKey) {
+        throw new Error('Missing Supabase URL or API key');
       }
-    });
+      
+      // Create the Supabase client with explicit headers
+      supabaseClient = createBrowserClient(config.url, config.anonKey, {
+        auth: {
+          persistSession: true,
+          storageKey: 'supabase-auth',
+          flowType: 'pkce',
+          detectSessionInUrl: true,
+          autoRefreshToken: true,
+        },
+        global: {
+          headers: {
+            'apikey': config.anonKey,
+            'Authorization': `Bearer ${config.anonKey}`
+          }
+        }
+      });
+    }
+    return supabaseClient;
+  } catch (error) {
+    console.error('Failed to initialize Supabase client:', error);
+    // Return a dummy client that logs errors instead of throwing
+    return {
+      from: () => {
+        console.error('Supabase client not properly initialized');
+        return {
+          select: () => ({
+            eq: () => ({
+              order: () => ({
+                limit: () => Promise.resolve({ data: [], error: { message: 'Client not initialized' } })
+              })
+            })
+          })
+        };
+      }
+    } as any;
   }
-  return supabaseClient;
 })();
 
 // Format Supabase URL to avoid duplicate paths

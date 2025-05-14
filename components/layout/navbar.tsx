@@ -26,8 +26,29 @@ export default function Navbar() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
+    // Initial check for user on component mount
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (currentUser) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', currentUser.id)
+          .single();
+        
+        setIsAdmin(profile?.role === 'admin');
+      }
+    };
+    
+    checkUser();
+    
+    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
@@ -51,8 +72,23 @@ export default function Navbar() {
   }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.refresh();
+    try {
+      setIsSigningOut(true);
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Error signing out:', error.message || JSON.stringify(error));
+        return;
+      }
+      
+      // Force a hard refresh to clear any cached state
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Exception during sign out:', error instanceof Error ? error.message : JSON.stringify(error));
+    } finally {
+      setIsSigningOut(false);
+      setMobileMenuOpen(false);
+    }
   };
 
   return (
@@ -152,12 +188,13 @@ export default function Navbar() {
                     {({ active }) => (
                       <button
                         onClick={handleSignOut}
+                        disabled={isSigningOut}
                         className={`${
                           active ? 'bg-gray-100' : ''
                         } flex items-center w-full px-4 py-2 text-sm`}
                       >
                         <LogOut className="h-4 w-4 mr-2" />
-                        Sign out
+                        {isSigningOut ? 'Signing out...' : 'Sign out'}
                       </button>
                     )}
                   </Menu.Item>
@@ -238,9 +275,10 @@ export default function Navbar() {
                         )}
                         <button
                           onClick={handleSignOut}
+                          disabled={isSigningOut}
                           className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 hover:bg-gray-50 dark:hover:bg-gray-800 w-full text-left"
                         >
-                          Sign out
+                          {isSigningOut ? 'Signing out...' : 'Sign out'}
                         </button>
                       </div>
                     ) : (

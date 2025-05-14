@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase-client';
-import { formatSupabaseUrl } from '@/lib/utils';
 import { SupabaseImage } from '@/components/ui/supabase-image';
 
 interface ArtworkImage {
@@ -23,18 +22,19 @@ interface Product {
 }
 
 export default function SearchResultsStatic({ query, category }: { query?: string; category?: string }) {
-  // Check if we're on the server for static generation
-  const isServer = typeof window === 'undefined';
-
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(!isServer);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // Set client-side flag to prevent hydration issues
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
-    // Skip data fetching during static build
-    if (isServer) {
-      return;
-    }
+    // Only fetch on the client side
+    if (!isClient) return;
 
     const fetchProducts = async () => {
       try {
@@ -87,67 +87,73 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
     };
 
     fetchProducts();
-  }, [query, category, isServer]);
+  }, [query, category, isClient]);
 
-  // During static build, return an empty state
-  if (isServer) {
+  // Show loading state
+  if (loading || !isClient) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500 mb-4">Loading search results...</p>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {[...Array(8)].map((_, i) => (
-          <div key={i} className="animate-pulse">
-            <div className="aspect-square bg-gray-200 rounded-lg mb-4" />
-            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-            <div className="h-4 bg-gray-200 rounded w-1/2" />
+      <div className="space-y-8">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="animate-pulse flex flex-col md:flex-row gap-6 p-6 border rounded-lg">
+            <div className="md:w-1/3 aspect-square bg-gray-200 rounded-lg" />
+            <div className="md:w-2/3 space-y-4">
+              <div className="h-7 bg-gray-200 rounded w-3/4" />
+              <div className="h-4 bg-gray-200 rounded w-1/2" />
+              <div className="h-4 bg-gray-200 rounded w-full" />
+              <div className="h-4 bg-gray-200 rounded w-full" />
+              <div className="h-9 bg-gray-200 rounded w-1/4 mt-4" />
+            </div>
           </div>
         ))}
       </div>
     );
   }
 
+  // Show error message
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500 mb-4">{error}</p>
+        <p className="text-red-500 mb-4 text-lg">{error}</p>
         <Button onClick={() => window.location.reload()}>Try Again</Button>
       </div>
     );
   }
 
+  // Show empty state
   if (products.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500 mb-4">No products found matching your criteria.</p>
-        <Button onClick={() => window.location.href = '/'}>Browse All Products</Button>
+      <div className="text-center py-16 bg-gray-50 rounded-lg">
+        <p className="text-gray-500 mb-6 text-lg">No products found matching your criteria.</p>
+        <Button 
+          onClick={() => window.location.href = '/'} 
+          className="px-6 py-2"
+        >
+          Browse All Products
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="space-y-8">
       {products.map((product) => {
-        const imageUrl = product.images?.[0]?.url;
+        // Find primary image first, fall back to first image if no primary
+        const primaryImage = product.images?.find(img => img.is_primary);
+        const imageUrl = primaryImage?.url || product.images?.[0]?.url;
         
         return (
           <div 
             key={product.id}
-            className="group cursor-pointer"
+            className="group cursor-pointer hover:bg-gray-50 transition-colors duration-200 flex flex-col md:flex-row gap-8 p-6 border rounded-lg"
             onClick={() => window.location.href = `/product/${product.id}`}
           >
-            <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-gray-100">
+            <div className="md:w-1/3 relative aspect-square overflow-hidden rounded-lg bg-gray-100">
               {imageUrl ? (
                 <SupabaseImage
                   src={imageUrl}
                   alt={product.title}
                   fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  sizes="(max-width: 768px) 100vw, 33vw"
                   className="object-cover transition-transform duration-300 group-hover:scale-105"
                 />
               ) : (
@@ -156,9 +162,24 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
                 </div>
               )}
             </div>
-            <h3 className="font-medium text-lg mt-2">{product.title}</h3>
-            <p className="text-sm text-gray-600 mb-1">By: {product.artist_name}</p>
-            <p className="text-green-600 font-bold">£{product.price?.toLocaleString()}</p>
+            <div className="md:w-2/3 flex flex-col">
+              <h3 className="font-serif text-2xl mb-2">{product.title}</h3>
+              <p className="text-gray-600 mb-2">By: {product.artist_name}</p>
+              {product.category && (
+                <p className="text-blue-600 mb-2 capitalize">Category: {product.category}</p>
+              )}
+              <p className="text-green-600 font-bold text-lg mb-4">£{product.price?.toLocaleString()}</p>
+              
+              <p className="text-gray-700 mb-6 line-clamp-3">
+                {product.description || "No description available for this artwork."}
+              </p>
+              
+              <div className="mt-auto">
+                <Button className="group-hover:bg-primary/90 transition-colors duration-200">
+                  View Details
+                </Button>
+              </div>
+            </div>
           </div>
         );
       })}

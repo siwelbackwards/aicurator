@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase-client';
 import { toast } from 'sonner';
+import { Trash2 } from 'lucide-react';
 
 interface ArtworkImageUploadProps {
   artworkId: string;
@@ -13,6 +14,34 @@ interface ArtworkImageUploadProps {
 export default function ArtworkImageUpload({ artworkId, onUploadComplete }: ArtworkImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [isPrimary, setIsPrimary] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<{path: string, isPrimary: boolean}[]>([]);
+
+  // Fetch existing images on load
+  useEffect(() => {
+    if (artworkId !== 'new') {
+      fetchExistingImages();
+    }
+  }, [artworkId]);
+
+  const fetchExistingImages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('artwork_images')
+        .select('*')
+        .eq('artwork_id', artworkId);
+      
+      if (error) throw error;
+      
+      if (data) {
+        setUploadedImages(data.map((img: { file_path: string; is_primary: boolean }) => ({
+          path: img.file_path,
+          isPrimary: img.is_primary
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching images:', error);
+    }
+  };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
@@ -36,14 +65,45 @@ export default function ArtworkImageUpload({ artworkId, onUploadComplete }: Artw
         throw new Error('Image size must be less than 5MB');
       }
 
-      await supabase.storage.from('artworks').upload(
-        `artwork-${artworkId}-${isPrimary ? 'primary' : 'secondary'}-${Date.now()}.${fileExt}`,
+      const filePath = `artwork-${artworkId}-${isPrimary ? 'primary' : 'secondary'}-${Date.now()}.${fileExt}`;
+      
+      // Upload to storage
+      const { data: storageData, error: storageError } = await supabase.storage.from('artworks').upload(
+        filePath,
         file,
         {
           cacheControl: '3600',
           upsert: true
         }
       );
+
+      if (storageError) throw storageError;
+
+      // If this is a primary image and there's already a primary, update the existing one
+      if (isPrimary && artworkId !== 'new') {
+        const { error: updateError } = await supabase
+          .from('artwork_images')
+          .update({ is_primary: false })
+          .eq('artwork_id', artworkId)
+          .eq('is_primary', true);
+        
+        if (updateError) console.error('Error updating primary status:', updateError);
+      }
+
+      // Add to the artwork_images table if artworkId is not 'new'
+      if (artworkId !== 'new') {
+        await supabase
+          .from('artwork_images')
+          .insert({
+            artwork_id: artworkId,
+            file_path: filePath,
+            is_primary: isPrimary
+          });
+      }
+
+      // Update local state
+      setUploadedImages(prev => [...prev, { path: filePath, isPrimary }]);
+      
       toast.success('Image uploaded successfully');
       onUploadComplete();
     } catch (error) {
@@ -88,6 +148,31 @@ export default function ArtworkImageUpload({ artworkId, onUploadComplete }: Artw
           disabled={uploading}
         />
       </div>
+
+      {/* Preview of uploaded images */}
+      {uploadedImages.length > 0 && (
+        <div className="mt-4">
+          <h4 className="font-medium mb-2">Uploaded Images</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {uploadedImages.map((img, index) => (
+              <div key={index} className="relative border rounded p-1">
+                <div className="relative aspect-square overflow-hidden">
+                  <img
+                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/artworks/${img.path}`}
+                    alt={`Uploaded ${index + 1}`}
+                    className="object-cover w-full h-full"
+                  />
+                </div>
+                {img.isPrimary && (
+                  <span className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 rounded">
+                    Primary
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

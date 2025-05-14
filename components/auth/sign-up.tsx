@@ -15,9 +15,18 @@ interface SignUpProps {
   onClose: () => void;
   onSignUpComplete?: (userId: string, userEmail: string) => void;
   onSellerSignUp?: () => void;
+  onAuthSuccess?: () => void;
+  redirectPath?: string;
 }
 
-export default function SignUp({ onModeChange, onClose, onSignUpComplete, onSellerSignUp }: SignUpProps) {
+export default function SignUp({ 
+  onModeChange, 
+  onClose, 
+  onSignUpComplete, 
+  onSellerSignUp, 
+  onAuthSuccess,
+  redirectPath 
+}: SignUpProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
@@ -83,8 +92,8 @@ export default function SignUp({ onModeChange, onClose, onSignUpComplete, onSell
     try {
       // If buyer type and onSignUpComplete exists, trigger onboarding
       if (formData.userType === 'buyer' && onSignUpComplete) {
-        // Just pass a temporary ID - real registration will happen in onboarding
-        onSignUpComplete("temp-id", "");
+        // Pass the email the user entered in the form
+        onSignUpComplete("temp-id", formData.email);
         setLoading(false);
         return;
       } else {
@@ -95,6 +104,13 @@ export default function SignUp({ onModeChange, onClose, onSignUpComplete, onSell
           // Fallback if seller registration is not available
           toast.info('Seller registration coming soon!');
           onClose();
+          
+          // Handle direct redirect if auth success
+          if (onAuthSuccess) {
+            onAuthSuccess();
+          } else if (redirectPath) {
+            router.push(redirectPath);
+          }
         }
       }
     } catch (error) {
@@ -178,6 +194,21 @@ export default function SignUp({ onModeChange, onClose, onSignUpComplete, onSell
               <span className="font-medium">Sell</span>
             </div>
           </RadioGroup>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="email">Email Address</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              required
+              placeholder="Your email address"
+              value={formData.email}
+              onChange={handleChange}
+            />
+          </div>
         </div>
 
         <Button type="submit" className="w-full" disabled={loading}>

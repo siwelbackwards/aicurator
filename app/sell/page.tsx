@@ -34,9 +34,30 @@ export default function SellPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsAuthenticated(!!session);
-      setLoading(false);
+      try {
+        // First check localStorage flag
+        const userAuthenticated = localStorage.getItem('userAuthenticated') === 'true';
+        if (userAuthenticated) {
+          setIsAuthenticated(true);
+          setLoading(false);
+          return;
+        }
+        
+        // Then verify with actual session
+        const { data } = await supabase.auth.getSession();
+        const hasSession = !!data?.session;
+        
+        if (hasSession) {
+          localStorage.setItem('userAuthenticated', 'true');
+        }
+        
+        setIsAuthenticated(hasSession);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error checking auth:", error);
+        setIsAuthenticated(false);
+        setLoading(false);
+      }
     };
 
     checkAuth();

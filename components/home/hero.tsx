@@ -6,6 +6,18 @@ import { Search, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AuthDialog from "@/components/auth/auth-dialog";
 
+// Define categories to match the featured categories
+const CATEGORIES = [
+  { value: 'all', label: 'All Categories' },
+  { value: 'paintings', label: 'Paintings' },
+  { value: 'sculptures', label: 'Sculptures' },
+  { value: 'other', label: 'Other' },
+  { value: 'accessories', label: 'Accessories' },
+  { value: 'consumables', label: 'Consumables' },
+  { value: 'photography', label: 'Photography' },
+  { value: 'mixed-media', label: 'Mixed Media' }
+];
+
 const carouselItems = [
   {
     image: "/images/categories/home page/home_page_art.webp",
@@ -18,7 +30,7 @@ const carouselItems = [
     description: "Explore our curated collection of rare and unique art pieces from emerging and established artists around the globe."
   },
   {
-    image: "/images/categories/home page/home_page_accessories.webp",
+    image: "/images/services/future-master.webp",
     title: "Premium Accessories",
     description: "Browse our selection of high-end accessories and collectibles, each piece carefully selected for its uniqueness and value."
   }
@@ -28,18 +40,22 @@ export default function Hero() {
   const router = useRouter();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    const params = new URLSearchParams();
+    
     if (searchQuery.trim()) {
-      const params = new URLSearchParams({
-        q: searchQuery,
-        category: selectedCategory
-      });
-      router.push(`/search?${params.toString()}`);
+      params.set('q', searchQuery);
     }
+    
+    if (selectedCategory !== 'all') {
+      params.set('category', selectedCategory);
+    }
+    
+    router.push(`/search?${params.toString()}`);
   };
 
   const goToSlide = (index: number) => {
@@ -97,10 +113,15 @@ export default function Hero() {
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
-              <option value="All" className="text-gray-900">All</option>
-              <option value="Art" className="text-gray-900">Art</option>
-              <option value="Sculpture" className="text-gray-900">Sculpture</option>
-              <option value="Accessories" className="text-gray-900">Accessories</option>
+              {CATEGORIES.map((category) => (
+                <option 
+                  key={category.value} 
+                  value={category.value} 
+                  className="text-gray-900"
+                >
+                  {category.label}
+                </option>
+              ))}
             </select>
           </div>
           <Button 
@@ -137,9 +158,9 @@ export default function Hero() {
       </Button>
 
       <AuthDialog
-        isOpen={isAuthDialogOpen}
-        onClose={() => setIsAuthDialogOpen(false)}
-        initialMode="signup"
+        open={isAuthDialogOpen}
+        onOpenChange={setIsAuthDialogOpen}
+        initialMode="signUp"
       />
     </section>
   );
