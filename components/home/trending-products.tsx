@@ -8,6 +8,24 @@ import { supabase } from '@/lib/supabase-client';
 import Image from 'next/image';
 import { SupabaseImage } from '@/components/ui/supabase-image';
 
+// Add a function to get a valid image URL
+const getValidImageUrl = (image: any) => {
+  if (!image) return 'https://source.unsplash.com/random/800x800/?art';
+  
+  // If we have a valid URL, use it
+  if (image.url && image.url.includes('http')) {
+    return image.url;
+  }
+  
+  // If we have a file_path, construct a URL
+  if (image.file_path && image.file_path.length > 3) {
+    return `https://cpzzmpgbyzcqbwkaaqdy.supabase.co/storage/v1/object/public/artwork-images/${image.file_path}`;
+  }
+  
+  // Fallback
+  return 'https://source.unsplash.com/random/800x800/?art';
+};
+
 interface ArtworkImage {
   file_path: string;
   is_primary: boolean;
@@ -91,17 +109,22 @@ export default function TrendingProducts() {
 
         console.log(`Fetched ${artworks.length} trending products`);
 
-          // Get public URLs for all images
+        // Get public URLs for all images
         const artworksWithUrls = artworks.map((artwork: any) => ({
-            ...artwork,
+          ...artwork,
           // Ensure images is always an array, even if null or undefined
-          images: artwork.images ? artwork.images.map((image: ArtworkImage) => ({
+          images: artwork.images ? artwork.images.map((image: ArtworkImage) => {
+            // Log the image data for debugging
+            console.log('Processing image:', image.file_path);
+            return {
               ...image,
+              // Don't just assign the file_path to url, it will be handled by getValidImageUrl
               url: image.file_path
-          })) : []
-          }));
-          
-          setProducts(artworksWithUrls);
+            };
+          }) : []
+        }));
+        
+        setProducts(artworksWithUrls);
         setLoading(false);
       } catch (error) {
         console.error('Error in trending products:', error);
@@ -228,7 +251,8 @@ export default function TrendingProducts() {
           {displayProducts.map((product) => {
             // Find primary image first, fall back to first image if no primary
             const primaryImage = product.images?.find(img => img.is_primary);
-            const imageUrl = primaryImage?.url || product.images?.[0]?.url;
+            const firstImage = product.images?.[0];
+            const imageUrl = getValidImageUrl(primaryImage || firstImage);
 
             return (
               <div 

@@ -604,7 +604,7 @@ export default function NewItemPage() {
             artwork_id: artwork.id,
             url: img.url,
             is_primary: img.is_primary,
-            display_order: img.display_order,
+                display_order: img.display_order,
             file_path: img.url.includes('/public/') 
               ? img.url.split('/public/')[1] 
               : img.url.includes('artwork-images/') 
