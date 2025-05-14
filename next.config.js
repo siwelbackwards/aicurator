@@ -47,8 +47,6 @@ const nextConfig = {
     scrollRestoration: true,
     optimisticClientCache: true,
     externalDir: true,
-    swcMinify: true,
-    incrementalCacheHandlerPath: require.resolve('./cache-handler.js'),
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? {
