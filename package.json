@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "prebuild": "node scripts/prebuild.js",
-    "build": "next build && npm run postbuild",
-    "postbuild": "node scripts/fix-html.js",
+    "build": "next build && npm run postbuild:custom",
+    "postbuild:custom": "node scripts/fix-html.js",
     "setup-netlify": "node scripts/setup-netlify.js",
     "start": "next start",
     "lint": "next lint"
