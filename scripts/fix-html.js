@@ -57,14 +57,14 @@ try {
     console.log('Using fallback file finder implementation');
   }
 
-  const outputDir = path.join(__dirname, '../out');
+const outputDir = path.join(__dirname, '../out');
 
-  // Ensure the output directory exists before proceeding
-  if (!fs.existsSync(outputDir)) {
-    console.warn(`Output directory ${outputDir} not found. Attempting to create it.`);
-    try {
-      fs.mkdirSync(outputDir, { recursive: true });
-      console.log(`Successfully created output directory: ${outputDir}`);
+// Ensure the output directory exists before proceeding
+if (!fs.existsSync(outputDir)) {
+  console.warn(`Output directory ${outputDir} not found. Attempting to create it.`);
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+    console.log(`Successfully created output directory: ${outputDir}`);
       
       // Create a minimal index.html if it doesn't exist
       const indexPath = path.join(outputDir, 'index.html');
@@ -86,11 +86,11 @@ try {
 </html>`);
         console.log('Created fallback index.html');
       }
-    } catch (err) {
-      console.error(`Failed to create output directory ${outputDir}:`, err);
+  } catch (err) {
+    console.error(`Failed to create output directory ${outputDir}:`, err);
       // Continue anyway to try other operations
-    }
   }
+}
 
   // Create env.js if it doesn't exist
   const envJsPath = path.join(outputDir, 'env.js');
@@ -118,25 +118,25 @@ console.log('Environment loaded:', window.ENV);
     const htmlFiles = glob.sync(path.join(outputDir, '/**/*.html'));
     console.log(`Found ${htmlFiles.length} HTML files`);
 
-    // Inject env.js script into each HTML file
-    htmlFiles.forEach(file => {
-      try {
+  // Inject env.js script into each HTML file
+  htmlFiles.forEach(file => {
+    try {
         console.log(`Processing ${file}`);
-        let content = fs.readFileSync(file, 'utf8');
-        
-        // Check if env.js is already included
-        if (content.includes('src="/env.js"')) {
-          console.log(`env.js already included in ${file}`);
-          return;
-        }
-        
-        // Add env.js before the first script tag or at the end of the head
-        if (content.includes('</head>')) {
-          content = content.replace('</head>', '<script src="/env.js"></script></head>');
-        } else {
+      let content = fs.readFileSync(file, 'utf8');
+      
+      // Check if env.js is already included
+      if (content.includes('src="/env.js"')) {
+        console.log(`env.js already included in ${file}`);
+        return;
+      }
+      
+      // Add env.js before the first script tag or at the end of the head
+      if (content.includes('</head>')) {
+        content = content.replace('</head>', '<script src="/env.js"></script></head>');
+      } else {
           // If no head tag, try to add before first script tag
           if (content.includes('<script')) {
-            content = content.replace(/<script/, '<script src="/env.js"></script><script');
+        content = content.replace(/<script/, '<script src="/env.js"></script><script');
           } else {
             // If no script tag, add at the beginning of body or the document
             if (content.includes('<body>')) {
@@ -146,31 +146,31 @@ console.log('Environment loaded:', window.ENV);
               content = '<script src="/env.js"></script>\n' + content;
             }
           }
-        }
-        
-        fs.writeFileSync(file, content);
-        console.log(`Successfully injected env.js into ${file}`);
-      } catch (err) {
-        console.error(`Error processing ${file}:`, err);
       }
-    });
+      
+      fs.writeFileSync(file, content);
+        console.log(`Successfully injected env.js into ${file}`);
+    } catch (err) {
+      console.error(`Error processing ${file}:`, err);
+    }
+  });
   } catch (err) {
     console.error('Error finding or processing HTML files:', err);
-  }
+}
 
-  // Create a Netlify _redirects file to handle client-side routing
-  const redirectsPath = path.join(outputDir, '_redirects');
-  const redirectsContent = 
+// Create a Netlify _redirects file to handle client-side routing
+const redirectsPath = path.join(outputDir, '_redirects');
+const redirectsContent = 
 `# Netlify redirects for client-side routing
 /api/*  /not-found.html  404
 /*      /index.html      200
 `;
 
-  try {
-    fs.writeFileSync(redirectsPath, redirectsContent);
-    console.log('Created Netlify _redirects file for client-side routing in', redirectsPath);
-  } catch (err) {
-    console.error(`Error creating Netlify _redirects file in ${redirectsPath}:`, err);
+try {
+  fs.writeFileSync(redirectsPath, redirectsContent);
+  console.log('Created Netlify _redirects file for client-side routing in', redirectsPath);
+} catch (err) {
+  console.error(`Error creating Netlify _redirects file in ${redirectsPath}:`, err);
   }
 
   console.log('=== fix-html script completed successfully ===');

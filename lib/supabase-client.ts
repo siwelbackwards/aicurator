@@ -135,6 +135,6 @@ export function formatSupabaseUrl(path: string): string {
   }
   
   return `${baseUrl}${cleanPath}`;
-}
+} 
 
 // Remove the admin client completely - we'll create it only in server components when needed 

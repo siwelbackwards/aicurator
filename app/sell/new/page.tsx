@@ -575,7 +575,7 @@ export default function NewItemPage() {
           
           // IMPORTANT: Use the API route for database operations
           console.log('🔍 Sending API request to /api/artworks');
-          const apiResponse = await fetch('/api/artworks', {
+          const apiResponse = await fetch('/.netlify/functions/submit-artwork', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -604,7 +604,7 @@ export default function NewItemPage() {
             artwork_id: artwork.id,
             url: img.url,
             is_primary: img.is_primary,
-                display_order: img.display_order,
+            display_order: img.display_order,
             file_path: img.url.includes('/public/') 
               ? img.url.split('/public/')[1] 
               : img.url.includes('artwork-images/') 
@@ -616,7 +616,7 @@ export default function NewItemPage() {
           
           // Use API route for this too to avoid RLS issues
           console.log('🔍 Sending request to link images');
-          const imagesResponse = await fetch('/api/artwork-images', {
+          const imagesResponse = await fetch('/.netlify/functions/artwork-images', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

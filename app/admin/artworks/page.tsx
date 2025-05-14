@@ -289,12 +289,12 @@ export default function AdminArtworksPage() {
                   <div className="relative aspect-square">
                     <Link href={`/artwork/${artwork.id}`}>
                       {imageUrl ? (
-                        <SupabaseImage
-                          src={imageUrl}
-                          alt={artwork.title}
-                          fill
-                          className="object-cover cursor-pointer"
-                        />
+                      <SupabaseImage
+                        src={imageUrl}
+                        alt={artwork.title}
+                        fill
+                        className="object-cover cursor-pointer"
+                      />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
                           No Image
@@ -363,12 +363,12 @@ export default function AdminArtworksPage() {
                   <div className="relative aspect-square">
                     <Link href={`/artwork/${artwork.id}`}>
                       {imageUrl ? (
-                        <SupabaseImage
-                          src={imageUrl}
-                          alt={artwork.title}
-                          fill
-                          className="object-cover cursor-pointer"
-                        />
+                      <SupabaseImage
+                        src={imageUrl}
+                        alt={artwork.title}
+                        fill
+                        className="object-cover cursor-pointer"
+                      />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
                           No Image
@@ -419,12 +419,12 @@ export default function AdminArtworksPage() {
                   <div className="relative aspect-square">
                     <Link href={`/artwork/${artwork.id}`}>
                       {imageUrl ? (
-                        <SupabaseImage
-                          src={imageUrl}
-                          alt={artwork.title}
-                          fill
-                          className="object-cover cursor-pointer"
-                        />
+                      <SupabaseImage
+                        src={imageUrl}
+                        alt={artwork.title}
+                        fill
+                        className="object-cover cursor-pointer"
+                      />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
                           No Image
@@ -459,4 +459,4 @@ export default function AdminArtworksPage() {
       </Tabs>
     </div>
   );
-}
+} 

@@ -19,18 +19,18 @@ try {
     }
   });
 
-  // Copy middleware.static.ts to middleware.ts
-  const middlewareStaticPath = path.join(__dirname, '../middleware.static.ts');
-  const middlewarePath = path.join(__dirname, '../middleware.ts');
+// Copy middleware.static.ts to middleware.ts
+const middlewareStaticPath = path.join(__dirname, '../middleware.static.ts');
+const middlewarePath = path.join(__dirname, '../middleware.ts');
 
-  if (fs.existsSync(middlewareStaticPath)) {
+if (fs.existsSync(middlewareStaticPath)) {
     try {
-      fs.copyFileSync(middlewareStaticPath, middlewarePath);
-      console.log('Middleware file copied for static export');
+  fs.copyFileSync(middlewareStaticPath, middlewarePath);
+  console.log('Middleware file copied for static export');
     } catch (err) {
       console.log(`Warning: Could not copy middleware file: ${err.message}`);
     }
-  } else {
+} else {
     console.log('Middleware static file not found - creating empty file');
     try {
       fs.writeFileSync(middlewarePath, `
@@ -46,38 +46,38 @@ export const config = {
     } catch (err) {
       console.log(`Warning: Could not create middleware file: ${err.message}`);
     }
-  }
+}
 
-  // Create empty module for NextAuth to fix build errors
-  const emptyModulePath = path.join(__dirname, 'empty-module.js');
+// Create empty module for NextAuth to fix build errors
+const emptyModulePath = path.join(__dirname, 'empty-module.js');
   try {
-    fs.writeFileSync(emptyModulePath, '// This is an empty module to resolve the NextAuth path error during build\nmodule.exports = {};');
-    console.log('Created empty module for NextAuth resolution');
+fs.writeFileSync(emptyModulePath, '// This is an empty module to resolve the NextAuth path error during build\nmodule.exports = {};');
+console.log('Created empty module for NextAuth resolution');
   } catch (err) {
     console.log(`Warning: Could not create empty module: ${err.message}`);
   }
 
-  // Check for pages directory and create if needed
-  const pagesDir = path.join(__dirname, '../pages');
-  const pagesApiDir = path.join(pagesDir, 'api');
-  const pagesApiAuthDir = path.join(pagesApiDir, 'auth');
+// Check for pages directory and create if needed
+const pagesDir = path.join(__dirname, '../pages');
+const pagesApiDir = path.join(pagesDir, 'api');
+const pagesApiAuthDir = path.join(pagesApiDir, 'auth');
 
-  // Create directories if they don't exist
+// Create directories if they don't exist
   try {
-    if (!fs.existsSync(pagesDir)) {
+if (!fs.existsSync(pagesDir)) {
       fs.mkdirSync(pagesDir, { recursive: true });
-      console.log('Created pages directory');
-    }
+  console.log('Created pages directory');
+}
 
-    if (!fs.existsSync(pagesApiDir)) {
+if (!fs.existsSync(pagesApiDir)) {
       fs.mkdirSync(pagesApiDir, { recursive: true });
-      console.log('Created pages/api directory');
-    }
+  console.log('Created pages/api directory');
+}
 
-    if (!fs.existsSync(pagesApiAuthDir)) {
+if (!fs.existsSync(pagesApiAuthDir)) {
       fs.mkdirSync(pagesApiAuthDir, { recursive: true });
-      console.log('Created pages/api/auth directory');
-    }
+  console.log('Created pages/api/auth directory');
+}
   } catch (err) {
     console.log(`Warning: Could not create directories: ${err.message}`);
   }
