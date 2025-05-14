@@ -1,13 +1,16 @@
 [build]
-  command = "npm run build"
+  command = ""
   publish = "out"
 
 [build.environment]
   NODE_VERSION = "18"
   SECRETS_SCAN_ENABLED = "false"
+  NEXT_PRIVATE_TARGET = "server"
+  NEXT_PRIVATE_STANDALONE = "true"
 
+# Use our custom Next.js static export plugin
 [[plugins]]
-  package = "@netlify/plugin-nextjs"
+  package = "./netlify/plugins/next-static-export"
 
 [[plugins]]
   package = "@netlify/plugin-lighthouse"
@@ -70,13 +73,11 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Handle SPA routing for Next.js
+# SPA fallback for client-side routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  force = false
-  conditions = {Country = ["*"]}
 
 # Define functions directory
 [functions]

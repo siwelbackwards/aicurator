@@ -47,5 +47,8 @@ export async function POST(request: Request) {
 
 // GET handler to check API health
 export async function GET() {
-  return NextResponse.json({ status: 'ok', message: 'Debug API is running' });
+  return NextResponse.json({
+    message: 'Debug API placeholder for static export',
+    environment: 'static'
+  });
 } 
