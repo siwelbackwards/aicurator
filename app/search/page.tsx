@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import {
@@ -25,7 +25,8 @@ const CATEGORIES = [
   { value: 'mixed-media', label: 'Mixed Media' }
 ];
 
-export default function SearchPage() {
+// Create a client component that uses useSearchParams
+function SearchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -127,5 +128,39 @@ export default function SearchPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Main page component that wraps SearchContent in a Suspense boundary
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8 p-8 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50">
+          <h1 className="text-3xl font-bold mb-6 text-center">Search Artwork</h1>
+          <div className="animate-pulse flex flex-col md:flex-row gap-4">
+            <div className="flex-grow h-10 bg-gray-200 rounded"></div>
+            <div className="w-full md:w-[180px] h-10 bg-gray-200 rounded"></div>
+            <div className="md:w-[120px] h-10 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+        <div className="space-y-8">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="animate-pulse flex flex-col md:flex-row gap-6 p-6 border rounded-lg">
+              <div className="md:w-1/3 aspect-square bg-gray-200 rounded-lg" />
+              <div className="md:w-2/3 space-y-4">
+                <div className="h-7 bg-gray-200 rounded w-3/4" />
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+                <div className="h-4 bg-gray-200 rounded w-full" />
+                <div className="h-4 bg-gray-200 rounded w-full" />
+                <div className="h-9 bg-gray-200 rounded w-1/4 mt-4" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    }>
+      <SearchContent />
+    </Suspense>
   );
 }
