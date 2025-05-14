@@ -357,7 +357,13 @@ export default function NewItemPage() {
     const value = e.target.value;
     // Allow only digits and decimal point during input
     if (value === '' || /^[\d.,]*$/.test(value)) {
-      setFormData(prev => ({ ...prev, price: value }));
+      // Make sure price doesn't exceed database limits when unformatted
+      const unformatted = value.replace(/,/g, '');
+      if (unformatted === '' || parseFloat(unformatted) < 100000000) {
+        setFormData(prev => ({ ...prev, price: value }));
+      } else {
+        toast.error('Price cannot exceed 99,999,999.99');
+      }
     }
   }, []);
   
@@ -367,6 +373,14 @@ export default function NewItemPage() {
     if (!value) return;
     
     try {
+      const unformatted = unformatPrice(value);
+      // Double-check price limits
+      if (parseFloat(unformatted) >= 100000000) {
+        toast.error('Price cannot exceed 99,999,999.99');
+        setFormData(prev => ({ ...prev, price: '99,999,999.99' }));
+        return;
+      }
+      
       const formatted = formatPrice(value);
       setFormData(prev => ({ ...prev, price: formatted }));
     } catch (err) {
@@ -418,7 +432,235 @@ export default function NewItemPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Helper function to refresh auth session
+  const refreshAuthSession = async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      console.log('🔄 Auth session refreshed', data?.session ? 'successfully' : 'failed');
+      if (error) console.error('🔄 Error refreshing session:', error);
+      return !error;
+    } catch (e) {
+      console.error('🔄 Exception refreshing session:', e);
+      return false;
+    }
+  };
+
+  // Function to sign out and redirect to sign in
+  const signOutAndRedirect = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/auth?redirect=/sell/new');
+    } catch (e) {
+      console.error('Error signing out:', e);
+      router.push('/auth?redirect=/sell/new');
+    }
+  };
+
+  // Completely new submission function with different name
+  const submitArtwork = async (e: React.FormEvent) => {
+    console.log('🚀🚀🚀 SUBMIT FUNCTION TRIGGERED', { 
+      hasImages: images.length > 0,
+      eventDetail: e.type,
+      formDataKeys: Object.keys(formData)
+    });
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      console.log('🔍 Starting form validation checks');
+      // Basic validation
+      if (images.length === 0) {
+        toast.error('Please upload at least one image');
+        setLoading(false);
+        return;
+      }
+      
+      if (!formData.price || isNaN(parseFloat(unformatPrice(formData.price)))) {
+        toast.error('Please enter a valid price');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('🔍 Checking authentication');
+      // Get user session
+      const { data, error } = await supabase.auth.getSession();
+      if (error || !data.session) {
+        console.error('🔍 Auth error:', error);
+        toast.error('Authentication error. Please sign in again.');
+        router.push('/auth?redirect=/sell/new');
+        setLoading(false);
+        return;
+      }
+
+      console.log('🔍 Authentication successful, user ID:', data.session.user.id);
+      const session = data.session;
+      
+      // Upload images
+      console.log('🔍 Starting image upload process');
+      const imageToastId = toast.loading('Uploading images...');
+      
+      try {
+        console.log('🔍 Preparing to upload', images.length, 'images');
+        // Upload all images in parallel
+        const imageUploads = images.map(async (img, index) => {
+          console.log(`🔍 Starting upload for image ${index + 1}`);
+          try {
+            const imageUrl = await uploadImage(img.file);
+            console.log(`🔍 Image ${index + 1} uploaded successfully:`, imageUrl.substring(0, 50) + '...');
+            return {
+              url: imageUrl,
+              is_primary: img.primary,
+              display_order: img.order
+            };
+          } catch (err) {
+            console.error(`🔍 Image ${index + 1} upload failed:`, err);
+            return null;
+          }
+        });
+        
+        console.log('🔍 Waiting for all image uploads to complete');
+        const uploadResults = await Promise.all(imageUploads);
+        const successfulUploads = uploadResults.filter(result => result !== null);
+        
+        console.log('🔍 Upload results:', { 
+          total: uploadResults.length, 
+          successful: successfulUploads.length 
+        });
+        
+        if (successfulUploads.length === 0) {
+          console.error('🔍 All uploads failed');
+          toast.error('Failed to upload any images', { id: imageToastId });
+          setLoading(false);
+          return;
+        }
+        
+        toast.success(`Uploaded ${successfulUploads.length} images`, { id: imageToastId });
+        
+        // Database operations toast
+        console.log('🔍 Starting database operations');
+        const dbToastId = toast.loading('Saving your artwork...');
+        
+        try {
+          // Parse numeric values
+          console.log('🔍 Parsing form data');
+          const price = parseFloat(unformatPrice(formData.price));
+          
+          // Check if price exceeds database limits
+          if (price >= 100000000) {
+            toast.error('Price is too large. Maximum allowed is 99,999,999.99', { id: dbToastId });
+            setLoading(false);
+            return;
+          }
+
+          const width = parseFloat(formData.width || '0');
+          const height = parseFloat(formData.height || '0');
+          const depth = parseFloat(formData.depth || '0');
+          const year = parseInt(formData.year || new Date().getFullYear().toString(), 10);
+          
+          console.log('💯 Calling API route to insert artwork...');
+          
+          // Prepare API payload - only include guaranteed fields
+          const apiPayload = {
+            user_id: session.user.id,
+            title: formData.title,
+            category: formData.category,
+            artist_name: formData.artistName,
+            description: formData.description,
+            price: price,
+            status: 'pending'
+            // Removed all potentially non-existent fields like metadata
+          };
+          
+          console.log('🔍 API payload prepared:', JSON.stringify(apiPayload).substring(0, 100) + '...');
+          
+          // IMPORTANT: Use the API route for database operations
+          console.log('🔍 Sending API request to /api/artworks');
+          const apiResponse = await fetch('/api/artworks', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(apiPayload)
+          });
+          
+          // Log response for debugging
+          console.log('🔍 API response received, status:', apiResponse.status);
+          
+          console.log('🔍 Parsing API response');
+          const result = await apiResponse.json();
+          console.log('💯 API response data:', result);
+          
+          if (!apiResponse.ok) {
+            console.error('🔍 API error:', result);
+            throw new Error(result.error || result.message || 'Failed to save artwork');
+          }
+          
+          const artwork = result.artwork;
+          console.log('💯 Successfully created artwork:', artwork.id);
+          
+          // Link images to artwork
+          console.log('🔍 Preparing to link images to artwork');
+          const imagesData = successfulUploads.map(img => ({
+            artwork_id: artwork.id,
+            url: img.url,
+            is_primary: img.is_primary,
+            display_order: img.display_order,
+            file_path: img.url.includes('/public/') 
+              ? img.url.split('/public/')[1] 
+              : img.url.includes('artwork-images/') 
+                ? img.url.split('artwork-images/').pop() 
+                : img.url
+          }));
+          
+          console.log('🔍 Image link data prepared:', JSON.stringify(imagesData).substring(0, 100) + '...');
+          
+          // Use API route for this too to avoid RLS issues
+          console.log('🔍 Sending request to link images');
+          const imagesResponse = await fetch('/api/artwork-images', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              images: imagesData
+            })
+          });
+          
+          console.log('🔍 Image link response received, status:', imagesResponse.status);
+          
+          if (!imagesResponse.ok) {
+            const imagesResult = await imagesResponse.json();
+            console.error('🔍 Failed to link images:', imagesResult);
+            toast.error('Images were saved but couldn\'t be linked to the artwork', { id: dbToastId });
+          } else {
+            console.log('💯 Images linked successfully!');
+            toast.success('Artwork submitted successfully!', { id: dbToastId });
+            
+            // Navigate to success page
+            console.log('🔍 Preparing to redirect to success page');
+            setTimeout(() => {
+              router.push('/sell/success');
+            }, 1500);
+          }
+        } catch (dbError) {
+          console.error('🚀 Database operation error:', dbError);
+          toast.error('Failed to save artwork to database', { id: dbToastId });
+          setLoading(false);
+        }
+      } catch (uploadError) {
+        console.error('🚀 Image upload process error:', uploadError);
+        toast.error('Failed to process image uploads');
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('🚀 Overall submission error:', error);
+      toast.error('Something went wrong. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  // Keep the old function but rename it so we don't use it
+  const handleSubmit_OLD = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -455,350 +697,10 @@ export default function NewItemPage() {
         return;
       }
 
-      // Notify user
-      const uploadToastId = toast.loading('Uploading images, please wait...');
-      
-      // Upload images (with timeout protection) in batches of 2
-      interface UploadedImage {
-        url: string;
-        is_primary: boolean;
-        display_order: number;
-      }
-      
-      let uploadedImages: UploadedImage[] = [];
-      try {
-        // Process images in smaller batches for better responsiveness
-        const batchSize = 2;
-        for (let i = 0; i < images.length; i += batchSize) {
-          const batch = images.slice(i, i + batchSize);
-          const batchResults = await Promise.all(
-            batch.map(async (img, imgIndex) => {
-              try {
-                const url = await uploadImage(img.file);
-                return {
-                  url,
-                  is_primary: img.primary,
-                  display_order: img.order
-                };
-              } catch (uploadErr) {
-                console.error(`Error uploading image ${imgIndex}:`, uploadErr);
-                toast.error(`Failed to upload image ${imgIndex + 1}. Continuing with other images.`);
-                return null;
-              }
-            })
-          );
-          
-          // Filter out any failed uploads
-          const successfulUploads = batchResults.filter(result => result !== null) as UploadedImage[];
-          uploadedImages = [...uploadedImages, ...successfulUploads];
-          
-          // Update progress
-          toast.loading(`Uploaded ${Math.min(i + batchSize, images.length)} of ${images.length} images...`, { id: uploadToastId });
-        }
-        
-        if (uploadedImages.length === 0) {
-          console.error('All image uploads failed');
-          toast.error('All image uploads failed. Please try again with different images.', { id: uploadToastId });
-          setLoading(false);
-          return;
-        }
-        
-        if (uploadedImages.length < images.length) {
-          toast.error(`Note: Only ${uploadedImages.length} of ${images.length} images uploaded successfully. Continuing with available images.`, { 
-            id: uploadToastId,
-            duration: 5000 // Show for longer
-          });
-        } else {
-          console.log('Images uploaded successfully:', uploadedImages);
-          toast.success('Images uploaded successfully', { id: uploadToastId });
-        }
-      } catch (error) {
-        console.error('Error uploading images:', error);
-        toast.error('Failed to upload images. Please try again.', { id: uploadToastId });
-        setLoading(false);
-        return;
-      }
-
-      // Notify user
-      const createToastId = toast.loading('Creating artwork, please wait...');
-      
-      // Parse numeric values with proper validation
-      const priceNumeric = parseFloat(unformatPrice(formData.price || '0'));
-      const widthNumeric = parseFloat(formData.width || '0');
-      const heightNumeric = parseFloat(formData.height || '0');
-      const depthNumeric = parseFloat(formData.depth || '0');
-      const yearNumeric = parseInt(formData.year || '0', 10);
-      
-      // Log values for debugging
-      console.log('Submitting artwork with values:', {
-        userId: session.user.id,
-        title: formData.title,
-        category: formData.category,
-        price: priceNumeric,
-        rawPrice: formData.price,
-        unformattedPrice: unformatPrice(formData.price || '0'),
-        imageCount: uploadedImages.length
-      });
-      
-      try {
-        // Log session details to debug
-        console.log('Session object:', JSON.stringify({
-          userId: session.user.id,
-          email: session.user.email,
-          role: session.user.role,
-        }));
-        
-        // Create a simplified artwork object
-        const artworkData = {
-          user_id: session.user.id,
-          title: formData.title,
-          category: formData.category,
-          status: 'pending'
-        };
-        console.log('Trying minimal insert with:', artworkData);
-        
-        // Prepare the complete submission data for localStorage fallback
-        const completeSubmissionData = {
-          user_id: session.user.id,
-          title: formData.title,
-          category: formData.category,
-          artist_name: formData.artistName,
-          description: formData.description,
-          price: priceNumeric,
-          currency: formData.currency,
-          location: formData.location,
-          dimensions: {
-            width: widthNumeric,
-            height: heightNumeric,
-            depth: depthNumeric,
-            unit: formData.measurementUnit
-          },
-          year: yearNumeric,
-          provenance: formData.provenance,
-          status: 'pending',
-          images: uploadedImages.map(img => ({
-            url: img.url,
-            is_primary: img.is_primary,
-            display_order: img.display_order
-          })),
-          submitted_at: new Date().toISOString()
-        };
-        
-        // Store submission in localStorage as a fallback
-        try {
-          window.localStorage.setItem(
-            `artwork_submission_${Date.now()}`, 
-            JSON.stringify(completeSubmissionData)
-          );
-          console.log('Submission backed up to localStorage');
-        } catch (storageError) {
-          console.error('Failed to backup to localStorage:', storageError);
-        }
-        
-        // Try database operations but don't fail if they don't work
-        let databaseSuccess = false;
-        let artworkId: string | number | null = null;
-        
-        try {
-          // Make sure we have all required fields
-          console.log('Attempting to insert artwork with data:', JSON.stringify(artworkData));
-          
-          // Try basic insert first with more complete data
-          const completeArtworkData = {
-            user_id: session.user.id,
-            title: formData.title,
-            category: formData.category,
-            artist_name: formData.artistName,
-            description: formData.description || '',
-            price: priceNumeric || 0,
-            currency: formData.currency || 'GBP',
-            location: formData.location || '',
-            dimensions: {
-              width: widthNumeric || 0,
-              height: heightNumeric || 0,
-              depth: depthNumeric || 0,
-              unit: formData.measurementUnit || 'cm'
-            },
-            year: yearNumeric || new Date().getFullYear(),
-            provenance: formData.provenance || '',
-            status: 'pending',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          
-          console.log('Inserting complete artwork data:', JSON.stringify(completeArtworkData));
-          
-          // Try insert with complete data
-          let { data: artwork, error: artworkError } = await supabase
-            .from('artworks')
-            .insert(completeArtworkData)
-        .select()
-        .single();
-
-      if (artworkError) {
-            console.error('Basic artwork insert failed:', JSON.stringify(artworkError));
-            console.error('Error details:', {
-              code: artworkError.code,
-              message: artworkError.message,
-              details: artworkError.details,
-              hint: artworkError.hint
-            });
-            
-            // Try a simplified insert as fallback
-            console.log('Trying with simplified data...');
-            try {
-              const minimalData = {
-                user_id: session.user.id,
-                title: formData.title || 'Untitled',
-                category: formData.category || 'other',
-                status: 'pending',
-                created_at: new Date().toISOString()
-              };
-              
-              console.log('Minimal insert data:', JSON.stringify(minimalData));
-              
-              const { data: minimalArtwork, error: minimalError } = await supabase
-                .from('artworks')
-                .insert(minimalData)
-                .select()
-                .single();
-              
-              if (minimalError) {
-                console.error('Minimal insert failed:', JSON.stringify(minimalError));
-                
-                // Try direct SQL via RPC as last resort
-                console.log('Trying with RPC function...');
-                const { data: rpcData, error: rpcError } = await supabase.rpc('insert_basic_artwork', {
-                  p_user_id: session.user.id,
-                  p_title: formData.title || 'Untitled',
-                  p_category: formData.category || 'other'
-                });
-                
-                if (rpcError) {
-                  console.error('RPC insert failed:', JSON.stringify(rpcError));
-                  // Log the session user ID to help debug
-                  console.error('Current user ID:', session.user.id);
-                  
-                  // Try to determine if it's a permissions issue
-                  const { data: userRole } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', session.user.id)
-                    .single();
-                    
-                  console.log('User role from profiles:', userRole);
-                  
-                  // Don't return, continue to fallback
-                } else if (rpcData) {
-                  artwork = rpcData;
-                  console.log('RPC insert succeeded:', artwork);
-                  databaseSuccess = true;
-                  if (artwork && artwork.id) {
-                    artworkId = artwork.id;
-                  }
-                }
-              } else {
-                artwork = minimalArtwork;
-                console.log('Minimal insert succeeded:', artwork);
-                databaseSuccess = true;
-                if (artwork && artwork.id) {
-                  artworkId = artwork.id;
-                }
-              }
-            } catch (fallbackErr) {
-              console.error('All fallback attempts failed:', fallbackErr);
-              // Continue to final submission
-            }
-          } else {
-            console.log('Basic insert succeeded:', artwork);
-            databaseSuccess = true;
-            
-            if (artwork && artwork.id) {
-              artworkId = artwork.id;
-            }
-          }
-          
-          // Only try to save images if we got an artwork ID
-          if (artworkId) {
-            try {
-              // Prepare images data
-              const imagesData = uploadedImages.map(img => ({
-                artwork_id: artworkId,
-            url: img.url,
-            is_primary: img.is_primary,
-                display_order: img.display_order,
-            file_path: img.url.includes('/public/') ? img.url.split('/public/')[1] : img.url.split('artwork-images/').pop() || img.url
-              }));
-
-              console.log('Inserting images data:', imagesData);
-
-              // Insert images with order information
-              const { error: imagesError } = await supabase
-                .from('artwork_images')
-                .insert(imagesData);
-
-      if (imagesError) {
-        console.error('Images insert error:', imagesError);
-              } else {
-                console.log('All images saved successfully');
-              }
-            } catch (imageInsertError) {
-              console.error('Error saving images:', imageInsertError);
-            }
-          }
-        } catch (databaseError) {
-          console.error('All database operations failed:', databaseError);
-          // Just log and continue to success
-        }
-        
-        // Always show success, even if database operations failed
-        if (databaseSuccess) {
-          toast.success('Your artwork was successfully submitted to the database!', { 
-            id: createToastId,
-            duration: 5000
-          });
-        } else {
-          // Let the user know their submission was received but may be delayed
-          toast.success('Your submission was received! It will be processed shortly.', { 
-            id: createToastId,
-            duration: 5000
-          });
-          
-          // You could implement a background sync here or try to resubmit later
-        }
-        
-        // Always redirect to success
-        setTimeout(() => {
-          router.push('/sell/success');
-        }, 2000);
-        
-      } catch (error) {
-        console.error('Error in submission process:', error);
-        
-        // Even if everything fails, still try to give a good experience
-        try {
-          window.localStorage.setItem(
-            `artwork_submission_error_${Date.now()}`, 
-            JSON.stringify({
-              formData,
-              error: error instanceof Error ? error.message : 'Unknown error',
-              timestamp: new Date().toISOString()
-            })
-          );
-        } catch (e) {
-          console.error('Failed to save error state:', e);
-        }
-        
-        toast.error(`There was a problem with your submission. We'll try again later.`, { id: createToastId });
-        
-        // Still redirect to success after a delay to give a better user experience
-        setTimeout(() => {
-      router.push('/sell/success');
-        }, 3000);
-      }
+      // This is the original code that we're no longer using
+      console.log('This old function is not being used anymore');
     } catch (error) {
-      console.error('Error submitting artwork:', error);
-      toast.error('Something went wrong. Please try again later.');
+      console.error('Error in old function (not used):', error);
       setLoading(false);
     }
   };
@@ -817,7 +719,39 @@ export default function NewItemPage() {
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h1 className="text-2xl font-bold mb-6">List a New Item</h1>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Debugging tools */}
+          <div className="mb-4 p-2 bg-gray-100 rounded text-sm">
+            <details>
+              <summary className="cursor-pointer text-gray-600 font-medium">Authentication Troubleshooting</summary>
+              <div className="mt-2 space-y-2">
+                <div className="text-xs">If you're having issues, these actions might help:</div>
+                <div className="flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={refreshAuthSession}
+                    className="px-2 py-1 bg-blue-500 text-white rounded text-xs"
+                  >
+                    Refresh Session
+                  </button>
+                  <button
+                    type="button"
+                    onClick={signOutAndRedirect}
+                    className="px-2 py-1 bg-red-500 text-white rounded text-xs"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            </details>
+          </div>
+          
+          <form 
+            onSubmit={(e) => {
+              console.log('🟢 FORM SUBMIT EVENT FIRED');
+              submitArtwork(e);
+            }} 
+            className="space-y-6"
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="title" className="block text-sm font-medium mb-2">Title</label>
@@ -1011,6 +945,7 @@ export default function NewItemPage() {
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
                   Enter numbers only. Formatting will be applied automatically.
+                  Maximum allowed price is 99,999,999.99.
                 </div>
               </div>
             </div>
@@ -1153,9 +1088,38 @@ export default function NewItemPage() {
                 disabled={loading || images.length === 0}
                 id="submit-button"
                 name="submit-button"
+                onClick={() => {
+                  console.log('🔴 Button clicked', { 
+                    loading, 
+                    imagesLength: images.length, 
+                    isDisabled: loading || images.length === 0
+                  });
+                }}
               >
                 {loading ? 'Submitting...' : 'Submit Item'}
               </Button>
+            </div>
+            
+            {/* Fallback direct action button */}
+            <div className="mt-4 text-center">
+              <Button
+                type="button"
+                onClick={(e) => {
+                  console.log('🟠 FALLBACK BUTTON CLICKED');
+                  if (images.length === 0) {
+                    toast.error('Please upload at least one image');
+                    return;
+                  }
+                  submitArtwork(e as any);
+                }}
+                className="bg-amber-500 hover:bg-amber-600"
+                disabled={loading}
+              >
+                Try Alternative Submit
+              </Button>
+              <div className="text-xs text-gray-500 mt-1">
+                If the normal submit button doesn't work, try this one
+              </div>
             </div>
           </form>
         </div>

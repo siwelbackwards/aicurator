@@ -31,8 +31,8 @@ interface Artwork {
   user_id: string;
   status: string;
   created_at: string;
-  images: { url: string; is_primary: boolean }[];
-  profiles: { full_name: string; email: string };
+  images?: { url: string; is_primary: boolean }[];
+  profiles?: { full_name: string; email: string };
 }
 
 export default function AdminArtworksPage() {
@@ -42,6 +42,7 @@ export default function AdminArtworksPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   // Set isClient to true when component mounts (client-side only)
   useEffect(() => {
@@ -56,18 +57,22 @@ export default function AdminArtworksPage() {
     const checkAdminStatus = async () => {
       try {
         // Use regular supabase client first to get the user
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data } = await supabase.auth.getSession();
+        const session = data.session;
         
-        if (!user) {
+        if (!session) {
           window.location.href = '/';
           return;
         }
+
+        // Store the access token for API calls
+        setAccessToken(session.access_token);
 
         // Check if user has admin role
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
-          .eq('id', user.id)
+          .eq('id', session.user.id)
           .single();
 
         if (profileError) throw profileError;
@@ -92,59 +97,120 @@ export default function AdminArtworksPage() {
 
   // Only fetch artworks when tab changes and admin status is confirmed
   useEffect(() => {
-    if (isAdmin && initialized && isClient) {
+    if (isAdmin && initialized && isClient && accessToken) {
       fetchArtworks(currentTab);
     }
-  }, [currentTab, isAdmin, initialized, isClient]);
+  }, [currentTab, isAdmin, initialized, isClient, accessToken]);
 
   const fetchArtworks = async (status = 'pending') => {
-    if (!isClient) return;
+    if (!isClient || !accessToken) return;
     
     try {
       setLoading(true);
       
-      // Fix the query to handle the missing relationship between artworks and profiles
-      const { data, error } = await supabase
-        .from('artworks')
-        .select(`
-          *,
-          images:artwork_images(url, is_primary)
-        `)
-        .eq('status', status)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      console.log(`⭐ Fetching artworks with status: "${status}"`);
+      
+      // Use our admin API endpoint that bypasses RLS
+      const response = await fetch('/api/admin/artworks', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      
+      if (!response.ok) {
+        console.error('⭐ Admin API call failed:', await response.text());
+        throw new Error('Failed to fetch artworks');
+      }
+      
+      const allArtworks = await response.json();
+      console.log('⭐ ALL ARTWORKS via admin API:', allArtworks);
+      
+      // Filter artworks based on status
+      const filteredArtworks = allArtworks.filter((artwork: Artwork) => 
+        artwork.status.toLowerCase().trim() === status.toLowerCase().trim()
+      );
+      
+      console.log(`⭐ Filtered ${filteredArtworks.length} artworks with status "${status}"`);
+      
+      if (filteredArtworks.length === 0) {
+        setArtworks([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Now fetch images separately to avoid empty join results
+      let artworksWithImages: Artwork[] = [];
+      
+      if (filteredArtworks.length > 0) {
+        // Get artwork IDs
+        const artworkIds = filteredArtworks.map((artwork: Artwork) => artwork.id);
+        
+        // Fetch images for these artworks
+        const { data: imagesData, error: imagesError } = await supabase
+          .from('artwork_images')
+          .select('*')
+          .in('artwork_id', artworkIds);
+          
+        if (imagesError) {
+          console.error('⭐ Error fetching artwork images:', imagesError);
+        }
+        
+        // Create a lookup map for images by artwork_id
+        const imagesMap: { [key: string]: any[] } = {};
+        if (imagesData && imagesData.length > 0) {
+          imagesData.forEach((image: any) => {
+            if (!imagesMap[image.artwork_id]) {
+              imagesMap[image.artwork_id] = [];
+            }
+            imagesMap[image.artwork_id].push(image);
+          });
+        }
+        
+        // Merge artworks with their images
+        artworksWithImages = filteredArtworks.map((artwork: Artwork) => ({
+          ...artwork,
+          images: imagesMap[artwork.id] || [] // Use empty array if no images
+        }));
+      } else {
+        artworksWithImages = filteredArtworks || [];
+      }
 
       // If we have artworks, fetch the user profiles separately
-      if (data && data.length > 0) {
+      if (artworksWithImages.length > 0) {
         // Get unique user IDs
-        const userIds = Array.from(new Set(data.map(artwork => artwork.user_id)));
+        const userIds = Array.from(new Set(artworksWithImages.map((artwork: Artwork) => artwork.user_id)));
         
         // Fetch profiles
-        const { data: profilesData } = await supabase
+        const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
           .select('id, full_name, email')
           .in('id', userIds);
+          
+        if (profilesError) {
+          console.error('⭐ Error fetching profiles:', profilesError);
+        }
           
         // Create a lookup map for profiles
         type ProfileMap = {
           [key: string]: { id: string, full_name: string, email: string }
         };
         
-        const profilesMap = (profilesData || []).reduce<ProfileMap>((acc, profile) => {
+        const profilesMap = (profilesData || []).reduce((acc: ProfileMap, profile: any) => {
           acc[profile.id] = profile;
           return acc;
-        }, {});
+        }, {} as ProfileMap);
         
         // Attach profile data to artworks
-        const artworksWithProfiles = data.map(artwork => ({
+        const artworksWithProfiles = artworksWithImages.map((artwork: Artwork) => ({
           ...artwork,
           profiles: profilesMap[artwork.user_id] || { id: artwork.user_id, full_name: 'Unknown', email: '' }
         }));
         
         setArtworks(artworksWithProfiles);
       } else {
-        setArtworks(data || []);
+        setArtworks(artworksWithImages || []);
       }
     } catch (error) {
       console.error('Error fetching artworks:', error);
@@ -156,15 +222,24 @@ export default function AdminArtworksPage() {
   };
 
   const handleUpdateStatus = async (artworkId: string, newStatus: string) => {
-    if (!isClient) return;
+    if (!isClient || !accessToken) return;
     
     try {
-      const { error } = await supabase
-        .from('artworks')
-        .update({ status: newStatus })
-        .eq('id', artworkId);
-
-      if (error) throw error;
+      // Use our admin API endpoint to update status
+      const response = await fetch('/api/admin/artwork-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ id: artworkId, status: newStatus })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('⭐ Admin status update failed:', errorText);
+        throw new Error('Failed to update artwork status');
+      }
       
       // Update local state to remove the artwork from current view
       setArtworks(artworks.filter(artwork => artwork.id !== artworkId));
@@ -209,18 +284,22 @@ export default function AdminArtworksPage() {
                   ? (artwork.images.find(img => img.is_primary)?.url || artwork.images[0].url)
                   : undefined;
                 
-                console.log(`Artwork ID: ${artwork.id}, Title: ${artwork.title}, Image: ${imageUrl}`);
-                
                 return (
                 <Card key={artwork.id} className="overflow-hidden">
                   <div className="relative aspect-square">
                     <Link href={`/artwork/${artwork.id}`}>
-                      <SupabaseImage
-                        src={imageUrl}
-                        alt={artwork.title}
-                        fill
-                        className="object-cover cursor-pointer"
-                      />
+                      {imageUrl ? (
+                        <SupabaseImage
+                          src={imageUrl}
+                          alt={artwork.title}
+                          fill
+                          className="object-cover cursor-pointer"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                          No Image
+                        </div>
+                      )}
                     </Link>
                   </div>
                   <CardHeader>
@@ -283,12 +362,18 @@ export default function AdminArtworksPage() {
                 <Card key={artwork.id}>
                   <div className="relative aspect-square">
                     <Link href={`/artwork/${artwork.id}`}>
-                      <SupabaseImage
-                        src={imageUrl}
-                        alt={artwork.title}
-                        fill
-                        className="object-cover cursor-pointer"
-                      />
+                      {imageUrl ? (
+                        <SupabaseImage
+                          src={imageUrl}
+                          alt={artwork.title}
+                          fill
+                          className="object-cover cursor-pointer"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                          No Image
+                        </div>
+                      )}
                     </Link>
                   </div>
                   <CardContent className="pt-4">
@@ -333,12 +418,18 @@ export default function AdminArtworksPage() {
                 <Card key={artwork.id}>
                   <div className="relative aspect-square">
                     <Link href={`/artwork/${artwork.id}`}>
-                      <SupabaseImage
-                        src={imageUrl}
-                        alt={artwork.title}
-                        fill
-                        className="object-cover cursor-pointer"
-                      />
+                      {imageUrl ? (
+                        <SupabaseImage
+                          src={imageUrl}
+                          alt={artwork.title}
+                          fill
+                          className="object-cover cursor-pointer"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                          No Image
+                        </div>
+                      )}
                     </Link>
                   </div>
                   <CardContent className="pt-4">
@@ -368,4 +459,4 @@ export default function AdminArtworksPage() {
       </Tabs>
     </div>
   );
-} 
+}
