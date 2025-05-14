@@ -39,7 +39,21 @@ if (!fs.existsSync(pagesApiAuthDir)) {
   console.log('Created pages/api/auth directory');
 }
 
-// Create empty nextauth file
-const nextAuthPath = path.join(pagesApiAuthDir, '[...nextauth].js');
-fs.writeFileSync(nextAuthPath, '// Empty file to satisfy build\nexport default () => null;');
-console.log('Created empty NextAuth file to resolve build error'); 
+// Create empty nextauth file (TypeScript version)
+const nextAuthTsPath = path.join(pagesApiAuthDir, '[...nextauth].ts');
+fs.writeFileSync(nextAuthTsPath, `// Empty TypeScript file to satisfy build
+import type { NextApiRequest, NextApiResponse } from 'next';
+
+// Mock empty NextAuth handler
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  return res.status(200).json({ message: 'Static export - auth not available' });
+}
+`);
+console.log('Created empty NextAuth TypeScript file to resolve build error');
+
+// Remove the JS version if it exists to avoid confusion
+const nextAuthJsPath = path.join(pagesApiAuthDir, '[...nextauth].js');
+if (fs.existsSync(nextAuthJsPath)) {
+  fs.unlinkSync(nextAuthJsPath);
+  console.log('Removed JavaScript version of NextAuth file');
+} 
