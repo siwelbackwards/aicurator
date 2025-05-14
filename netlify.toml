@@ -11,6 +11,13 @@
   NODE_OPTIONS = "--max-old-space-size=8192"
   NPM_VERSION = "9.8.1"
 
+# Enable caching for Next.js
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+  [plugins.inputs]
+    enable_cache = true
+    enable_swc_minify = true
+
 # Custom plugin to inject environment variables
 [[plugins]]
   package = "./netlify/plugins/inject-env"
@@ -25,6 +32,10 @@
 [build.processing.js]
   bundle = false
   minify = false
+
+# Configure caching for build
+[build.cache]
+  paths = [".next/cache"]
 
 # Add security headers
 [[headers]]
