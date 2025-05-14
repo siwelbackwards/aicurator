@@ -29,7 +29,7 @@ export async function generateStaticParams() {
 
 // For static exports, we need to remove dynamic parameters
 // and rely only on the pre-generated paths
-export const dynamicParams = true; // Allow new product IDs that weren't available at build time
+export const dynamicParams = false; // Static exports require all paths to be pre-rendered at build time
 
 // Server Component that passes data to Client Component
 export default function ProductPage({ params }: { params: { id: string } }) {
