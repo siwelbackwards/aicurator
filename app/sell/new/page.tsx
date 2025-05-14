@@ -360,7 +360,7 @@ export default function NewItemPage() {
       // Make sure price doesn't exceed database limits when unformatted
       const unformatted = value.replace(/,/g, '');
       if (unformatted === '' || parseFloat(unformatted) < 100000000) {
-        setFormData(prev => ({ ...prev, price: value }));
+      setFormData(prev => ({ ...prev, price: value }));
       } else {
         toast.error('Price cannot exceed 99,999,999.99');
       }
@@ -507,15 +507,15 @@ export default function NewItemPage() {
           try {
             const imageUrl = await uploadImage(img.file);
             console.log(`🔍 Image ${index + 1} uploaded successfully:`, imageUrl.substring(0, 50) + '...');
-            return {
+                return {
               url: imageUrl,
-              is_primary: img.primary,
-              display_order: img.order
-            };
+                  is_primary: img.primary,
+                  display_order: img.order
+                };
           } catch (err) {
             console.error(`🔍 Image ${index + 1} upload failed:`, err);
-            return null;
-          }
+                return null;
+              }
         });
         
         console.log('🔍 Waiting for all image uploads to complete');
@@ -604,7 +604,7 @@ export default function NewItemPage() {
             artwork_id: artwork.id,
             url: img.url,
             is_primary: img.is_primary,
-            display_order: img.display_order,
+                display_order: img.display_order,
             file_path: img.url.includes('/public/') 
               ? img.url.split('/public/')[1] 
               : img.url.includes('artwork-images/') 
@@ -632,7 +632,7 @@ export default function NewItemPage() {
             const imagesResult = await imagesResponse.json();
             console.error('🔍 Failed to link images:', imagesResult);
             toast.error('Images were saved but couldn\'t be linked to the artwork', { id: dbToastId });
-          } else {
+              } else {
             console.log('💯 Images linked successfully!');
             toast.success('Artwork submitted successfully!', { id: dbToastId });
             

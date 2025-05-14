@@ -1,16 +1,32 @@
 [build]
-  command = "npm run build"
+  command = "npm install --include=dev && npm run build"
   publish = "out"
 
 [build.environment]
   NODE_VERSION = "18.18.0"
-  NEXT_PUBLIC_STANDALONE = "true"
+  NEXT_PRIVATE_TARGET = "server"
+  NEXT_PRIVATE_STANDALONE = "true"
+  NODE_ENV = "production"
+  NPM_FLAGS = "--prefer-offline --no-audit"
+  NODE_OPTIONS = "--max-old-space-size=8192"
+  NPM_VERSION = "9.8.1"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Custom plugin to inject environment variables
+[[plugins]]
+  package = "./netlify/plugins/inject-env"
 
+# Post processing command to replace environment variables in the client JS files
+[build.processing]
+  skip_processing = false
+
+[build.processing.html]
+  pretty_urls = true
+
+[build.processing.js]
+  bundle = false
+  minify = false
+
+# Add security headers
 [[headers]]
   for = "/*"
   [headers.values]
@@ -18,14 +34,47 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
     Content-Security-Policy = "upgrade-insecure-requests"
 
+# Cache settings for static assets
 [[headers]]
   for = "/_next/static/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
+  for = "/_next/image*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
+
+[[headers]]
   for = "/images/*"
   [headers.values]
     Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/favicon.ico"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# SPA fallback for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Define functions directory
+[functions]
+  directory = "netlify/functions"
