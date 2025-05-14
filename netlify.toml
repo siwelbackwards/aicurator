@@ -11,6 +11,12 @@
   BABEL_ENV = "production"
   NODE_ENV = "production"
   NPM_FLAGS = "--prefer-offline --no-audit --progress=false"
+  # Enable native Node modules
+  NODE_OPTIONS = "--max-old-space-size=4096"
+
+# Run dependency fixer plugin first
+[[plugins]]
+  package = "./netlify/plugins/dependency-fixer"
 
 # Use our custom Next.js static export plugin
 [[plugins]]

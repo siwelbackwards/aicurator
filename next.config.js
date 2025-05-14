@@ -28,15 +28,25 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true
   },
-  staticPageGenerationTimeout: 180,
+  staticPageGenerationTimeout: 300,
   trailingSlash: true,
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
+  transpilePackages: [
+    'react-syntax-highlighter',
+    'swagger-client',
+    'swagger-ui-react',
+    'openai',
+    '@supabase/supabase-js',
+    '@supabase/auth-helpers-nextjs',
+    '@supabase/ssr'
+  ],
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
     optimisticClientCache: true,
+    externalDir: true,
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? {
