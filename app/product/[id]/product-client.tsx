@@ -38,6 +38,24 @@ interface Artwork {
   };
 }
 
+// Add a function to get a valid image URL
+const getValidImageUrl = (image: any) => {
+  if (!image) return 'https://source.unsplash.com/random/800x800/?art';
+  
+  // If we have a valid URL, use it
+  if (image.url && image.url.includes('http')) {
+    return image.url;
+  }
+  
+  // If we have a file_path, construct a URL
+  if (image.file_path && image.file_path.length > 3) {
+    return `https://cpzzmpgbyzcqbwkaaqdy.supabase.co/storage/v1/object/public/artwork-images/${image.file_path}`;
+  }
+  
+  // Fallback
+  return 'https://source.unsplash.com/random/800x800/?art';
+};
+
 export default function ProductClient({ productId }: ProductProps) {
   const router = useRouter();
   const [currentImage, setCurrentImage] = useState(0);
@@ -77,6 +95,33 @@ export default function ProductClient({ productId }: ProductProps) {
             console.error('Failed to parse dimensions:', e);
             // Keep the original value if parsing fails
           }
+        }
+
+        // Ensure all images have valid URLs
+        if (artwork.images && artwork.images.length > 0) {
+          // Fix any missing or invalid image URLs
+          artwork.images = artwork.images.map((img: {url?: string, file_path?: string, is_primary: boolean}) => {
+            // If URL is missing or just the base path, use a placeholder
+            if (!img.url || img.url === 'artwork-images') {
+              console.log('Fixing invalid image URL:', img);
+              
+              // If we have a file_path, construct a proper URL
+              if (img.file_path && !img.file_path.startsWith('http')) {
+                img.url = `https://cpzzmpgbyzcqbwkaaqdy.supabase.co/storage/v1/object/public/artwork-images/${img.file_path}`;
+              } else {
+                // Use a placeholder if we can't construct a valid URL
+                img.url = 'https://source.unsplash.com/random/800x800/?art';
+              }
+            }
+            return img;
+          });
+        } else {
+          // Provide a placeholder image if no images
+          artwork.images = [{
+            url: 'https://source.unsplash.com/random/800x800/?art',
+            is_primary: true,
+            file_path: ''
+          }];
         }
 
         // Fetch user profile data for the artist
@@ -146,7 +191,7 @@ export default function ProductClient({ productId }: ProductProps) {
             <div className="relative aspect-square bg-white rounded-lg overflow-hidden">
               {product.images && product.images.length > 0 ? (
                 <SupabaseImage
-                  src={product.images[currentImage]?.file_path}
+                  src={getValidImageUrl(product.images[currentImage])}
                   alt={product.title}
                   fill
                   className="object-contain"
@@ -181,7 +226,7 @@ export default function ProductClient({ productId }: ProductProps) {
                   }`}
                 >
                   <SupabaseImage
-                    src={image.file_path}
+                    src={getValidImageUrl(image)}
                     alt={`Thumbnail ${index + 1}`}
                     fill
                     className="object-cover"
