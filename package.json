@@ -5,10 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "clean": "rimraf .next out",
-    "prebuild": "npm run clean && node scripts/prebuild.js",
-    "build": "next build",
-    "postbuild": "node scripts/fix-html.js",
-    "setup-netlify": "node scripts/setup-netlify.js",
+    "prebuild": "node scripts/prebuild.js",
+    "build": "next build && node scripts/fix-html.js",
     "start": "next start",
     "lint": "next lint"
   },
@@ -49,7 +47,10 @@
     "tailwind-merge": "^2.5.2",
     "tailwindcss": "3.3.3",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "5.2.2"
+    "typescript": "5.2.2",
+    "rimraf": "^5.0.10",
+    "cross-env": "^7.0.3",
+    "glob": "^10.3.10"
   },
   "resolutions": {
     "@types/react": "18.2.22",
@@ -67,7 +68,6 @@
     "esbuild": "^0.19.11",
     "glob": "^10.3.10",
     "postcss-flexbugs-fixes": "^5.0.2",
-    "postcss-preset-env": "^9.3.0",
-    "rimraf": "^5.0.10"
+    "postcss-preset-env": "^9.3.0"
   }
 }

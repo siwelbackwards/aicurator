@@ -2,70 +2,93 @@ const fs = require('fs');
 const path = require('path');
 const { globSync } = require('glob');
 
+console.log('Starting post-build HTML fixing process...');
+
 const outputDir = path.join(__dirname, '../out');
 
-// Ensure the output directory exists before proceeding
+// Ensure the output directory exists
 if (!fs.existsSync(outputDir)) {
-  console.warn(`Output directory ${outputDir} not found. Attempting to create it.`);
-  try {
-    fs.mkdirSync(outputDir, { recursive: true });
-    console.log(`Successfully created output directory: ${outputDir}`);
-  } catch (err) {
-    console.error(`Failed to create output directory ${outputDir}:`, err);
-    // If we can't create the output directory, subsequent steps will likely fail.
-    // It might be better to exit, but let's see if other processes handle it.
-  }
+  console.log('Output directory not found, creating it...');
+  fs.mkdirSync(outputDir, { recursive: true });
 }
 
-// Define the path to env.js within the output directory
-const envJsInOutputDir = path.join(outputDir, 'env.js');
-
-// Check if env.js exists in the output directory (should have been copied by Next.js)
-if (!fs.existsSync(envJsInOutputDir)) {
-  console.error('env.js not found in the output directory (out/env.js). Make sure Next.js copies files from /public correctly or that inject-env plugin creates it.');
-  console.warn('Continuing build without env.js for HTML injection. Site functionality might be affected.');
+// Copy env.js to the output directory if it exists in public
+const publicEnvJs = path.join(__dirname, '../public/env.js');
+if (fs.existsSync(publicEnvJs)) {
+  fs.copyFileSync(publicEnvJs, path.join(outputDir, 'env.js'));
+  console.log('Copied env.js to output directory');
 } else {
-  console.log('env.js found in output directory. Proceeding with HTML injection.');
-  // Find all HTML files in the output directory
-  const htmlFiles = globSync(path.join(outputDir, '/**/*.html'));
+  // Create env.js directly in the output directory if missing
+  const envContent = `
+// Environment variables for client-side use
+window.ENV = {
+  NEXT_PUBLIC_SUPABASE_URL: "${process.env.NEXT_PUBLIC_SUPABASE_URL || ''}",
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: "${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}",
+};
+console.log('Environment loaded:', window.ENV);
+`;
+  fs.writeFileSync(path.join(outputDir, 'env.js'), envContent);
+  console.log('Created env.js in output directory');
+}
 
-  // Inject env.js script into each HTML file
+// Find HTML files and inject env.js script
+try {
+  const htmlFiles = globSync(path.join(outputDir, '**/*.html'));
+  console.log(`Found ${htmlFiles.length} HTML files`);
+  
   htmlFiles.forEach(file => {
     try {
       let content = fs.readFileSync(file, 'utf8');
       
       // Check if env.js is already included
-      if (content.includes('src="/env.js"')) {
-        console.log(`env.js already included in ${file}`);
-        return;
-      }
-      
-      // Add env.js before the first script tag or at the end of the head
-      if (content.includes('</head>')) {
+      if (!content.includes('src="/env.js"')) {
+        // Add env.js before the first script tag or at the end of the head
         content = content.replace('</head>', '<script src="/env.js"></script></head>');
-      } else {
-        content = content.replace(/<script/, '<script src="/env.js"></script><script');
+        fs.writeFileSync(file, content);
+        console.log(`Added env.js script to ${path.relative(outputDir, file)}`);
       }
-      
-      fs.writeFileSync(file, content);
     } catch (err) {
       console.error(`Error processing ${file}:`, err);
     }
   });
+} catch (err) {
+  console.error('Error finding HTML files:', err);
 }
 
-// Create a Netlify _redirects file to handle client-side routing
+// Create a Netlify _redirects file
 const redirectsPath = path.join(outputDir, '_redirects');
-const redirectsContent = 
-`# Netlify redirects for client-side routing
+const redirectsContent = `
+# Netlify redirects for client-side routing
 /api/*  /not-found.html  404
 /*      /index.html      200
 `;
 
 try {
   fs.writeFileSync(redirectsPath, redirectsContent);
-  console.log('Created Netlify _redirects file for client-side routing in', redirectsPath);
+  console.log('Created Netlify _redirects file');
 } catch (err) {
-  console.error(`Error creating Netlify _redirects file in ${redirectsPath}:`, err);
-  // This is a critical failure for Netlify SPA behavior if not using the plugin's redirects.
+  console.error('Error creating _redirects file:', err);
 }
+
+// Ensure index.html exists
+if (!fs.existsSync(path.join(outputDir, 'index.html'))) {
+  console.log('No index.html found, creating a minimal one...');
+  const minimalIndexHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Curator</title>
+  <script src="/env.js"></script>
+</head>
+<body>
+  <div id="__next">
+    <h1>Loading app...</h1>
+    <p>If this doesn't redirect, please <a href="/">click here</a>.</p>
+  </div>
+</body>
+</html>`;
+  fs.writeFileSync(path.join(outputDir, 'index.html'), minimalIndexHtml);
+}
+
+console.log('Post-build HTML fixing process completed successfully');

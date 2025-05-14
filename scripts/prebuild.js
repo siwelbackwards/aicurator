@@ -1,59 +1,88 @@
 const fs = require('fs');
 const path = require('path');
 
-// Copy middleware.static.ts to middleware.ts
-const middlewareStaticPath = path.join(__dirname, '../middleware.static.ts');
-const middlewarePath = path.join(__dirname, '../middleware.ts');
+console.log('Starting prebuild process...');
 
-if (fs.existsSync(middlewareStaticPath)) {
-  fs.copyFileSync(middlewareStaticPath, middlewarePath);
-  console.log('Middleware file copied for static export');
-} else {
-  console.error('Middleware static file not found');
-  process.exit(1);
+// Create a minimal env.js file for environment variables
+const envContent = `
+// Environment variables for client-side use
+window.ENV = {
+  NEXT_PUBLIC_SUPABASE_URL: "${process.env.NEXT_PUBLIC_SUPABASE_URL || ''}",
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: "${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}",
+};
+console.log('Environment loaded:', window.ENV);
+`;
+
+// Ensure the public directory exists
+const publicDir = path.join(__dirname, '../public');
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir, { recursive: true });
 }
 
-// Create empty module for NextAuth to fix build errors
-const emptyModulePath = path.join(__dirname, 'empty-module.js');
-fs.writeFileSync(emptyModulePath, '// This is an empty module to resolve the NextAuth path error during build\nmodule.exports = {};');
-console.log('Created empty module for NextAuth resolution');
+// Write env.js to the public directory
+fs.writeFileSync(path.join(publicDir, 'env.js'), envContent);
+console.log('Created env.js in public directory');
 
-// Check for pages directory and create if needed
+// Check for pages directory and create if needed for NextAuth
 const pagesDir = path.join(__dirname, '../pages');
 const pagesApiDir = path.join(pagesDir, 'api');
 const pagesApiAuthDir = path.join(pagesApiDir, 'auth');
 
 // Create directories if they don't exist
 if (!fs.existsSync(pagesDir)) {
-  fs.mkdirSync(pagesDir);
-  console.log('Created pages directory');
+  fs.mkdirSync(pagesDir, { recursive: true });
 }
 
 if (!fs.existsSync(pagesApiDir)) {
-  fs.mkdirSync(pagesApiDir);
-  console.log('Created pages/api directory');
+  fs.mkdirSync(pagesApiDir, { recursive: true });
 }
 
 if (!fs.existsSync(pagesApiAuthDir)) {
-  fs.mkdirSync(pagesApiAuthDir);
-  console.log('Created pages/api/auth directory');
+  fs.mkdirSync(pagesApiAuthDir, { recursive: true });
 }
 
 // Create empty nextauth file (TypeScript version)
 const nextAuthTsPath = path.join(pagesApiAuthDir, '[...nextauth].ts');
-fs.writeFileSync(nextAuthTsPath, `// Empty TypeScript file to satisfy build
+fs.writeFileSync(nextAuthTsPath, `// Empty TypeScript file for static export
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-// Mock empty NextAuth handler
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   return res.status(200).json({ message: 'Static export - auth not available' });
 }
 `);
-console.log('Created empty NextAuth TypeScript file to resolve build error');
+console.log('Created NextAuth TypeScript file');
 
-// Remove the JS version if it exists to avoid confusion
-const nextAuthJsPath = path.join(pagesApiAuthDir, '[...nextauth].js');
-if (fs.existsSync(nextAuthJsPath)) {
-  fs.unlinkSync(nextAuthJsPath);
-  console.log('Removed JavaScript version of NextAuth file');
+// Make all API routes static for export
+const apiDir = path.join(__dirname, '../app/api');
+if (fs.existsSync(apiDir)) {
+  makeAllApiRoutesStatic(apiDir);
+}
+
+console.log('Prebuild process completed successfully');
+
+// Helper function to make all API routes static
+function makeAllApiRoutesStatic(dirPath) {
+  const files = fs.readdirSync(dirPath);
+  
+  for (const file of files) {
+    const fullPath = path.join(dirPath, file);
+    const stat = fs.statSync(fullPath);
+    
+    if (stat.isDirectory()) {
+      makeAllApiRoutesStatic(fullPath);
+    } else if (file === 'route.ts' || file === 'route.js') {
+      let content = fs.readFileSync(fullPath, 'utf8');
+      
+      if (!content.includes('force-static')) {
+        content = `// Next.js static export configuration
+export const dynamic = 'force-static';
+export const revalidate = false;
+
+${content}`;
+        
+        fs.writeFileSync(fullPath, content);
+        console.log(`Made static: ${fullPath}`);
+      }
+    }
+  }
 } 
