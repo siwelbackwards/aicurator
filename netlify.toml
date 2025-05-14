@@ -11,12 +11,9 @@
   NODE_OPTIONS = "--max-old-space-size=8192"
   NPM_VERSION = "9.8.1"
 
-# Enable caching for Next.js
+# Enable Next.js plugin
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-  [plugins.inputs]
-    enable_cache = true
-    enable_swc_minify = true
 
 # Custom plugin to inject environment variables
 [[plugins]]
