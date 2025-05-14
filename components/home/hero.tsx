@@ -55,7 +55,7 @@ export default function Hero() {
       params.set('category', selectedCategory);
     }
     
-    router.push(`/search?${params.toString()}`);
+      router.push(`/search?${params.toString()}`);
   };
 
   const goToSlide = (index: number) => {

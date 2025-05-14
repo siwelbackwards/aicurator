@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
 import AuthDialog from '@/components/auth/auth-dialog';
 import { toast } from 'sonner';
 
-export default function AuthPage() {
+// Client component that uses useSearchParams
+function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectPath = searchParams ? searchParams.get('redirect') : null;
@@ -88,5 +89,18 @@ export default function AuthPage() {
         onAuthSuccess={handleAuthSuccess}
       />
     </div>
+  );
+}
+
+// Main page component that wraps AuthContent in a Suspense boundary
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <AuthContent />
+    </Suspense>
   );
 } 

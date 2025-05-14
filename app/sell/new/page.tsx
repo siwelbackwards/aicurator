@@ -124,15 +124,15 @@ export default function NewItemPage() {
         const { data } = await supabase.auth.getSession();
         const session = data?.session;
         
-        if (!session) {
+      if (!session) {
           console.log("Sell/new page: User not authenticated, redirecting to auth");
           // Only redirect if we're not coming from auth page or if no flag is set
           const fromAuth = document.referrer.includes('/auth');
           
           if (!userAuthenticated && !fromAuth) {
-            router.push('/auth?redirect=/sell/new');
-            return;
-          }
+        router.push('/auth?redirect=/sell/new');
+        return;
+      }
           
           // If coming from auth but no session, wait briefly and check again
           if (fromAuth) {
@@ -149,7 +149,7 @@ export default function NewItemPage() {
         setAuthLoading(false);
       } catch (error) {
         console.error("Error checking auth:", error);
-        setAuthLoading(false);
+      setAuthLoading(false);
       }
     };
 
@@ -632,10 +632,10 @@ export default function NewItemPage() {
           let { data: artwork, error: artworkError } = await supabase
             .from('artworks')
             .insert(completeArtworkData)
-            .select()
-            .single();
+        .select()
+        .single();
 
-          if (artworkError) {
+      if (artworkError) {
             console.error('Basic artwork insert failed:', JSON.stringify(artworkError));
             console.error('Error details:', {
               code: artworkError.code,

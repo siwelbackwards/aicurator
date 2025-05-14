@@ -30,7 +30,7 @@ function getConfig() {
     if (!anonKey && window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       anonKey = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     }
-  }
+  } 
   
   // Use fallbacks if needed
   if (!url || !isValidUrl(url)) {
@@ -74,18 +74,18 @@ let supabaseClient: ReturnType<typeof createBrowserClient> | null = null;
 // Create and export the Supabase client
 export const supabase = (() => {
   try {
-    if (!supabaseClient) {
+  if (!supabaseClient) {
       // Make sure URL and key are valid before creating client
       if (!config.url || !config.anonKey) {
         throw new Error('Missing Supabase URL or API key');
       }
       
       // Create the Supabase client with explicit headers
-      supabaseClient = createBrowserClient(config.url, config.anonKey, {
-        auth: {
-          persistSession: true,
-          storageKey: 'supabase-auth',
-          flowType: 'pkce',
+    supabaseClient = createBrowserClient(config.url, config.anonKey, {
+      auth: {
+        persistSession: true,
+        storageKey: 'supabase-auth',
+        flowType: 'pkce',
           detectSessionInUrl: true,
           autoRefreshToken: true,
         },
@@ -94,10 +94,10 @@ export const supabase = (() => {
             'apikey': config.anonKey,
             'Authorization': `Bearer ${config.anonKey}`
           }
-        }
-      });
-    }
-    return supabaseClient;
+      }
+    });
+  }
+  return supabaseClient;
   } catch (error) {
     console.error('Failed to initialize Supabase client:', error);
     // Return a dummy client that logs errors instead of throwing

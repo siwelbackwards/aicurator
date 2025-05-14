@@ -287,49 +287,49 @@ export default function CategoriesPage() {
             <p className="text-gray-500">Loading category statistics...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {categories.map((category) => (
-              <div
-                key={category.title}
-                className="group cursor-pointer bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                onClick={() => handleCategoryClick(category.title)}
-              >
-                <div className="aspect-[16/9] relative overflow-hidden">
-                  <div
-                    className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                    style={{ backgroundImage: `url(${category.image})` }}
-                  />
-                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors duration-300" />
-                  <div className="absolute inset-0 p-6 flex flex-col justify-end">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-2xl font-bold text-white">{category.title}</h3>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="p-6">
-                  <p className="text-gray-600 mb-6 leading-relaxed">
-                    {category.extendedDescription}
-                  </p>
-                  
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm text-gray-500 mb-1">Items</div>
-                      <div className="font-bold text-lg">{category.stats.items}</div>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm text-gray-500 mb-1">Artists</div>
-                      <div className="font-bold text-lg">{category.stats.artists}</div>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm text-gray-500 mb-1">Avg. Value</div>
-                      <div className="font-bold text-lg">{category.stats.avgValue}</div>
-                    </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {categories.map((category) => (
+            <div
+              key={category.title}
+              className="group cursor-pointer bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+              onClick={() => handleCategoryClick(category.title)}
+            >
+              <div className="aspect-[16/9] relative overflow-hidden">
+                <div
+                  className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                  style={{ backgroundImage: `url(${category.image})` }}
+                />
+                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors duration-300" />
+                <div className="absolute inset-0 p-6 flex flex-col justify-end">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-2xl font-bold text-white">{category.title}</h3>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+              
+              <div className="p-6">
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  {category.extendedDescription}
+                </p>
+                
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className="text-sm text-gray-500 mb-1">Items</div>
+                    <div className="font-bold text-lg">{category.stats.items}</div>
+                  </div>
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className="text-sm text-gray-500 mb-1">Artists</div>
+                    <div className="font-bold text-lg">{category.stats.artists}</div>
+                  </div>
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <div className="text-sm text-gray-500 mb-1">Avg. Value</div>
+                    <div className="font-bold text-lg">{category.stats.avgValue}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
         )}
       </div>
     </div>

@@ -91,17 +91,17 @@ export default function TrendingProducts() {
 
         console.log(`Fetched ${artworks.length} trending products`);
 
-        // Get public URLs for all images
+          // Get public URLs for all images
         const artworksWithUrls = artworks.map((artwork: any) => ({
-          ...artwork,
+            ...artwork,
           // Ensure images is always an array, even if null or undefined
           images: artwork.images ? artwork.images.map((image: ArtworkImage) => ({
-            ...image,
-            url: image.file_path
+              ...image,
+              url: image.file_path
           })) : []
-        }));
-        
-        setProducts(artworksWithUrls);
+          }));
+          
+          setProducts(artworksWithUrls);
         setLoading(false);
       } catch (error) {
         console.error('Error in trending products:', error);
@@ -136,8 +136,8 @@ export default function TrendingProducts() {
   const displayProducts = isClient ? 
     (products.length > 0 ? 
       products.slice(
-        Math.max(0, startIndex),
-        Math.min(startIndex + VISIBLE_ITEMS, products.length)
+    Math.max(0, startIndex),
+    Math.min(startIndex + VISIBLE_ITEMS, products.length)
       ) : 
       []
     ) : 
