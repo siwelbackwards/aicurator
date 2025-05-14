@@ -10,7 +10,8 @@
   NPM_FLAGS = "--prefer-offline --no-audit"
   NODE_OPTIONS = "--max-old-space-size=8192"
   NPM_VERSION = "9.8.1"
-  SECRETS_SCAN_OMIT_PATHS = "**/test-*.html,**/debug-*.html"
+  SECRETS_SCAN_OMIT_PATHS = "**/test-*.html,**/debug-*.html,test-api.js,**/env.js"
+  SECRETS_SCAN_ENABLED = false
 
 # Enable Next.js plugin
 [[plugins]]

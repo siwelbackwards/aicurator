@@ -48,25 +48,21 @@ const isValidUrl = (urlString) => {
   }
 };
 
-// AI Curator fixed values as fallbacks
-const AICURATOR_URL = 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
-const AICURATOR_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw';
-
 // Get environment variables from Netlify
 let supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 let supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Validate URL and use fallbacks if needed
+// Validate URL
 if (!isValidUrl(supabaseUrl)) {
-  console.warn('Invalid or missing NEXT_PUBLIC_SUPABASE_URL in environment variables, using AI Curator fallback');
-  supabaseUrl = AICURATOR_URL;
+  console.warn('Invalid or missing NEXT_PUBLIC_SUPABASE_URL in environment variables');
+  supabaseUrl = '[SUPABASE_URL_PLACEHOLDER]'; // Use placeholder instead of hardcoded value
 } else {
   console.log(`Found valid Supabase URL in environment: ${supabaseUrl.substring(0, 15)}...`);
 }
 
 if (!supabaseAnonKey) {
-  console.warn('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY in environment variables, using AI Curator fallback');
-  supabaseAnonKey = AICURATOR_ANON_KEY;
+  console.warn('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY in environment variables');
+  supabaseAnonKey = '[SUPABASE_KEY_PLACEHOLDER]'; // Use placeholder instead of hardcoded value
 } else {
   console.log('Found Supabase Anon Key in environment');
 }
@@ -103,10 +99,6 @@ const isValidUrl = (urlString) => {
   }
 };
 
-// Fixed values for AI Curator on Netlify
-const AICURATOR_URL = 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
-const AICURATOR_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwenptcGdieXpjcWJ3a2FhcWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM5NDcwMDEsImV4cCI6MjA1OTUyMzAwMX0.7QCxICVm1H7OmW_6OJ16-7YfyR6cYCfmb5qiCcUUYQw';
-
 // Environment variables container
 window.env = {
   // Variables injected at build time by Netlify
@@ -122,23 +114,6 @@ if (window.process && window.process.env) {
 
 // Handle Netlify-specific environment variables
 (function() {
-  // Check if we're running on aicurator.netlify.app - use known working values
-  if (typeof window !== 'undefined' && window.location.hostname === 'aicurator.netlify.app') {
-    console.log('Using hardcoded values for aicurator.netlify.app');
-    window.env.NEXT_PUBLIC_SUPABASE_URL = AICURATOR_URL;
-    window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = AICURATOR_ANON_KEY;
-    window.process.env.NEXT_PUBLIC_SUPABASE_URL = AICURATOR_URL;
-    window.process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = AICURATOR_ANON_KEY;
-    
-    // Also set window.ENV for maximum compatibility
-    window.ENV = window.ENV || {};
-    window.ENV.NEXT_PUBLIC_SUPABASE_URL = AICURATOR_URL;
-    window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY = AICURATOR_ANON_KEY;
-    
-    console.log('Environment variables directly set for aicurator.netlify.app');
-    return;
-  }
-
   // Check if we're running on Netlify by checking the hostname
   const isNetlify = typeof window !== 'undefined' && 
     (window.location.hostname.includes('netlify.app') || 
@@ -153,21 +128,11 @@ if (window.process && window.process.env) {
       if (window.ENV.NEXT_PUBLIC_SUPABASE_URL && isValidUrl(window.ENV.NEXT_PUBLIC_SUPABASE_URL)) {
         window.env.NEXT_PUBLIC_SUPABASE_URL = window.ENV.NEXT_PUBLIC_SUPABASE_URL;
         window.process.env.NEXT_PUBLIC_SUPABASE_URL = window.ENV.NEXT_PUBLIC_SUPABASE_URL;
-      } else {
-        // Use fallback
-        window.ENV.NEXT_PUBLIC_SUPABASE_URL = AICURATOR_URL;
-        window.env.NEXT_PUBLIC_SUPABASE_URL = AICURATOR_URL;
-        window.process.env.NEXT_PUBLIC_SUPABASE_URL = AICURATOR_URL;
       }
       
       if (window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
         window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         window.process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      } else {
-        // Use fallback
-        window.ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY = AICURATOR_ANON_KEY;
-        window.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = AICURATOR_ANON_KEY;
-        window.process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = AICURATOR_ANON_KEY;
       }
     }
   }
