@@ -1,9 +1,10 @@
 [build]
   command = ""
   publish = "out"
+  ignore = "false"  # Never ignore the build
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "18.17.0"  # Specify exact version for consistency
   SECRETS_SCAN_ENABLED = "false"
   NEXT_PRIVATE_TARGET = "server"
   NEXT_PRIVATE_STANDALONE = "true"
@@ -12,7 +13,9 @@
   NODE_ENV = "production"
   NPM_FLAGS = "--prefer-offline --no-audit --progress=false"
   # Enable native Node modules
-  NODE_OPTIONS = "--max-old-space-size=4096"
+  NODE_OPTIONS = "--max-old-space-size=8192"  # Increase memory limit
+  # Override package manager
+  NPM_VERSION = "9.8.1"  # Specify exact npm version
 
 # Run dependency fixer plugin first
 [[plugins]]
