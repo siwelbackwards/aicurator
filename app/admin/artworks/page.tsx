@@ -111,7 +111,7 @@ export default function AdminArtworksPage() {
       console.log(`⭐ Fetching artworks with status: "${status}"`);
       
       // Use our admin API endpoint that bypasses RLS
-      const response = await fetch('/api/admin/artworks', {
+      const response = await fetch('/.netlify/functions/admin-artworks', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -226,7 +226,7 @@ export default function AdminArtworksPage() {
     
     try {
       // Use our admin API endpoint to update status
-      const response = await fetch('/api/admin/artwork-status', {
+      const response = await fetch('/.netlify/functions/admin-artwork-status', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -263,14 +263,27 @@ export default function AdminArtworksPage() {
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">Artwork Management</h1>
       
-      <Tabs value={currentTab} onValueChange={setCurrentTab} defaultValue="pending">
-        <TabsList className="mb-8">
-          <TabsTrigger value="pending">Pending Approval</TabsTrigger>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-        </TabsList>
+      <div className="flex justify-between items-center mb-6">
+        <Tabs value={currentTab} onValueChange={setCurrentTab} defaultValue="pending" className="flex-1">
+          <TabsList>
+            <TabsTrigger value="pending">Pending Approval</TabsTrigger>
+            <TabsTrigger value="approved">Approved</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        
+        <Button 
+          onClick={() => fetchArtworks(currentTab)} 
+          disabled={loading}
+          variant="outline"
+          className="ml-4"
+        >
+          {loading ? 'Refreshing...' : 'Refresh'}
+        </Button>
+      </div>
 
-        <TabsContent value="pending" className="space-y-6">
+      {currentTab === 'pending' && (
+        <div className="space-y-6">
           <h2 className="text-xl font-semibold">Pending Artworks</h2>
           {loading ? (
             <div className="text-center py-8">Loading artworks...</div>
@@ -343,10 +356,12 @@ export default function AdminArtworksPage() {
               })}
             </div>
           )}
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="approved">
-          <h2 className="text-xl font-semibold mb-4">Approved Artworks</h2>
+      {currentTab === 'approved' && (
+        <div className="space-y-6">
+          <h2 className="text-xl font-semibold">Approved Artworks</h2>
           {loading ? (
             <div className="text-center py-8">Loading artworks...</div>
           ) : artworks.length === 0 ? (
@@ -399,10 +414,12 @@ export default function AdminArtworksPage() {
               })}
             </div>
           )}
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="rejected">
-          <h2 className="text-xl font-semibold mb-4">Rejected Artworks</h2>
+      {currentTab === 'rejected' && (
+        <div className="space-y-6">
+          <h2 className="text-xl font-semibold">Rejected Artworks</h2>
           {loading ? (
             <div className="text-center py-8">Loading artworks...</div>
           ) : artworks.length === 0 ? (
@@ -455,8 +472,8 @@ export default function AdminArtworksPage() {
               })}
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 } 
