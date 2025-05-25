@@ -12,4 +12,4 @@ declare module "next-auth" {
   }
 }
 
-export {}; 
+export {};
