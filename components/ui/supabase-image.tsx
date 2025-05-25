@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image, { ImageProps } from 'next/image';
 import { formatSupabaseUrl } from '@/lib/utils';
 
 interface SupabaseImageProps extends Omit<ImageProps, 'src' | 'onError'> {
   src?: string;
   fallbackSrc?: string;
+  timeout?: number;
 }
 
 /**
@@ -17,11 +18,15 @@ export function SupabaseImage({
   src,
   fallbackSrc = '/placeholder.svg',
   alt = 'Image',
+  timeout = 5000,
   ...props
 }: SupabaseImageProps) {
   const [imgSrc, setImgSrc] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [errorLogged, setErrorLogged] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const imageLoadedRef = useRef(false);
   
   // Generate a random Unsplash image as second fallback
   const getUnsplashFallback = () => {
@@ -33,26 +38,51 @@ export function SupabaseImage({
   
   // Initialize image only on client side to avoid SSR issues
   useEffect(() => {
+    // Clean up previous timeout if it exists
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    
+    // Reset loading state
     setIsLoading(true);
     setHasError(false);
+    setErrorLogged(false);
+    imageLoadedRef.current = false;
     
     if (!src) {
-      console.log('No src provided, using fallback');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('No src provided, using fallback');
+      }
       setImgSrc(fallbackSrc);
       setIsLoading(false);
       return;
     }
     
+    // Set up timeout to prevent infinite loading
+    timeoutRef.current = setTimeout(() => {
+      if (isLoading && !imageLoadedRef.current) {
+        console.warn(`Image loading timed out after ${timeout}ms: ${src}`);
+        handleError();
+      }
+    }, timeout);
+    
     try {
       // Format the URL properly using our utility
       const formattedUrl = formatSupabaseUrl(src);
-      console.log('Formatted image URL:', formattedUrl);
+      
+      // Debug log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Original src:', src);
+        console.log('Formatted image URL:', formattedUrl);
+      }
       
       // Check if URL is valid before setting it
-      if (formattedUrl) {
+      if (formattedUrl && formattedUrl.length > 10) {
         setImgSrc(formattedUrl);
       } else {
-        console.warn('Invalid image URL after formatting, using fallback');
+        // More detailed warning for debugging
+        console.warn(`Invalid image URL after formatting: "${formattedUrl}" from original "${src}"`);
         setImgSrc(fallbackSrc);
       }
     } catch (error) {
@@ -61,23 +91,52 @@ export function SupabaseImage({
     } finally {
       setIsLoading(false);
     }
-  }, [src, fallbackSrc]);
+    
+    // Clear timeout on cleanup
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [src, fallbackSrc, timeout]);
 
   // Handle image load error with better fallback strategy
   const handleError = () => {
-    console.error(`Image failed to load: ${imgSrc}`);
+    // Only log error once to prevent console spam
+    if (!errorLogged) {
+      console.error(`Image failed to load: ${imgSrc} (original: ${src})`);
+      setErrorLogged(true);
+    }
     
     if (!hasError) {
       // Try Unsplash as a second fallback for a nicer user experience
       const unsplashFallback = getUnsplashFallback();
-      console.log('Falling back to Unsplash image:', unsplashFallback);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Falling back to Unsplash image');
+      }
       
       setImgSrc(unsplashFallback);
       setHasError(true);
     } else {
       // If Unsplash also fails, use our SVG placeholder as final fallback
-      console.log('Fallback image also failed, using placeholder');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Fallback image also failed, using placeholder');
+      }
       setImgSrc(fallbackSrc);
+    }
+  };
+
+  // Handle successful image load
+  const handleImageLoad = () => {
+    // Mark image as loaded to prevent timeout
+    imageLoadedRef.current = true;
+    
+    // Clear the timeout since image loaded successfully
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
   };
 
@@ -101,6 +160,7 @@ export function SupabaseImage({
       src={imgSrc}
       alt={alt}
       onError={handleError}
+      onLoad={handleImageLoad}
       unoptimized={true} // Skip Next.js image optimization to avoid additional issues
     />
   );

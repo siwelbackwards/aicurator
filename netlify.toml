@@ -1,21 +1,16 @@
 [build]
-  command = "npm install --include=dev && npm install sharp && npm run build"
+  command = "npm run build"
   publish = "out"
 
 [build.environment]
-  NODE_VERSION = "18.18.0"
-  NEXT_PRIVATE_TARGET = "server"
-  NEXT_PRIVATE_STANDALONE = "true"
-  NODE_ENV = "production"
-  NPM_FLAGS = "--prefer-offline --no-audit"
-  NODE_OPTIONS = "--max-old-space-size=8192"
-  NPM_VERSION = "9.8.1"
-  SECRETS_SCAN_OMIT_PATHS = "**/test-*.html,**/debug-*.html,test-api.js,**/env.js"
+  NODE_VERSION = "18"
   SECRETS_SCAN_ENABLED = "false"
 
-# Enable Next.js plugin
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
 
 # Custom plugin to inject environment variables
 [[plugins]]
@@ -32,10 +27,6 @@
   bundle = false
   minify = false
 
-# Configure caching for build
-[build.cache]
-  paths = [".next/cache"]
-
 # Add security headers
 [[headers]]
   for = "/*"
@@ -43,10 +34,10 @@
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
+    # Update CSP to allow inline styles and Supabase
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co https://*.supabase.net https://api.* wss://*.supabase.co; img-src 'self' data: blob: https://*.supabase.co https://*.supabase.net https://*.unsplash.com https://storage.googleapis.com; media-src 'self' https://*.supabase.co;"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
-    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
-    Content-Security-Policy = "upgrade-insecure-requests"
+    Access-Control-Allow-Origin = "*"
 
 # Cache settings for static assets
 [[headers]]
@@ -54,36 +45,13 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-[[headers]]
-  for = "/_next/image*"
-  [headers.values]
-    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
-
-[[headers]]
-  for = "/images/*"
-  [headers.values]
-    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
-
-[[headers]]
-  for = "/*.js"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/*.css"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/favicon.ico"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-# SPA fallback for client-side routing
+# Handle SPA routing for Next.js
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
+  conditions = {Country = ["*"]}
 
 # Define functions directory
 [functions]

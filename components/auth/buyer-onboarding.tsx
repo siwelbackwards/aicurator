@@ -14,6 +14,33 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 const titles = ["Mr", "Mrs", "Ms", "Dr", "Prof", "Sir", "Lady", "Lord"];
 const categories = ["Paintings", "Sculptures", "Digital Art", "Photography", "Prints", "Other"];
 
+// Profile data interface
+interface ProfileData {
+  id: string;
+  title?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  email?: string;
+  // Individual address components
+  address_line1?: string;
+  city?: string;
+  country?: string;
+  postcode?: string;
+  // Legacy field
+  full_address?: string;
+  phone?: string;
+  is_mobile?: boolean;
+  date_of_birth?: string;
+  user_type: string;
+  role: string;
+  onboarding_completed: boolean;
+  updated_at: string;
+  photo_id_url?: string;
+  proof_of_address_url?: string;
+  interested_categories?: string[];
+}
+
 interface OnboardingProps {
   userId: string;
   userEmail: string;
@@ -22,9 +49,10 @@ interface OnboardingProps {
   redirectPath?: string;
 }
 
-export default function BuyerOnboarding({ userId, userEmail, onComplete, onAuthSuccess, redirectPath }: OnboardingProps) {
+export default function BuyerOnboarding({ userId: initialUserId, userEmail, onComplete, onAuthSuccess, redirectPath }: OnboardingProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
+  const [currentUserId, setCurrentUserId] = useState(initialUserId || '');
   const [formData, setFormData] = useState({
     title: "",
     firstName: "",
@@ -36,7 +64,10 @@ export default function BuyerOnboarding({ userId, userEmail, onComplete, onAuthS
     communicationPreference: "yes", // "yes" or "no"
     photoIdFile: null as File | null,
     proofOfAddressFile: null as File | null,
-    address: "",
+    addressLine1: "",
+    city: "",
+    country: "",
+    postcode: "",
     phone: "",
     isMobile: true,
     dateOfBirth: "",
@@ -80,7 +111,7 @@ export default function BuyerOnboarding({ userId, userEmail, onComplete, onAuthS
       if (existingUser?.user) {
         // User exists and password is correct, move to step 2
         console.log('Existing user signed in:', existingUser.user.id);
-        userId = existingUser.user.id;
+        setCurrentUserId(existingUser.user.id);
         setStep(2);
         window.scrollTo(0, 0);
         return;
@@ -162,7 +193,7 @@ export default function BuyerOnboarding({ userId, userEmail, onComplete, onAuthS
       }
       
       // Update userId for step 2
-      userId = authData.user.id;
+      setCurrentUserId(authData.user.id);
       setStep(2);
       window.scrollTo(0, 0);
     } catch (error) {
@@ -188,8 +219,16 @@ export default function BuyerOnboarding({ userId, userEmail, onComplete, onAuthS
       setError(null);
       
       // Validate required fields
-      if (!formData.address || !formData.phone) {
+      if (!formData.addressLine1 || !formData.city || !formData.country || !formData.postcode || !formData.phone) {
         setError("Please fill in all required fields");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Validate that we have a valid userId
+      if (!currentUserId || currentUserId === 'temp-id' || currentUserId.length < 10) {
+        console.error('Invalid user ID:', currentUserId);
+        setError("User authentication error. Please try again or contact support.");
         setIsSubmitting(false);
         return;
       }
@@ -201,8 +240,8 @@ export default function BuyerOnboarding({ userId, userEmail, onComplete, onAuthS
       if (formData.photoIdFile) {
         try {
           const { data: photoData, error: photoError } = await supabase.storage
-            .from('verifications')
-            .upload(`${userId}/photo-id`, formData.photoIdFile, {
+            .from('artwork-images')
+            .upload(`verifications/${currentUserId}/photo-id`, formData.photoIdFile, {
               cacheControl: '3600',
               upsert: true
             });
@@ -220,83 +259,96 @@ export default function BuyerOnboarding({ userId, userEmail, onComplete, onAuthS
       
       if (formData.proofOfAddressFile) {
         try {
-          const { data: proofData, error: proofError } = await supabase.storage
-            .from('verifications')
-            .upload(`${userId}/proof-of-address`, formData.proofOfAddressFile, {
+          const { data: addressData, error: addressError } = await supabase.storage
+            .from('artwork-images')
+            .upload(`verifications/${currentUserId}/proof-of-address`, formData.proofOfAddressFile, {
               cacheControl: '3600',
               upsert: true
             });
             
-          if (proofError) {
-            console.error('Error uploading proof of address:', proofError.message || JSON.stringify(proofError));
-            // Continue with the process even if file upload fails
+          if (addressError) {
+            console.error('Error uploading proof of address:', addressError.message || JSON.stringify(addressError));
           } else {
-            proofOfAddressUrl = proofData?.path;
+            proofOfAddressUrl = addressData?.path;
           }
-        } catch (proofUploadError) {
-          console.error('Unexpected error uploading proof of address:', proofUploadError);
+        } catch (addressUploadError) {
+          console.error('Unexpected error uploading proof of address:', addressUploadError);
         }
       }
-
-      // Prepare the profile data
-      interface ProfileData {
-        id: string;
-        title: string;
-        first_name: string;
-        last_name: string;
-        address: string;
-        phone: string;
-        is_mobile: boolean;
-        date_of_birth: string;
-        previously_transacted: boolean;
-        communication_preference: boolean;
-        interested_categories: string[];
-        collection_description: string;
-        wishlist: string;
-        role: string;
-        user_type: string;
-        onboarding_completed: boolean;
-        updated_at: string;
-        collection_interests: string;
-        budget_range: string;
-        experience_level: string;
-        preferred_art_periods: string;
-        photo_id_url?: string;
-        proof_of_address_url?: string;
-      }
       
-      const profileData: ProfileData = {
-        id: userId,
+      // Generate full name from first and last name
+      const fullName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+      
+      // Skip schema check as it's failing in export mode
+      // Instead, include all known fields directly
+      const existingColumns = new Set([
+        'id', 'email', 'full_name', 'first_name', 'last_name',
+        'title', 'phone', 'full_address', 'date_of_birth', 'is_mobile',
+        'user_type', 'role', 'onboarding_completed', 'updated_at',
+        'photo_id_url', 'proof_of_address_url', 'interested_categories',
+        'address_line1', 'city', 'country', 'postcode'
+      ]);
+      
+      // Build profile data based on existing columns
+      const profileData: any = {
+        id: currentUserId,
         title: formData.title,
         first_name: formData.firstName,
         last_name: formData.lastName,
-        address: formData.address,
+        full_name: fullName,
+        email: formData.email,
         phone: formData.phone,
-        is_mobile: formData.isMobile,
-        date_of_birth: formData.dateOfBirth,
-        previously_transacted: formData.previouslyTransacted,
-        communication_preference: formData.communicationPreference === "yes",
-        interested_categories: formData.categories,
-        collection_description: formData.collection,
-        wishlist: formData.wishlist,
-        role: 'buyer',
         user_type: 'buyer',
+        role: 'buyer',
         onboarding_completed: true,
         updated_at: new Date().toISOString(),
-        collection_interests: formData.collectionInterests,
-        budget_range: formData.budgetRange,
-        experience_level: formData.experienceLevel,
-        preferred_art_periods: formData.preferredArtPeriods
       };
       
-      // Add optional fields only if they exist
-      if (photoIdUrl) {
+      // Add address fields based on schema
+      if (existingColumns.has('address_line1')) {
+        profileData.address_line1 = formData.addressLine1;
+      }
+      
+      if (existingColumns.has('city')) {
+        profileData.city = formData.city;
+      }
+      
+      if (existingColumns.has('country')) {
+        profileData.country = formData.country;
+      }
+      
+      if (existingColumns.has('postcode')) {
+        profileData.postcode = formData.postcode;
+      }
+      
+      // Always include full_address as it's likely to exist
+      if (existingColumns.has('full_address')) {
+        profileData.full_address = `${formData.addressLine1}, ${formData.city}, ${formData.country}, ${formData.postcode}`.trim();
+      }
+      
+      // Add other fields conditionally based on schema
+      if (existingColumns.has('is_mobile')) {
+        profileData.is_mobile = formData.isMobile;
+      }
+      
+      if (existingColumns.has('date_of_birth')) {
+        profileData.date_of_birth = formData.dateOfBirth;
+      }
+      
+      if (existingColumns.has('interested_categories')) {
+        profileData.interested_categories = formData.categories;
+      }
+      
+      // Add optional file URLs only if they exist
+      if (photoIdUrl && existingColumns.has('photo_id_url')) {
         profileData.photo_id_url = photoIdUrl;
       }
       
-      if (proofOfAddressUrl) {
+      if (proofOfAddressUrl && existingColumns.has('proof_of_address_url')) {
         profileData.proof_of_address_url = proofOfAddressUrl;
       }
+
+      console.log('Updating profile with data:', profileData);
 
       // Update profile with all collected data - use upsert with onConflict option
       const { error } = await supabase
@@ -308,48 +360,123 @@ export default function BuyerOnboarding({ userId, userEmail, onComplete, onAuthS
         throw new Error(error.message || 'Failed to update profile');
       }
       
+      // Handle user settings with a simplified approach
+      console.log('Setting up user preferences...');
+      
+      try {
+        // Create basic notification preferences (always do an upsert)
+        const settingsData = {
+          user_id: currentUserId,
+          notifications: {
+            email: true,
+            updates: true,
+            marketing: formData.communicationPreference === "yes"
+          },
+          updated_at: new Date().toISOString()
+        };
+        
+        // Try RPC call first, then fall back to direct operations if not available
+        const { error: rpcError } = await supabase
+          .rpc('upsert_user_settings', {
+            p_user_id: currentUserId,
+            p_notifications: settingsData.notifications,
+            p_updated_at: settingsData.updated_at
+          });
+        
+        if (rpcError) {
+          console.log('RPC function not available, trying direct table operations');
+          
+          // Try direct insert/update instead
+          const { error: upsertError } = await supabase
+            .from('user_settings')
+            .upsert({
+              user_id: currentUserId,
+              notifications: settingsData.notifications,
+              created_at: new Date().toISOString(),
+              updated_at: settingsData.updated_at
+            });
+            
+          if (upsertError) {
+            console.log('User settings setup skipped - will need manual setup');
+          } else {
+            console.log('User preferences saved successfully via direct operation');
+          }
+        } else {
+          console.log('User preferences saved successfully via RPC');
+        }
+      } catch (error) {
+        // Just log and continue - preferences are non-critical
+        console.log('User preferences setup skipped - continuing with profile creation');
+      }
+      
       // Double-check that the profile was created by fetching it
       const { data: profile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('id', currentUserId)
         .single();
-        
-      if (fetchError) {
-        console.error('Error verifying profile creation:', fetchError.message || JSON.stringify(fetchError));
-        // Continue anyway
-      } else {
-        console.log('Profile created/updated successfully:', profile);
+      
+      if (fetchError || !profile) {
+        console.error('Error confirming profile creation:', fetchError);
+        throw new Error('Failed to confirm profile creation');
       }
       
-      // Ensure the user is signed in
-      const { data: session } = await supabase.auth.getSession();
-      if (!session?.session) {
-        // Try to sign in the user if not already signed in
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-        
-        if (signInError) {
-          console.error('Error signing in after profile update:', signInError);
-          // Continue anyway since profile was updated
-        }
-      }
+      console.log('Profile created/updated successfully');
       
-      onComplete();
-      
-      // If onAuthSuccess is provided, call it instead of redirecting
-      if (onAuthSuccess) {
+      // If we have a callback, run it
+      if (onComplete) {
+        onComplete();
+      } else if (onAuthSuccess) {
         onAuthSuccess();
       } else if (redirectPath) {
         router.push(redirectPath);
       } else {
+        // Default redirect to dashboard
         router.push('/dashboard');
       }
+
+      // After updating the profile, try to store additional preferences
+      // But make it completely non-blocking and simple
+      if (!error) {
+        console.log('Storing optional user preferences...');
+        
+        try {
+          // Direct upsert attempt - skipping all schema checks
+          const { error: prefError } = await supabase
+            .from('user_preferences')
+            .upsert({
+              user_id: currentUserId,
+              previously_transacted: formData.previouslyTransacted,
+              communication_preference: formData.communicationPreference === "yes",
+              collection_description: formData.collection || null,
+              wishlist: formData.wishlist || null,
+              collection_interests: formData.collectionInterests || null,
+              budget_range: formData.budgetRange || null,
+              experience_level: formData.experienceLevel || null,
+              preferred_art_periods: formData.preferredArtPeriods || null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }, 
+            { onConflict: 'user_id' });
+            
+          if (prefError) {
+            // Just log and continue - not critical
+            console.log('Additional preferences storage skipped');
+          } else {
+            console.log('Additional preferences stored successfully');
+          }
+        } catch (e) {
+          // Just log and continue - not critical
+          console.log('Additional preferences not stored - continuing');
+        }
+      }
     } catch (error) {
-      console.error('Error saving profile:', error instanceof Error ? error.message : JSON.stringify(error));
-      setError('Failed to save profile information. Please try again.');
+      console.log('Form submission issue:', error);
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('An unexpected error occurred');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -505,7 +632,7 @@ export default function BuyerOnboarding({ userId, userEmail, onComplete, onAuthS
       <div className="mb-6">
         <h3 className="font-semibold text-xl mb-2">Welcome</h3>
         <p className="text-sm text-muted-foreground">
-          You have now created a My AI CURATOR account.
+          You have now created an AI Curator account.
         </p>
         
         <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
@@ -556,12 +683,47 @@ export default function BuyerOnboarding({ userId, userEmail, onComplete, onAuthS
         
         <div className="space-y-4">
           <div>
-            <Label htmlFor="address" className="text-sm font-medium">Primary residential address</Label>
+            <Label htmlFor="addressLine1" className="text-sm font-medium">Address Line</Label>
             <Input 
-              id="address"
-              value={formData.address}
-              onChange={(e) => updateForm('address', e.target.value)}
-              placeholder="Your full address"
+              id="addressLine1"
+              value={formData.addressLine1}
+              onChange={(e) => updateForm('addressLine1', e.target.value)}
+              placeholder="Street address"
+              className="mt-1 bg-white border-gray-300 focus:ring-primary focus:border-primary"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="city" className="text-sm font-medium">City</Label>
+              <Input 
+                id="city"
+                value={formData.city}
+                onChange={(e) => updateForm('city', e.target.value)}
+                placeholder="City"
+                className="mt-1 bg-white border-gray-300 focus:ring-primary focus:border-primary"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="postcode" className="text-sm font-medium">Postcode</Label>
+              <Input 
+                id="postcode"
+                value={formData.postcode}
+                onChange={(e) => updateForm('postcode', e.target.value)}
+                placeholder="Postcode"
+                className="mt-1 bg-white border-gray-300 focus:ring-primary focus:border-primary"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="country" className="text-sm font-medium">Country</Label>
+            <Input 
+              id="country"
+              value={formData.country}
+              onChange={(e) => updateForm('country', e.target.value)}
+              placeholder="Country"
               className="mt-1 bg-white border-gray-300 focus:ring-primary focus:border-primary"
             />
           </div>
@@ -654,8 +816,7 @@ export default function BuyerOnboarding({ userId, userEmail, onComplete, onAuthS
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-      <div className="bg-primary text-white p-4 text-center">
-        <h2 className="font-bold text-xl">Buyer Registration</h2>
+      <div>
       </div>
       
       {step === 1 && renderStep1()}

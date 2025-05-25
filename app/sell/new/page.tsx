@@ -30,6 +30,7 @@ interface FormData {
   measurementUnit: string;
   year: string;
   provenance: string;
+  materials?: string;
 }
 
 // Add a debounce helper function
@@ -108,7 +109,8 @@ export default function NewItemPage() {
     depth: '',
     measurementUnit: 'cm',
     year: '',
-    provenance: ''
+    provenance: '',
+    materials: ''
   });
 
   // Add a loadingToast state to control toast display
@@ -258,82 +260,73 @@ export default function NewItemPage() {
         throw new Error('You must be logged in to upload images');
       }
       
-      const userId = session.user.id;
-      
       // Create a unique file name with user ID and timestamp
       const timestamp = Date.now();
       const fileExt = file.name.split('.').pop();
       const fileName = `${timestamp}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
       
-      // Try to upload to public folder first (fewer RLS restrictions)
-      const publicPath = `public/${fileName}`;
-      console.log('Attempting to upload to public path:', publicPath);
+      // Generate a folder structure similar to existing working images
+      const userId = session.user.id.substring(0, 8); // Use first part of user ID
+      const userFolderPath = `${userId}/${fileName}`;
+      
+      console.log('Attempting to upload to user folder path:', userFolderPath);
       
       try {
-        const { data: publicData, error: publicError } = await supabase.storage
+        const { data: userData, error: userError } = await supabase.storage
           .from('artwork-images')
-          .upload(publicPath, file, {
+          .upload(userFolderPath, file, {
             cacheControl: '3600',
             upsert: true // Allow overwriting
           });
         
-        if (publicError) {
-          console.error('Public upload failed:', publicError.message);
-          throw publicError;
-        }
+        if (userError) {
+          console.error('User folder upload failed:', userError.message);
           
-        const publicUrl = formatSupabaseUrl(`artwork-images/${publicPath}`);
-        console.log('Successfully uploaded to public path:', publicUrl);
-        return publicUrl;
-      } catch (publicUploadError) {
-        // If public upload fails, try user's folder as fallback
-        console.log('Falling back to user directory upload');
-        
-        const userPath = `users/${userId}/${fileName}`;
-        
-        try {
-          const { data: userData, error: userError } = await supabase.storage
-          .from('artwork-images')
-            .upload(userPath, file, {
-              cacheControl: '3600',
-              upsert: true
-            });
+          // Fall back to public folder if user folder fails
+          const publicPath = `public/${fileName}`;
+          console.log('Falling back to public path:', publicPath);
+          
+          try {
+            const { data: publicData, error: publicError } = await supabase.storage
+              .from('artwork-images')
+              .upload(publicPath, file, {
+                cacheControl: '3600',
+                upsert: true
+              });
+              
+            if (publicError) {
+              console.error('Public upload failed:', publicError.message);
+              throw publicError;
+            }
             
-          if (userError) {
-            console.error('User folder upload failed:', userError.message);
-            throw userError;
+            const publicUrl = formatSupabaseUrl(`artwork-images/${publicPath}`);
+            console.log('Successfully uploaded to public path:', publicUrl);
+            return publicUrl;
+          } catch (publicUploadError) {
+            console.error('All upload attempts failed:', publicUploadError);
+            throw publicUploadError;
           }
-            
-          const userUrl = formatSupabaseUrl(`artwork-images/${userPath}`);
-          console.log('Successfully uploaded to user path:', userUrl);
-          return userUrl;
-        } catch (userUploadError) {
-          console.error('All upload attempts failed:', userUploadError);
-          
-          // Create a data URL as a last resort (not ideal but prevents form failure)
-          return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              console.log('Using data URL as fallback');
-              resolve(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-          });
         }
+        
+        const userUrl = formatSupabaseUrl(`artwork-images/${userFolderPath}`);
+        console.log('Successfully uploaded to user path:', userUrl);
+        return userUrl;
+      } catch (error) {
+        console.error('Error in uploadImage:', error);
+        
+        // Create a data URL as a last resort fallback
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            console.log('Using data URL as final fallback');
+            resolve(reader.result as string);
+          };
+          reader.readAsDataURL(file);
+        });
       }
     } catch (error) {
       console.error('Error in uploadImage:', error);
-      
-      // Instead of throwing errors which break the form, 
-      // create a data URL to at least allow form submission
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          console.log('Using data URL due to upload error');
-          resolve(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      });
+      throw error;
     }
   }
 
@@ -559,23 +552,44 @@ export default function NewItemPage() {
           
           console.log('💯 Calling API route to insert artwork...');
           
-          // Prepare API payload - only include guaranteed fields
+          // Prepare API payload - include all fields from the form
           const apiPayload = {
             user_id: session.user.id,
             title: formData.title,
-            category: formData.category,
-            artist_name: formData.artistName,
             description: formData.description,
             price: price,
+            category: formData.category,
+            artist_name: formData.artistName,
+            location: formData.location,
+            provenance: formData.provenance,
+            width: width || null,
+            height: height || null,
+            depth: depth || null,
+            measurement_unit: formData.measurementUnit,
+            year: year || null,
+            materials: formData.materials || null,
             status: 'pending'
-            // Removed all potentially non-existent fields like metadata
           };
           
           console.log('🔍 API payload prepared:', JSON.stringify(apiPayload).substring(0, 100) + '...');
           
+          // Determine if we're in development or production
+          const isDevelopment = process.env.NODE_ENV === 'development';
+          
+          // In development, use the local dev server running on port 9000
+          // In production, use the actual Netlify functions
+          const baseUrl = isDevelopment
+            ? 'http://localhost:9000'
+            : '';
+            
+          // Always use the Netlify functions path structure
+          const apiEndpoint = `${baseUrl}/.netlify/functions/submit-artwork`;
+          
+          // Log which endpoint we're using
+          console.log(`🔍 Sending API request to ${apiEndpoint} (${isDevelopment ? 'development' : 'production'} mode)`);
+          
           // IMPORTANT: Use the API route for database operations
-          console.log('🔍 Sending API request to /api/artworks');
-          const apiResponse = await fetch('/.netlify/functions/submit-artwork', {
+          const apiResponse = await fetch(apiEndpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -600,23 +614,47 @@ export default function NewItemPage() {
           
           // Link images to artwork
           console.log('🔍 Preparing to link images to artwork');
-          const imagesData = successfulUploads.map(img => ({
-            artwork_id: artwork.id,
-            url: img.url,
-            is_primary: img.is_primary,
-                display_order: img.display_order,
-            file_path: img.url.includes('/public/') 
-              ? img.url.split('/public/')[1] 
-              : img.url.includes('artwork-images/') 
-                ? img.url.split('artwork-images/').pop() 
-                : img.url
-          }));
+          const imagesData = successfulUploads.map(img => {
+            // Log the original URL for debugging
+            console.log('🔍 Processing image URL:', img.url);
+            
+            // Determine the file_path based on URL structure
+            let file_path;
+            if (img.url.includes('/public/')) {
+              // Extract just the filename without redundant prefixes
+              const fileNamePart = img.url.split('/public/')[1];
+              // Create a path similar to other working images
+              const userId = session.user.id.substring(0, 8); // Use part of user ID to mimic the UUID format
+              file_path = `${fileNamePart}`;
+              console.log('🔍 Public path detected, setting file_path to:', file_path);
+            } else if (img.url.includes('artwork-images/')) {
+              // For paths that already include artwork-images, just extract the actual path
+              // This extracts everything after the first occurrence of artwork-images/
+              file_path = img.url.split('artwork-images/')[1];
+              console.log('🔍 Artwork-images path detected, setting file_path to:', file_path);
+            } else {
+              file_path = img.url;
+              console.log('🔍 Unknown path structure, using URL directly:', file_path);
+            }
+            
+            return {
+              artwork_id: artwork.id,
+              url: img.url,
+              is_primary: img.is_primary,
+              display_order: img.display_order,
+              file_path: file_path
+            };
+          });
           
           console.log('🔍 Image link data prepared:', JSON.stringify(imagesData).substring(0, 100) + '...');
           
+          // Use the same base URL for the images endpoint
+          const imagesEndpoint = `${baseUrl}/.netlify/functions/artwork-images`;
+            
+          console.log(`🔍 Sending request to link images using ${imagesEndpoint}`);
+          
           // Use API route for this too to avoid RLS issues
-          console.log('🔍 Sending request to link images');
-          const imagesResponse = await fetch('/.netlify/functions/artwork-images', {
+          const imagesResponse = await fetch(imagesEndpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -930,6 +968,17 @@ export default function NewItemPage() {
                 placeholder="Enter item history and ownership details"
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-base"
                 rows={4}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="materials" className="block text-sm font-medium mb-2">Materials</label>
+              <Input
+                id="materials"
+                name="materials"
+                value={formData.materials || ''}
+                onChange={handleInputChange}
+                placeholder="e.g., Oil on canvas, Bronze, etc."
               />
             </div>
 

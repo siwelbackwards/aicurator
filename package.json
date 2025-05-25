@@ -9,7 +9,9 @@
     "build": "next build && node scripts/fix-html.js",
     "setup-netlify": "node scripts/setup-netlify.js",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "dev:functions": "node netlify/dev-server.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:functions\""
   },
   "dependencies": {
     "@babel/core": "^7.27.1",
@@ -65,5 +67,11 @@
   "resolutions": {
     "@types/react": "18.2.22",
     "@types/react-dom": "18.2.7"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0"
   }
 }

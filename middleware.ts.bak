@@ -1,0 +1,16 @@
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+// This function handles middleware requests
+export function middleware(request: NextRequest) {
+  // Simply continue without any redirection
+  return NextResponse.next();
+}
+
+// Only match specific paths to minimize issues
+export const config = {
+  matcher: [
+    // Only match a few essential paths
+    '/dashboard/:path*'
+  ],
+}; 

@@ -20,11 +20,6 @@ module.exports = {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-      // Log but don't expose full values
-      console.log('Injecting environment variables:');
-      console.log(`NEXT_PUBLIC_SUPABASE_URL: ${supabaseUrl ? '✓' : '✗'}`);
-      console.log(`NEXT_PUBLIC_SUPABASE_ANON_KEY: ${supabaseKey ? '✓' : '✗'}`);
-
       // Replace the placeholders
       content = content.replace(
         /window\.ENV\.NEXT_PUBLIC_SUPABASE_URL\s*=\s*window\.ENV\.NEXT_PUBLIC_SUPABASE_URL\s*\|\|\s*"[^"]*"/,

@@ -7,6 +7,7 @@ import ConfirmationDialog from '@/components/product/confirmation-dialog';
 import { supabase } from '@/lib/supabase-client';
 import { SupabaseImage } from '@/components/ui/supabase-image';
 import { useRouter } from 'next/navigation';
+import { formatSupabaseUrl } from '@/lib/utils';
 
 interface ProductProps {
   productId: string;
@@ -27,6 +28,10 @@ interface Artwork {
     depth: number;
     unit: string;
   };
+  width?: number | null;
+  height?: number | null;
+  depth?: number | null;
+  measurement_unit?: string | null;
   images: {
     url: string;
     is_primary: boolean;
@@ -40,20 +45,41 @@ interface Artwork {
 
 // Add a function to get a valid image URL
 const getValidImageUrl = (image: any) => {
-  if (!image) return 'https://source.unsplash.com/random/800x800/?art';
+  if (!image) return '';
   
-  // If we have a valid URL, use it
   if (image.url && image.url.includes('http')) {
     return image.url;
   }
   
-  // If we have a file_path, construct a URL
-  if (image.file_path && image.file_path.length > 3) {
-    return `https://cpzzmpgbyzcqbwkaaqdy.supabase.co/storage/v1/object/public/artwork-images/${image.file_path}`;
+  if (image.file_path) {
+    return formatSupabaseUrl(image.file_path);
   }
   
-  // Fallback
-  return 'https://source.unsplash.com/random/800x800/?art';
+  return '';
+};
+
+// Helper function to format dimensions consistently
+const formatDimensions = (artwork: Artwork): string => {
+  // First check if we have the legacy dimensions object
+  if (artwork.dimensions) {
+    return `${artwork.dimensions.width} × ${artwork.dimensions.height} × ${artwork.dimensions.depth} ${artwork.dimensions.unit}`;
+  }
+  
+  // Then check if we have the separate dimension fields
+  if (artwork.width && artwork.height) {
+    const dimensions = [`${artwork.width}`, `${artwork.height}`];
+    
+    // Add depth if available
+    if (artwork.depth) {
+      dimensions.push(`${artwork.depth}`);
+    }
+    
+    // Join with × symbol and add unit
+    return `${dimensions.join(' × ')} ${artwork.measurement_unit || 'cm'}`;
+  }
+  
+  // If no dimensions available
+  return 'Unknown';
 };
 
 export default function ProductClient({ productId }: ProductProps) {
@@ -302,9 +328,7 @@ export default function ProductClient({ productId }: ProductProps) {
                 Year of Creation: {product.year || 'Unknown'}
               </div>
               <div className="px-4 py-2 bg-gray-50 rounded-full text-center">
-                Size: {product.dimensions ? 
-                  `${product.dimensions.width} × ${product.dimensions.height} × ${product.dimensions.depth} ${product.dimensions.unit}` : 
-                  'Unknown'}
+                Size: {formatDimensions(product)}
               </div>
             </div>
             <div className="mb-6">

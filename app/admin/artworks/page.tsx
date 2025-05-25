@@ -110,8 +110,15 @@ export default function AdminArtworksPage() {
       
       console.log(`⭐ Fetching artworks with status: "${status}"`);
       
+      // In development, use the local dev server running on port 9000
+      // In production, use the actual Netlify functions
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      const baseUrl = isDevelopment
+        ? 'http://localhost:9000'
+        : '';
+      
       // Use our admin API endpoint that bypasses RLS
-      const response = await fetch('/.netlify/functions/admin-artworks', {
+      const response = await fetch(`${baseUrl}/.netlify/functions/admin-artworks`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -225,8 +232,15 @@ export default function AdminArtworksPage() {
     if (!isClient || !accessToken) return;
     
     try {
+      // In development, use the local dev server running on port 9000
+      // In production, use the actual Netlify functions
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      const baseUrl = isDevelopment
+        ? 'http://localhost:9000'
+        : '';
+      
       // Use our admin API endpoint to update status
-      const response = await fetch('/.netlify/functions/admin-artwork-status', {
+      const response = await fetch(`${baseUrl}/.netlify/functions/admin-artwork-status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

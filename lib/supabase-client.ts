@@ -1,5 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
+import { formatSupabaseUrl } from '@/lib/utils';
 
 // Add TypeScript declaration for Window with ENV
 declare global {
@@ -119,22 +120,5 @@ export const supabase = (() => {
   }
 })();
 
-// Format Supabase URL to avoid duplicate paths
-export function formatSupabaseUrl(path: string): string {
-  if (!path) return '';
-  
-  const baseUrl = `${config.url}/storage/v1/object/public/`;
-  
-  // Remove any duplicate bucket names in the path
-  const parts = path.split('/');
-  const bucketName = parts[0];
-  let cleanPath = path;
-  
-  if (parts.length > 1 && parts[1] === bucketName) {
-    cleanPath = parts.slice(0, 1).concat(parts.slice(2)).join('/');
-  }
-  
-  return `${baseUrl}${cleanPath}`;
-} 
-
-// Remove the admin client completely - we'll create it only in server components when needed 
+// Export the config for use in formatSupabaseUrl and other functions
+export const supabaseConfig = config; 

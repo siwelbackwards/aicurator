@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase-client';
 import Image from 'next/image';
 import { SupabaseImage } from '@/components/ui/supabase-image';
+import { formatSupabaseUrl } from '@/lib/utils';
 
 // Add a function to get a valid image URL
 const getValidImageUrl = (image: any) => {
@@ -17,9 +18,15 @@ const getValidImageUrl = (image: any) => {
     return image.url;
   }
   
-  // If we have a file_path, construct a URL
+  // If we have a file_path, construct a URL using the utility function
   if (image.file_path && image.file_path.length > 3) {
-    return `https://cpzzmpgbyzcqbwkaaqdy.supabase.co/storage/v1/object/public/artwork-images/${image.file_path}`;
+    // Enhanced logging to debug paths
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Processing file_path for image URL: "${image.file_path}"`);
+    }
+    
+    // Just pass the file_path directly to formatSupabaseUrl which will handle paths correctly
+    return formatSupabaseUrl(image.file_path);
   }
   
   // Fallback
@@ -41,6 +48,7 @@ interface Product {
 }
 
 const VISIBLE_ITEMS = 4;
+const MAX_RETRY_ATTEMPTS = 3;
 
 // Placeholder data for server-side rendering
 const PLACEHOLDER_PRODUCTS: Product[] = Array(4).fill(null).map((_, i) => ({
@@ -59,6 +67,7 @@ export default function TrendingProducts() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     // Set isClient flag to avoid hydration mismatch
@@ -94,10 +103,20 @@ export default function TrendingProducts() {
         // Check for error with improved handling
         if (error) {
           console.error('Error fetching artworks:', error.message);
+          // Retry logic
+          if (retryCount < MAX_RETRY_ATTEMPTS) {
+            setRetryCount(prev => prev + 1);
+            console.log(`Retrying fetch (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})...`);
+            setTimeout(() => fetchProducts(), 1000); // Retry after 1 second
+            return;
+          }
           setHasError(true);
           setLoading(false);
           return;
         }
+
+        // Reset retry count on success
+        setRetryCount(0);
 
         // Check if we received artworks data
         if (!artworks || artworks.length === 0) {
@@ -114,11 +133,14 @@ export default function TrendingProducts() {
           ...artwork,
           // Ensure images is always an array, even if null or undefined
           images: artwork.images ? artwork.images.map((image: ArtworkImage) => {
-            // Log the image data for debugging
-            console.log('Processing image:', image.file_path);
+            // Enhanced logging for debugging
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`Processing image for artwork ${artwork.id}:`, image.file_path);
+            }
+            
             return {
               ...image,
-              // Don't just assign the file_path to url, it will be handled by getValidImageUrl
+              // Don't create a URL here, just use the file_path as is
               url: image.file_path
             };
           }) : []
@@ -126,15 +148,22 @@ export default function TrendingProducts() {
         
         setProducts(artworksWithUrls);
         setLoading(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error in trending products:', error);
+        // Retry logic for unexpected errors
+        if (retryCount < MAX_RETRY_ATTEMPTS) {
+          setRetryCount(prev => prev + 1);
+          console.log(`Retrying after error (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})...`);
+          setTimeout(() => fetchProducts(), 2000); // Retry after 2 seconds
+          return;
+        }
         setHasError(true);
         setLoading(false);
       }
     };
 
     fetchProducts();
-  }, [isClient]);
+  }, [isClient, retryCount]);
 
   const handleProductClick = (id: string) => {
     if (id.startsWith('placeholder-')) return;
@@ -200,6 +229,18 @@ export default function TrendingProducts() {
             <p className="text-red-800">
               Unable to load trending products. Please try again later.
             </p>
+            <Button 
+              onClick={() => {
+                setHasError(false);
+                setLoading(true);
+                setRetryCount(0);
+              }}
+              className="mt-2"
+              variant="outline"
+              size="sm"
+            >
+              Retry
+            </Button>
           </div>
         </div>
       </section>
@@ -269,6 +310,7 @@ export default function TrendingProducts() {
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
                       priority={false}
+                      timeout={3000} // Add 3 second timeout for image loading
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gray-200">

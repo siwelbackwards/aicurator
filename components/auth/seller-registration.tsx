@@ -33,7 +33,10 @@ export default function SellerRegistration({ onComplete, onAuthSuccess, redirect
     businessName: "",
     website: "",
     phone: "",
-    address: "",
+    addressLine1: "",
+    city: "",
+    country: "",
+    postcode: "",
     vatNumber: "",
     categories: [] as string[],
     acceptTerms: false
@@ -78,6 +81,9 @@ export default function SellerRegistration({ onComplete, onAuthSuccess, redirect
       if (authError) throw authError;
 
       if (authData.user) {
+        // Generate full name from first and last name
+        const fullName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+        
         // Create the seller profile
         const { error: profileError } = await supabase
           .from('profiles')
@@ -86,12 +92,13 @@ export default function SellerRegistration({ onComplete, onAuthSuccess, redirect
             title: formData.title,
             first_name: formData.firstName,
             last_name: formData.lastName,
+            full_name: fullName,
             user_type: 'seller',
             email: formData.email,
             business_name: formData.businessName,
             website: formData.website,
             phone: formData.phone,
-            address: formData.address,
+            full_address: `${formData.addressLine1}, ${formData.city}, ${formData.country}, ${formData.postcode}`.trim(),
             vat_number: formData.vatNumber,
             interested_categories: formData.categories,
             onboarding_completed: true,
@@ -102,6 +109,27 @@ export default function SellerRegistration({ onComplete, onAuthSuccess, redirect
         if (profileError) {
           console.error('Error creating seller profile:', profileError);
           throw profileError;
+        }
+        
+        // Create user settings with default values
+        const { error: settingsError } = await supabase
+          .from('user_settings')
+          .insert({
+            user_id: authData.user.id,
+            notifications: {
+              email: true,
+              updates: true,
+              marketing: true // Sellers typically want marketing
+            },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+          
+        if (settingsError) {
+          console.error('Error creating user settings for seller:', settingsError);
+          // Continue even if this fails, it's not critical
+        } else {
+          console.log('Created user settings for seller:', authData.user.id);
         }
 
         toast.success('Seller account created successfully!');
@@ -119,25 +147,19 @@ export default function SellerRegistration({ onComplete, onAuthSuccess, redirect
 
         onComplete();
         
-        // If onAuthSuccess is provided, call it instead of redirecting
-        if (onAuthSuccess) {
-          onAuthSuccess();
-        } else if (redirectPath) {
+        // Redirect to dashboard or a welcome page
+        if (redirectPath) {
           router.push(redirectPath);
         } else {
           router.push('/dashboard');
         }
       }
     } catch (error) {
-      console.error('Error during seller registration:', error);
+      console.error('Registration error:', error);
       if (error instanceof Error) {
-        if (error.message.includes('Email already registered')) {
-          setError('This email is already registered. Please sign in instead.');
-        } else {
-          setError(error.message);
-        }
+        setError(error.message);
       } else {
-        setError('An unexpected error occurred. Please try again.');
+        setError('An unexpected error occurred during registration.');
       }
     } finally {
       setIsSubmitting(false);
@@ -275,12 +297,47 @@ export default function SellerRegistration({ onComplete, onAuthSuccess, redirect
           </div>
 
           <div>
-            <Label htmlFor="address">Business Address</Label>
+            <Label htmlFor="addressLine1">Address Line</Label>
             <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => updateForm('address', e.target.value)}
-              placeholder="Your address"
+              id="addressLine1"
+              value={formData.addressLine1}
+              onChange={(e) => updateForm('addressLine1', e.target.value)}
+              placeholder="Street address"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => updateForm('city', e.target.value)}
+                placeholder="City"
+                required
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="postcode">Postcode</Label>
+              <Input
+                id="postcode"
+                value={formData.postcode}
+                onChange={(e) => updateForm('postcode', e.target.value)}
+                placeholder="Postcode"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="country">Country</Label>
+            <Input
+              id="country"
+              value={formData.country}
+              onChange={(e) => updateForm('country', e.target.value)}
+              placeholder="Country"
               required
             />
           </div>

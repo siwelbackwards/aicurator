@@ -37,6 +37,9 @@ exports.handler = async (event, context) => {
     // Parse the request body
     const data = JSON.parse(event.body);
     console.log('Received artwork submission:', data);
+    
+    // Log field names for SQL schema verification
+    console.log('Fields being mapped to SQL schema:', Object.keys(data).join(', '));
 
     // Minimal validation
     if (!data.user_id || !data.title) {
@@ -65,6 +68,10 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ error: error.message })
       };
     }
+    
+    // Log the successful insert
+    console.log('Successfully inserted artwork with ID:', artwork.id);
+    console.log('SQL fields populated:', Object.keys(artwork).join(', '));
 
     return {
       statusCode: 200,

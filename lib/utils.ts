@@ -23,6 +23,9 @@ export async function checkImageExists(url: string): Promise<boolean> {
   }
 }
 
+// Create a cache for URL formatting outside the function
+const urlFormatCache = new Map<string, string>();
+
 /**
  * Converts a possibly malformed Supabase storage URL to a properly formatted one
  * @param url The URL or path to fix
@@ -31,41 +34,89 @@ export async function checkImageExists(url: string): Promise<boolean> {
 export function formatSupabaseUrl(url: string): string {
   if (!url) return '';
   
-  // If already a full URL, return it
-  if (url.startsWith('https://')) return url;
-  
-  // Use the environment variable or fallback
-  const supabaseUrl = typeof window !== 'undefined' && window.ENV?.NEXT_PUBLIC_SUPABASE_URL 
-    ? window.ENV.NEXT_PUBLIC_SUPABASE_URL 
-    : process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
-  
-  // Fix common issues with Supabase storage paths
-  let cleanPath = url;
-  
-  // Remove duplicate path segments
-  cleanPath = cleanPath.replace(/artwork-images\/artwork-images/g, 'artwork-images');
-  cleanPath = cleanPath.replace(/avatars\/avatars/g, 'avatars');
-  
-  // Ensure no leading slash for bucket path portions
-  if (cleanPath.startsWith('/')) {
-    cleanPath = cleanPath.substring(1);
+  // If we've already formatted this URL, return from cache
+  if (urlFormatCache.has(url)) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`formatSupabaseUrl - Cache hit for: "${url}"`);
+    }
+    return urlFormatCache.get(url) as string;
   }
   
-  // Handle different bucket types consistently
-  if (!cleanPath.includes('storage/v1/object/public/')) {
-    // Check if path includes bucket name already
-    const bucketNames = ['artwork-images', 'avatars', 'profiles'];
-    const hasBucket = bucketNames.some(bucket => cleanPath.startsWith(bucket + '/'));
+  // If already a full URL, cache it and return it
+  if (url.startsWith('https://')) {
+    if (url.includes('/storage/v1/object/public/')) {
+      // This is already a properly formatted Supabase URL, cache and return
+      urlFormatCache.set(url, url);
+      return url;
+    }
+  }
+  
+  // Handle data URLs directly
+  if (url.startsWith('data:')) {
+    urlFormatCache.set(url, url);
+    return url;
+  }
+  
+  try {
+    // Use the environment variable or fallback
+    const supabaseUrl = typeof window !== 'undefined' && window.ENV?.NEXT_PUBLIC_SUPABASE_URL 
+      ? window.ENV.NEXT_PUBLIC_SUPABASE_URL 
+      : process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://cpzzmpgbyzcqbwkaaqdy.supabase.co';
     
-    if (!hasBucket) {
-      // Default to artwork-images bucket if no bucket specified
-      cleanPath = `artwork-images/${cleanPath}`;
+    // Enhanced logging for development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`formatSupabaseUrl - Input path: "${url}"`);
     }
     
-    // For Supabase storage, use the storage API pattern
-    return `${supabaseUrl}/storage/v1/object/public/${cleanPath}`;
+    // Fix common issues with Supabase storage paths
+    let cleanPath = url;
+    
+    // Create an array of known bucket names to check against
+    const bucketNames = ['artwork-images', 'avatars', 'profiles'];
+    
+    // Remove any leading slash
+    if (cleanPath.startsWith('/')) {
+      cleanPath = cleanPath.substring(1);
+    }
+    
+    // Fix duplicate bucket paths like "artwork-images/artwork-images"
+    for (const bucket of bucketNames) {
+      // Match patterns like "artwork-images/artwork-images/" (with the duplicate at the start)
+      const duplicatePattern = new RegExp(`^${bucket}/${bucket}(/|$)`);
+      if (duplicatePattern.test(cleanPath)) {
+        cleanPath = cleanPath.replace(duplicatePattern, `${bucket}$1`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`formatSupabaseUrl - Fixed duplicate bucket: "${cleanPath}"`);
+        }
+      }
+    }
+    
+    // Check if path includes a bucket name already
+    const hasBucket = bucketNames.some(bucket => 
+      cleanPath.startsWith(bucket + '/') || cleanPath === bucket
+    );
+    
+    // Add default bucket if needed
+    if (!hasBucket) {
+      cleanPath = `artwork-images/${cleanPath}`;
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`formatSupabaseUrl - Added default bucket: "${cleanPath}"`);
+      }
+    }
+    
+    // Construct final URL
+    const finalUrl = `${supabaseUrl}/storage/v1/object/public/${cleanPath}`;
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`formatSupabaseUrl - Final URL: "${finalUrl}"`);
+    }
+    
+    // Cache the result
+    urlFormatCache.set(url, finalUrl);
+    
+    return finalUrl;
+  } catch (error) {
+    console.error('Error in formatSupabaseUrl:', error);
+    return url; // Return original URL if formatting fails
   }
-  
-  // If it already has the storage path pattern, just ensure the base URL is correct
-  return `${supabaseUrl}/${cleanPath.replace(/^.*?storage\/v1\/object\/public\//, 'storage/v1/object/public/')}`;
 }
