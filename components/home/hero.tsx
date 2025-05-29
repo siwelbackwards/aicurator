@@ -11,11 +11,9 @@ const CATEGORIES = [
   { value: 'all', label: 'All Categories' },
   { value: 'paintings', label: 'Paintings' },
   { value: 'sculptures', label: 'Sculptures' },
-  { value: 'other', label: 'Other' },
   { value: 'accessories', label: 'Accessories' },
   { value: 'consumables', label: 'Consumables' },
-  { value: 'photography', label: 'Photography' },
-  { value: 'mixed-media', label: 'Mixed Media' }
+  { value: 'other', label: 'Other' }
 ];
 
 const carouselItems = [
@@ -30,7 +28,7 @@ const carouselItems = [
     description: "Explore our curated collection of rare and unique art pieces from emerging and established artists around the globe."
   },
   {
-    image: "/images/services/future-master.webp",
+    image: "/images/categories/accessories.jpg",
     title: "Premium Accessories",
     description: "Browse our selection of high-end accessories and collectibles, each piece carefully selected for its uniqueness and value."
   }

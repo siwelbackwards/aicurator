@@ -17,11 +17,6 @@ const STATIC_CATEGORIES = [
     description: 'Explore three-dimensional masterpieces'
   },
   {
-    title: 'Other',
-    image: '/images/categories/others.webp',
-    description: 'Discover unique art forms that defy categorization'
-  },
-  {
     title: 'Accessories',
     image: '/images/categories/accessories.webp',
     description: 'Find the perfect complement to your collection'
@@ -30,6 +25,11 @@ const STATIC_CATEGORIES = [
     title: 'Consumables',
     image: '/images/categories/consumables.webp',
     description: 'Premium collectible consumables'
+  },
+  {
+    title: 'Other',
+    image: '/images/categories/others.webp',
+    description: 'Discover unique art forms that defy categorization'
   }
 ];
 

@@ -42,39 +42,6 @@ const categoriesData: Category[] = [
     }
   },
   {
-    title: 'Photography',
-    image: '/images/categories/photography.jpg',
-    description: 'Captivating moments frozen in time',
-    extendedDescription: 'Explore our collection of photographic art that captures unique perspectives and powerful moments. From documentary photography to abstract compositions, each piece represents the photographer\'s distinct vision and technical mastery.',
-    stats: {
-      items: '1,800+',
-      artists: '320+',
-      avgValue: '$18,000'
-    }
-  },
-  {
-    title: 'Digital',
-    image: '/images/categories/digital-art.webp',
-    description: 'Cutting-edge digital art and NFTs',
-    extendedDescription: 'Discover the frontier of artistic innovation through our digital art collection. Featuring works created with cutting-edge technology, from generative algorithms to AI-assisted compositions and certified digital assets.',
-    stats: {
-      items: '2,200+',
-      artists: '380+',
-      avgValue: '$15,000'
-    }
-  },
-  {
-    title: 'Mixed-Media',
-    image: '/images/categories/mixedmedia.jpg',
-    description: 'Boundary-pushing works combining multiple techniques',
-    extendedDescription: 'Our mixed-media collection showcases works that transcend traditional artistic boundaries. These pieces combine various materials, methods, and concepts to create rich, multi-layered artistic experiences.',
-    stats: {
-      items: '1,100+',
-      artists: '240+',
-      avgValue: '$32,000'
-    }
-  },
-  {
     title: 'Accessories',
     image: '/images/categories/accessories.webp',
     description: 'Find the perfect complement to your collection',
