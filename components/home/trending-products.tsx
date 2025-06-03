@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -74,96 +74,96 @@ export default function TrendingProducts() {
     setIsClient(true);
   }, []);
 
-  useEffect(() => {
-    // Only fetch data on the client side
-    if (!isClient) return;
-
-    const fetchProducts = async () => {
-      try {
-        // Check for Supabase client initialization
-        if (!supabase) {
-          console.error('Supabase client not initialized');
-          setLoading(false);
-          setHasError(true);
-          return;
-        }
-
-        console.log('Fetching trending products...');
-        
-        const { data: artworks, error } = await supabase
-          .from('artworks')
-          .select(`
-            *,
-            images:artwork_images(file_path, is_primary)
-          `)
-          .eq('status', 'approved')
-          .order('price', { ascending: false })
-          .limit(12);
-
-        // Check for error with improved handling
-        if (error) {
-          console.error('Error fetching artworks:', error.message);
-          // Retry logic
-          if (retryCount < MAX_RETRY_ATTEMPTS) {
-            setRetryCount(prev => prev + 1);
-            console.log(`Retrying fetch (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})...`);
-            setTimeout(() => fetchProducts(), 1000); // Retry after 1 second
-            return;
-          }
-          setHasError(true);
-          setLoading(false);
-          return;
-        }
-
-        // Reset retry count on success
-        setRetryCount(0);
-
-        // Check if we received artworks data
-        if (!artworks || artworks.length === 0) {
-          console.log('No approved artworks found or empty response');
-          setProducts([]);
-          setLoading(false);
-          return;
-        }
-
-        console.log(`Fetched ${artworks.length} trending products`);
-
-        // Get public URLs for all images
-        const artworksWithUrls = artworks.map((artwork: any) => ({
-          ...artwork,
-          // Ensure images is always an array, even if null or undefined
-          images: artwork.images ? artwork.images.map((image: ArtworkImage) => {
-            // Enhanced logging for debugging
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`Processing image for artwork ${artwork.id}:`, image.file_path);
-            }
-            
-            return {
-              ...image,
-              // Don't create a URL here, just use the file_path as is
-              url: image.file_path
-            };
-          }) : []
-        }));
-        
-        setProducts(artworksWithUrls);
+  const fetchProducts = useCallback(async () => {
+    try {
+      // Check for Supabase client initialization
+      if (!supabase) {
+        console.error('Supabase client not initialized');
         setLoading(false);
-      } catch (error: any) {
-        console.error('Error in trending products:', error);
-        // Retry logic for unexpected errors
+        setHasError(true);
+        return;
+      }
+
+      console.log('Fetching trending products...');
+      
+      const { data: artworks, error } = await supabase
+        .from('artworks')
+        .select(`
+          *,
+          images:artwork_images(file_path, is_primary)
+        `)
+        .eq('status', 'approved')
+        .order('price', { ascending: false })
+        .limit(12);
+
+      // Check for error with improved handling
+      if (error) {
+        console.error('Error fetching artworks:', error.message);
+        // Retry logic
         if (retryCount < MAX_RETRY_ATTEMPTS) {
           setRetryCount(prev => prev + 1);
-          console.log(`Retrying after error (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})...`);
-          setTimeout(() => fetchProducts(), 2000); // Retry after 2 seconds
+          console.log(`Retrying fetch (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})...`);
+          setTimeout(() => fetchProducts(), 1000); // Retry after 1 second
           return;
         }
         setHasError(true);
         setLoading(false);
+        return;
       }
-    };
 
+      // Reset retry count on success
+      setRetryCount(0);
+
+      // Check if we received artworks data
+      if (!artworks || artworks.length === 0) {
+        console.log('No approved artworks found or empty response');
+        setProducts([]);
+        setLoading(false);
+        return;
+      }
+
+      console.log(`Fetched ${artworks.length} trending products`);
+
+      // Get public URLs for all images
+      const artworksWithUrls = artworks.map((artwork: any) => ({
+        ...artwork,
+        // Ensure images is always an array, even if null or undefined
+        images: artwork.images ? artwork.images.map((image: ArtworkImage) => {
+          // Enhanced logging for debugging
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`Processing image for artwork ${artwork.id}:`, image.file_path);
+          }
+          
+          return {
+            ...image,
+            // Don't create a URL here, just use the file_path as is
+            url: image.file_path
+          };
+        }) : []
+      }));
+      
+      setProducts(artworksWithUrls);
+      setLoading(false);
+    } catch (error: any) {
+      console.error('Error in trending products:', error);
+      // Retry logic for unexpected errors
+      if (retryCount < MAX_RETRY_ATTEMPTS) {
+        setRetryCount(prev => prev + 1);
+        console.log(`Retrying after error (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})...`);
+        setTimeout(() => fetchProducts(), 2000); // Retry after 2 seconds
+        return;
+      }
+      setHasError(true);
+      setLoading(false);
+    }
+  }, [retryCount]); // Keep retryCount here but not in the main useEffect
+
+  useEffect(() => {
+    // Only fetch data on the client side and only once when component mounts
+    if (!isClient) return;
+    
     fetchProducts();
-  }, [isClient, retryCount]);
+  }, [isClient]); // Remove retryCount from here to prevent infinite loops
 
   const handleProductClick = (id: string) => {
     if (id.startsWith('placeholder-')) return;

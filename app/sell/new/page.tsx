@@ -573,44 +573,96 @@ export default function NewItemPage() {
           
           console.log('🔍 API payload prepared:', JSON.stringify(apiPayload).substring(0, 100) + '...');
           
-          // Determine if we're in development or production
-          const isDevelopment = process.env.NODE_ENV === 'development';
+          // Determine the correct API endpoint with better detection
+          let apiEndpoint;
           
-          // In development, use the local dev server running on port 9000
-          // In production, use the actual Netlify functions
-          const baseUrl = isDevelopment
-            ? 'http://localhost:9000'
-            : '';
+          if (typeof window !== 'undefined') {
+            // Client-side: determine environment
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             
-          // Always use the Netlify functions path structure
-          const apiEndpoint = `${baseUrl}/.netlify/functions/submit-artwork`;
-          
-          // Log which endpoint we're using
-          console.log(`🔍 Sending API request to ${apiEndpoint} (${isDevelopment ? 'development' : 'production'} mode)`);
-          
-          // IMPORTANT: Use the API route for database operations
-          const apiResponse = await fetch(apiEndpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(apiPayload)
-          });
-          
-          // Log response for debugging
-          console.log('🔍 API response received, status:', apiResponse.status);
-          
-          console.log('🔍 Parsing API response');
-          const result = await apiResponse.json();
-          console.log('💯 API response data:', result);
-          
-          if (!apiResponse.ok) {
-            console.error('🔍 API error:', result);
-            throw new Error(result.error || result.message || 'Failed to save artwork');
+            if (isLocalhost) {
+              // Local development - always use the dev server
+              apiEndpoint = 'http://localhost:9000/.netlify/functions/submit-artwork';
+              console.log('🔍 Local development detected, using dev server endpoint');
+            } else {
+              // Production - use relative path for Netlify functions
+              apiEndpoint = '/.netlify/functions/submit-artwork';
+              console.log('🔍 Production environment detected, using relative endpoint');
+            }
+          } else {
+            // Server-side fallback (should not happen since this is client-side)
+            apiEndpoint = '/.netlify/functions/submit-artwork';
+            console.log('🔍 Server-side rendering, using relative endpoint');
           }
           
-          const artwork = result.artwork;
-          console.log('💯 Successfully created artwork:', artwork.id);
+          console.log(`🔍 Final endpoint: ${apiEndpoint}`);
+          
+          // Test endpoint availability first in development only
+          if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+            try {
+              console.log('🔍 Testing dev server availability...');
+              const testResponse = await fetch('http://localhost:9000/.netlify/functions/submit-artwork', {
+                method: 'OPTIONS'
+              });
+              console.log('🔍 Dev server test response status:', testResponse.status);
+              if (!testResponse.ok) {
+                throw new Error('Dev server not responding');
+              }
+            } catch (testError) {
+              console.error('🔍 Dev server test failed:', testError);
+              throw new Error('Development server is not running. Please run "npm run dev:all" or start the Netlify dev server separately.');
+            }
+          }
+          
+          console.log(`🔍 Sending API request to ${apiEndpoint}`);
+          
+          // IMPORTANT: Use the API route for database operations
+          let artwork;
+          try {
+            const apiResponse = await fetch(apiEndpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(apiPayload)
+            });
+            
+            // Log response for debugging
+            console.log('🔍 API response received, status:', apiResponse.status);
+            
+            // Check if the response is ok before trying to parse JSON
+            if (!apiResponse.ok) {
+              let errorMessage = `HTTP ${apiResponse.status}: ${apiResponse.statusText}`;
+              try {
+                const errorData = await apiResponse.json();
+                errorMessage = errorData.error || errorData.message || errorMessage;
+              } catch (jsonError) {
+                // If we can't parse the error response, use the status text
+                console.error('Failed to parse error response:', jsonError);
+              }
+              throw new Error(errorMessage);
+            }
+            
+            console.log('🔍 Parsing API response');
+            const result = await apiResponse.json();
+            console.log('💯 API response data:', result);
+            
+            artwork = result.artwork;
+            console.log('💯 Successfully created artwork:', artwork.id);
+          } catch (fetchError: any) {
+            console.error('🚀 Network/Fetch Error:', fetchError);
+            
+            // Provide user-friendly error messages based on error type
+            if (fetchError instanceof TypeError && fetchError.message.includes('Failed to fetch')) {
+              throw new Error('Unable to connect to the server. Please check your internet connection and try again.');
+            } else if (fetchError.message.includes('404')) {
+              throw new Error('Server endpoint not found. Please try again later or contact support.');
+            } else if (fetchError.message.includes('500')) {
+              throw new Error('Server error occurred. Please try again later.');
+            } else {
+              throw fetchError; // Re-throw with original message
+            }
+          }
           
           // Link images to artwork
           console.log('🔍 Preparing to link images to artwork');
@@ -649,7 +701,7 @@ export default function NewItemPage() {
           console.log('🔍 Image link data prepared:', JSON.stringify(imagesData).substring(0, 100) + '...');
           
           // Use the same base URL for the images endpoint
-          const imagesEndpoint = `${baseUrl}/.netlify/functions/artwork-images`;
+          const imagesEndpoint = `${apiEndpoint.split('/').slice(0, -1).join('/')}/artwork-images`;
             
           console.log(`🔍 Sending request to link images using ${imagesEndpoint}`);
           

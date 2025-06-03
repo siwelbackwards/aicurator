@@ -110,12 +110,14 @@ export default function AdminArtworksPage() {
       
       console.log(`⭐ Fetching artworks with status: "${status}"`);
       
-      // In development, use the local dev server running on port 9000
-      // In production, use the actual Netlify functions
-      const isDevelopment = process.env.NODE_ENV === 'development';
-      const baseUrl = isDevelopment
+      // Determine environment based on window location for more reliable client-side detection
+      const isLocalhost = typeof window !== 'undefined' && 
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      const baseUrl = isLocalhost
         ? 'http://localhost:9000'
         : '';
+      
+      console.log(`⭐ Environment detected: ${isLocalhost ? 'development' : 'production'}, using baseUrl: ${baseUrl || 'relative'}`);
       
       // Use our admin API endpoint that bypasses RLS
       const response = await fetch(`${baseUrl}/.netlify/functions/admin-artworks`, {
@@ -232,12 +234,14 @@ export default function AdminArtworksPage() {
     if (!isClient || !accessToken) return;
     
     try {
-      // In development, use the local dev server running on port 9000
-      // In production, use the actual Netlify functions
-      const isDevelopment = process.env.NODE_ENV === 'development';
-      const baseUrl = isDevelopment
+      // Determine environment based on window location for more reliable client-side detection
+      const isLocalhost = typeof window !== 'undefined' && 
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      const baseUrl = isLocalhost
         ? 'http://localhost:9000'
         : '';
+      
+      console.log(`⭐ Status update - Environment detected: ${isLocalhost ? 'development' : 'production'}, using baseUrl: ${baseUrl || 'relative'}`);
       
       // Use our admin API endpoint to update status
       const response = await fetch(`${baseUrl}/.netlify/functions/admin-artwork-status`, {

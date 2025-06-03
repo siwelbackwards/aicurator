@@ -123,10 +123,6 @@ export default function CategoriesPage() {
           'paintings': 'paintings',
           'sculpture': 'sculptures', 
           'sculptures': 'sculptures',
-          'photography': 'photography',
-          'digital': 'digital',
-          'mixed-media': 'mixed-media',
-          'mixed media': 'mixed-media',
           'accessory': 'accessories',
           'accessories': 'accessories',
           'consumable': 'consumables',
@@ -135,6 +131,11 @@ export default function CategoriesPage() {
           // Legacy mappings
           'art': 'paintings',
           'others': 'other',
+          // Map removed categories to 'other'
+          'photography': 'other',
+          'digital': 'other',
+          'mixed-media': 'other',
+          'mixed media': 'other',
           // Default for any unmapped categories
           'default': 'other'
         };

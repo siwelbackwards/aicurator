@@ -59,14 +59,6 @@ export function SupabaseImage({
       return;
     }
     
-    // Set up timeout to prevent infinite loading
-    timeoutRef.current = setTimeout(() => {
-      if (isLoading && !imageLoadedRef.current) {
-        console.warn(`Image loading timed out after ${timeout}ms: ${src}`);
-        handleError();
-      }
-    }, timeout);
-    
     try {
       // Format the URL properly using our utility
       const formattedUrl = formatSupabaseUrl(src);
@@ -80,9 +72,21 @@ export function SupabaseImage({
       // Check if URL is valid before setting it
       if (formattedUrl && formattedUrl.length > 10) {
         setImgSrc(formattedUrl);
+        
+        // Set up timeout to prevent infinite loading
+        timeoutRef.current = setTimeout(() => {
+          if (!imageLoadedRef.current) {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn(`Image loading timed out after ${timeout}ms: ${src}`);
+            }
+            handleError();
+          }
+        }, timeout);
       } else {
         // More detailed warning for debugging
-        console.warn(`Invalid image URL after formatting: "${formattedUrl}" from original "${src}"`);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Invalid image URL after formatting: "${formattedUrl}" from original "${src}"`);
+        }
         setImgSrc(fallbackSrc);
       }
     } catch (error) {
@@ -105,7 +109,9 @@ export function SupabaseImage({
   const handleError = () => {
     // Only log error once to prevent console spam
     if (!errorLogged) {
-      console.error(`Image failed to load: ${imgSrc} (original: ${src})`);
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`Image failed to load: ${imgSrc} (original: ${src})`);
+      }
       setErrorLogged(true);
     }
     
