@@ -10,7 +10,7 @@ export async function generateStaticParams() {
       .from('artworks')
       .select('id')
       .eq('status', 'approved')
-      .limit(10);
+      .limit(100); // Increased to match product page
     
     if (error || !data) {
       console.error('Error generating static params:', error);
@@ -27,8 +27,11 @@ export async function generateStaticParams() {
   }
 }
 
+// Enable dynamic params so new artworks can be rendered on-demand
+export const dynamicParams = true; // Allow dynamic generation for new artworks
+
 // Server Component that passes data to Client Component
-export default function ArtworkPage({ params }: { params: { id: string } }) {
-  // Since we're using static export, we'll need to handle this differently
-  return <ArtworkDetailClient artworkId={params.id} />;
+export default async function ArtworkPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <ArtworkDetailClient artworkId={id} />;
 } 

@@ -118,6 +118,11 @@ In production, the app automatically uses:
 - Verify CORS settings in Supabase
 - Check file size limits
 
+**404 errors for new product/artwork pages:**
+- This was fixed by enabling `dynamicParams = true` in both `/app/product/[id]/page.tsx` and `/app/artwork/[id]/page.tsx`
+- New products will be generated on-demand when first accessed
+- No rebuild required for new content
+
 ## Testing
 
 ### Test Development Server
