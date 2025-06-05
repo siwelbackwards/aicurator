@@ -2,22 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase-client';
+import { useDataContext } from '@/lib/data-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { Users, Paintbrush, Clock, UserCheck } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalBuyers: 0,
-    totalSellers: 0,
-    totalArtworks: 0,
-    pendingArtworks: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  const { adminStats, isLoading, error, refreshAdminStats } = useDataContext();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
 
   // Set isClient to true when component mounts (client-side only)
   useEffect(() => {
@@ -28,15 +23,23 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isClient) return;
     
+    const abortController = new AbortController();
+    
     const checkAdminStatus = async () => {
       try {
+        if (abortController.signal.aborted) return;
+        
         const { data } = await supabase.auth.getSession();
         const session = data.session;
         
         if (!session) {
-          window.location.href = '/';
+          if (!abortController.signal.aborted) {
+            window.location.href = '/';
+          }
           return;
         }
+
+        if (abortController.signal.aborted) return;
 
         // Check if user has admin role
         const { data: profile, error: profileError } = await supabase
@@ -48,85 +51,63 @@ export default function AdminDashboard() {
         if (profileError) throw profileError;
 
         if (profile?.role !== 'admin') {
-          window.location.href = '/';
-          toast.error('You do not have permission to access the admin area');
+          if (!abortController.signal.aborted) {
+            window.location.href = '/';
+            toast.error('You do not have permission to access the admin area');
+          }
           return;
         }
 
-        setIsAdmin(true);
-        fetchStats();
+        if (!abortController.signal.aborted) {
+          setIsAdmin(true);
+          setAuthLoading(false);
+          // Refresh stats if we don't have them or they're stale
+          if (!adminStats) {
+            refreshAdminStats();
+          }
+        }
       } catch (error) {
-        console.error('Error checking admin status:', error);
-        window.location.href = '/';
+        if (!abortController.signal.aborted) {
+          console.error('Error checking admin status:', error);
+          window.location.href = '/';
+        }
       }
     };
 
     checkAdminStatus();
-  }, [isClient]);
+    
+    return () => {
+      abortController.abort();
+    };
+  }, [isClient, adminStats, refreshAdminStats]);
 
-  const fetchStats = async () => {
-    setLoading(true);
-    try {
-      // Fetch total users count
-      const { count: totalUsers, error: usersError } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-      
-      if (usersError) throw usersError;
-      
-      // Fetch buyers count
-      const { count: totalBuyers, error: buyersError } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_type', 'buyer');
-      
-      if (buyersError) throw buyersError;
-      
-      // Fetch sellers count
-      const { count: totalSellers, error: sellersError } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_type', 'seller');
-      
-      if (sellersError) throw sellersError;
-      
-      // Fetch total artworks count
-      const { count: totalArtworks, error: artworksError } = await supabase
-        .from('artworks')
-        .select('*', { count: 'exact', head: true });
-      
-      if (artworksError) throw artworksError;
-      
-      // Fetch pending artworks count
-      const { count: pendingArtworks, error: pendingError } = await supabase
-        .from('artworks')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-      
-      if (pendingError) throw pendingError;
-      
-      setStats({
-        totalUsers: totalUsers || 0,
-        totalBuyers: totalBuyers || 0,
-        totalSellers: totalSellers || 0,
-        totalArtworks: totalArtworks || 0,
-        pendingArtworks: pendingArtworks || 0,
-      });
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-      toast.error('Failed to load dashboard stats');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!isClient || !isAdmin) {
+  if (!isClient || authLoading || !isAdmin) {
     return <div className="container mx-auto py-8">Loading admin panel...</div>;
   }
+
+  const stats = adminStats || {
+    totalUsers: 0,
+    totalBuyers: 0,
+    totalSellers: 0,
+    totalArtworks: 0,
+    pendingArtworks: 0,
+  };
 
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <p className="text-red-800">Error loading dashboard data: {error}</p>
+          <button 
+            onClick={refreshAdminStats}
+            className="mt-2 text-red-600 underline"
+          >
+            Try again
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Link href="/admin/users">
@@ -137,10 +118,10 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {loading ? '...' : stats.totalUsers}
+                {isLoading ? '...' : stats.totalUsers}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {loading ? '...' : `${stats.totalBuyers} buyers, ${stats.totalSellers} sellers`}
+                {isLoading ? '...' : `${stats.totalBuyers} buyers, ${stats.totalSellers} sellers`}
               </p>
             </CardContent>
           </Card>
@@ -154,7 +135,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {loading ? '...' : stats.totalArtworks}
+                {isLoading ? '...' : stats.totalArtworks}
               </div>
             </CardContent>
           </Card>
@@ -168,7 +149,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {loading ? '...' : stats.pendingArtworks}
+                {isLoading ? '...' : stats.pendingArtworks}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Artworks awaiting review
@@ -198,31 +179,72 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest actions on the platform</CardDescription>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>
+              Common administrative tasks
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Activity tracking coming soon...
-            </p>
+          <CardContent className="space-y-4">
+            <Link 
+              href="/admin/artworks?tab=pending" 
+              className="block p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              <div className="font-medium">Review Pending Artworks</div>
+              <div className="text-sm text-gray-600">
+                {isLoading ? 'Loading...' : `${stats.pendingArtworks} items awaiting approval`}
+              </div>
+            </Link>
+            
+            <Link 
+              href="/admin/users" 
+              className="block p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+            >
+              <div className="font-medium">Manage Users</div>
+              <div className="text-sm text-gray-600">
+                View and manage user accounts
+              </div>
+            </Link>
+            
+            <Link 
+              href="/admin/settings" 
+              className="block p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+            >
+              <div className="font-medium">Platform Settings</div>
+              <div className="text-sm text-gray-600">
+                Configure system settings
+              </div>
+            </Link>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common administrative tasks</CardDescription>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>
+              Latest platform activities
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <Link href="/admin/artworks" className="block text-sm text-blue-600 hover:underline">
-              Manage artwork listings
-            </Link>
-            <Link href="/admin/users" className="block text-sm text-blue-600 hover:underline">
-              View user accounts
-            </Link>
-            <Link href="/admin/users?tab=verified" className="block text-sm text-blue-600 hover:underline">
-              Review verification documents
-            </Link>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm">New user registrations</span>
+                <span className="text-sm font-medium">
+                  {isLoading ? '...' : stats.totalUsers}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Artworks submitted</span>
+                <span className="text-sm font-medium">
+                  {isLoading ? '...' : stats.totalArtworks}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Pending reviews</span>
+                <span className="text-sm font-medium">
+                  {isLoading ? '...' : stats.pendingArtworks}
+                </span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

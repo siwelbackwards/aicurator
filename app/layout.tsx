@@ -6,6 +6,7 @@ import Footer from '@/components/layout/footer';
 import { ErrorBoundary } from "@/components/error-boundary";
 import { Toaster } from "@/components/ui/toaster";
 import AuthGate from '@/components/auth/auth-gate';
+import { DataProvider } from '@/lib/data-context';
 import type { Metadata, Viewport } from "next";
 import Script from 'next/script';
 
@@ -64,16 +65,18 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <div className="flex min-h-screen flex-col">
-              <Navbar />
-              <main className="flex-grow container mx-auto">
-                <AuthGate>
-                  {children}
-                </AuthGate>
-              </main>
-              <Footer />
-            </div>
-            <Toaster />
+            <DataProvider>
+              <div className="flex min-h-screen flex-col">
+                <Navbar />
+                <main className="flex-grow container mx-auto">
+                  <AuthGate>
+                    {children}
+                  </AuthGate>
+                </main>
+                <Footer />
+              </div>
+              <Toaster />
+            </DataProvider>
           </ThemeProvider>
         </ErrorBoundary>
       </body>

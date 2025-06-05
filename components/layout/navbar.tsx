@@ -8,6 +8,7 @@ import { Menu } from '@headlessui/react';
 import { Button } from '@/components/ui/button';
 import AuthDialog from '@/components/auth/auth-dialog';
 import { supabase } from '@/lib/supabase-client';
+import { useDataContext } from '@/lib/data-context';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AuthChangeEvent, Session } from '@supabase/supabase-js';
 
@@ -22,6 +23,7 @@ const navigation = [
 
 export default function Navbar() {
   const router = useRouter();
+  const { clearCache } = useDataContext();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -63,17 +65,23 @@ export default function Navbar() {
         setIsAdmin(profile?.role === 'admin');
       } else {
         setIsAdmin(false);
+        // Clear data cache when user signs out
+        clearCache();
       }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [clearCache]);
 
   const handleSignOut = async () => {
     try {
       setIsSigningOut(true);
+      
+      // Clear cache before signing out
+      clearCache();
+      
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -89,6 +97,15 @@ export default function Navbar() {
       setIsSigningOut(false);
       setMobileMenuOpen(false);
     }
+  };
+
+  const handleNavigation = (href: string) => {
+    // Close mobile menu
+    setMobileMenuOpen(false);
+    
+    // For client-side navigation, we don't need to clear cache
+    // The DataProvider will handle cache invalidation appropriately
+    router.push(href);
   };
 
   return (
@@ -112,13 +129,13 @@ export default function Navbar() {
         
         <div className="hidden lg:flex lg:gap-x-12">
           {navigation.map((item) => (
-            <Link
+            <button
               key={item.name}
-              href={item.href}
-              className="text-sm font-semibold leading-6 hover:text-primary transition-colors"
+              onClick={() => handleNavigation(item.href)}
+              className="text-sm font-semibold leading-6 hover:text-primary transition-colors cursor-pointer"
             >
               {item.name}
-            </Link>
+            </button>
           ))}
         </div>
         
