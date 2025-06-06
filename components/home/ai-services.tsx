@@ -17,7 +17,7 @@ const services = [
     link: '/best-matches'
   },
   {
-    title: 'Bid for AI Curated Private Collection',
+    title: 'Bid for AI Curator Private Collection',
     description: 'Access exclusive collections curated by our AI',
     image: '/images/services/private-collection.webp',
     link: '/auction'
