@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase-client';
+import { withSupabaseRetry } from '@/lib/with-auth-retry';
 
 interface DataContextType {
   trendingProducts: any[];
@@ -51,19 +52,22 @@ export function DataProvider({ children }: DataProviderProps) {
     setError(null);
 
     try {
-      const { data: artworks, error } = await supabase
-        .from('artworks')
-        .select(`
-          *,
-          images:artwork_images(file_path, is_primary)
-        `)
-        .eq('status', 'approved')
-        .order('price', { ascending: false })
-        .limit(12);
+      const { data: artworks, error } = await withSupabaseRetry(
+        () => supabase
+          .from('artworks')
+          .select(`
+            *,
+            images:artwork_images(file_path, is_primary)
+          `)
+          .eq('status', 'approved')
+          .order('price', { ascending: false })
+          .limit(12),
+        'Fetch trending products'
+      );
 
       if (error) throw error;
 
-      setTrendingProducts(artworks || []);
+      setTrendingProducts((artworks as any[]) || []);
       setLastFetch(prev => ({ ...prev, trending: Date.now() }));
     } catch (err: any) {
       console.error('Error fetching trending products:', err);
@@ -82,13 +86,28 @@ export function DataProvider({ children }: DataProviderProps) {
     setError(null);
 
     try {
-      // Fetch all stats in parallel
+      // Fetch all stats in parallel with retry logic
       const [usersCount, buyersCount, sellersCount, artworksCount, pendingCount] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('user_type', 'buyer'),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('user_type', 'seller'),
-        supabase.from('artworks').select('*', { count: 'exact', head: true }),
-        supabase.from('artworks').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+        withSupabaseRetry(
+          () => supabase.from('profiles').select('*', { count: 'exact', head: true }),
+          'Count total users'
+        ),
+        withSupabaseRetry(
+          () => supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('user_type', 'buyer'),
+          'Count buyers'
+        ),
+        withSupabaseRetry(
+          () => supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('user_type', 'seller'),
+          'Count sellers'
+        ),
+        withSupabaseRetry(
+          () => supabase.from('artworks').select('*', { count: 'exact', head: true }),
+          'Count artworks'
+        ),
+        withSupabaseRetry(
+          () => supabase.from('artworks').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+          'Count pending artworks'
+        )
       ]);
 
       // Check for errors
@@ -100,11 +119,11 @@ export function DataProvider({ children }: DataProviderProps) {
       }
 
       const stats = {
-        totalUsers: usersCount.count || 0,
-        totalBuyers: buyersCount.count || 0,
-        totalSellers: sellersCount.count || 0,
-        totalArtworks: artworksCount.count || 0,
-        pendingArtworks: pendingCount.count || 0,
+        totalUsers: (usersCount as any).count || 0,
+        totalBuyers: (buyersCount as any).count || 0,
+        totalSellers: (sellersCount as any).count || 0,
+        totalArtworks: (artworksCount as any).count || 0,
+        pendingArtworks: (pendingCount as any).count || 0,
       };
 
       setAdminStats(stats);

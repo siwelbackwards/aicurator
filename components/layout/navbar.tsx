@@ -7,8 +7,8 @@ import { Menu as MenuIcon, X, UserIcon, Settings, LogOut, ShoppingBag, ShieldAle
 import { Menu } from '@headlessui/react';
 import { Button } from '@/components/ui/button';
 import AuthDialog from '@/components/auth/auth-dialog';
-import { supabase } from '@/lib/supabase-client';
 import { useDataContext } from '@/lib/data-context';
+import { useAuth } from '@/hooks/use-auth';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AuthChangeEvent, Session } from '@supabase/supabase-js';
 
@@ -24,56 +24,39 @@ const navigation = [
 export default function Navbar() {
   const router = useRouter();
   const { clearCache } = useDataContext();
+  const { user, signOut, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
+  // Check admin status when user changes
   useEffect(() => {
-    // Initial check for user on component mount
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      
-      if (currentUser) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', currentUser.id)
-          .single();
-        
-        setIsAdmin(profile?.role === 'admin');
-      }
-    };
-    
-    checkUser();
-    
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      
-      if (currentUser) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', currentUser.id)
-          .single();
-        
-        setIsAdmin(profile?.role === 'admin');
+    const checkAdminStatus = async () => {
+      if (user) {
+        try {
+          // Import supabase dynamically to avoid issues
+          const { supabase } = await import('@/lib/supabase-client');
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+          
+          setIsAdmin(profile?.role === 'admin');
+        } catch (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+        }
       } else {
         setIsAdmin(false);
         // Clear data cache when user signs out
         clearCache();
       }
-    });
-
-    return () => {
-      subscription.unsubscribe();
     };
-  }, [clearCache]);
+
+    checkAdminStatus();
+  }, [user, clearCache]);
 
   const handleSignOut = async () => {
     try {
@@ -82,12 +65,8 @@ export default function Navbar() {
       // Clear cache before signing out
       clearCache();
       
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('Error signing out:', error.message || JSON.stringify(error));
-        return;
-      }
+      // Use the signOut function from useAuth hook
+      await signOut();
       
       // Force a hard refresh to clear any cached state
       window.location.href = '/';
