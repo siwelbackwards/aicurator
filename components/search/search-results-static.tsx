@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase-client';
+import { withSupabaseRetry } from '@/lib/with-auth-retry';
 import { SupabaseImage } from '@/components/ui/supabase-image';
 
 interface ArtworkImage {
@@ -19,6 +20,16 @@ interface Product {
   images: ArtworkImage[];
   description?: string;
   category?: string;
+  location?: string;
+  materials?: string;
+  provenance?: string;
+  year?: number;
+  width?: number;
+  height?: number;
+  depth?: number;
+  measurement_unit?: string;
+  status: string;
+  created_at: string;
 }
 
 export default function SearchResultsStatic({ query, category }: { query?: string; category?: string }) {
@@ -41,24 +52,44 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
         setLoading(true);
         setError(null);
         
-        let supabaseQuery = supabase
-          .from('artworks')
-          .select(`
-            *,
-            images:artwork_images(file_path, is_primary)
-          `)
-          .eq('status', 'approved');
-        
-        // Apply search filters if provided
-        if (query) {
-          supabaseQuery = supabaseQuery.ilike('title', `%${query}%`);
-        }
-        
-        if (category && category !== 'all') {
-          supabaseQuery = supabaseQuery.eq('category', category);
-        }
+        // Use the retry wrapper for reliable data fetching
+        const { data: artworks, error } = await withSupabaseRetry(
+          () => {
+            let supabaseQuery = supabase
+              .from('artworks')
+              .select(`
+                *,
+                images:artwork_images(file_path, is_primary)
+              `)
+              .eq('status', 'approved');
+            
+            // Apply comprehensive search filters if provided
+            if (query && query.trim()) {
+              // Search across all relevant text fields
+              const searchTerm = query.trim();
+              supabaseQuery = supabaseQuery.or(
+                `title.ilike.%${searchTerm}%,` +
+                `artist_name.ilike.%${searchTerm}%,` +
+                `description.ilike.%${searchTerm}%,` +
+                `materials.ilike.%${searchTerm}%,` +
+                `location.ilike.%${searchTerm}%,` +
+                `provenance.ilike.%${searchTerm}%,` +
+                `category.ilike.%${searchTerm}%`
+              );
+            }
+            
+            // Apply category filter if provided
+            if (category && category !== 'all') {
+              supabaseQuery = supabaseQuery.eq('category', category);
+            }
 
-        const { data: artworks, error } = await supabaseQuery;
+            // Order by relevance and recency
+            supabaseQuery = supabaseQuery.order('created_at', { ascending: false });
+
+            return supabaseQuery;
+          },
+          'Search artworks with comprehensive filters'
+        );
 
         if (error) {
           console.error('Error fetching artworks:', error);
@@ -68,7 +99,7 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
 
         if (artworks) {
           // Get public URLs for all images
-          const artworksWithUrls = artworks.map((artwork: any) => ({
+          const artworksWithUrls = (artworks as any[]).map((artwork: any) => ({
             ...artwork,
             images: artwork.images?.map((image: ArtworkImage) => ({
               ...image,
@@ -88,6 +119,22 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
 
     fetchProducts();
   }, [query, category, isClient]);
+
+  // Helper function to highlight search terms
+  const highlightSearchTerm = (text: string, searchTerm: string) => {
+    if (!searchTerm || !text) return text;
+    
+    const regex = new RegExp(`(${searchTerm})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => 
+      regex.test(part) ? (
+        <mark key={index} className="bg-yellow-200 px-1 rounded">
+          {part}
+        </mark>
+      ) : part
+    );
+  };
 
   // Show loading state
   if (loading || !isClient) {
@@ -123,10 +170,21 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
   if (products.length === 0) {
     return (
       <div className="text-center py-16 bg-gray-50 rounded-lg">
-        <p className="text-gray-500 mb-6 text-lg">No products found matching your criteria.</p>
+        <p className="text-gray-500 mb-6 text-lg">
+          {query 
+            ? `No artworks found matching "${query}"${category !== 'all' ? ` in ${category}` : ''}.`
+            : `No artworks found${category !== 'all' ? ` in ${category}` : ''}.`
+          }
+        </p>
+        <div className="space-y-2">
+          <p className="text-sm text-gray-400">Search suggestions:</p>
+          <p className="text-xs text-gray-400">
+            Try searching for artist names, artwork titles, materials, locations, or descriptions
+          </p>
+        </div>
         <Button 
           onClick={() => window.location.href = '/'} 
-          className="px-6 py-2"
+          className="px-6 py-2 mt-4"
         >
           Browse All Products
         </Button>
@@ -136,6 +194,23 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
 
   return (
     <div className="space-y-8">
+      {/* Search Results Header */}
+      <div className="flex justify-between items-center pb-4 border-b">
+        <div>
+          <p className="text-lg font-medium text-gray-900">
+            {products.length} {products.length === 1 ? 'artwork' : 'artworks'} found
+          </p>
+          {query && (
+            <p className="text-sm text-gray-600">
+              Searching across titles, artists, descriptions, materials, locations, and more
+            </p>
+          )}
+        </div>
+        <div className="text-xs text-gray-400">
+          Sorted by most recent
+        </div>
+      </div>
+
       {products.map((product) => {
         // Find primary image first, fall back to first image if no primary
         const primaryImage = product.images?.find(img => img.is_primary);
@@ -163,15 +238,59 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
               )}
             </div>
             <div className="md:w-2/3 flex flex-col">
-              <h3 className="font-serif text-2xl mb-2">{product.title}</h3>
-              <p className="text-gray-600 mb-2">By: {product.artist_name}</p>
-              {product.category && (
-                <p className="text-blue-600 mb-2 capitalize">Category: {product.category}</p>
-              )}
+              <h3 className="font-serif text-2xl mb-2">
+                {highlightSearchTerm(product.title, query || '')}
+              </h3>
+              <p className="text-gray-600 mb-2">
+                <span className="font-medium">Artist:</span> {highlightSearchTerm(product.artist_name, query || '')}
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4 text-sm">
+                {product.category && (
+                  <p className="text-blue-600 capitalize">
+                    <span className="font-medium">Category:</span> {highlightSearchTerm(product.category, query || '')}
+                  </p>
+                )}
+                {product.year && (
+                  <p className="text-gray-600">
+                    <span className="font-medium">Year:</span> {product.year}
+                  </p>
+                )}
+                {product.materials && (
+                  <p className="text-gray-600">
+                    <span className="font-medium">Materials:</span> {highlightSearchTerm(product.materials, query || '')}
+                  </p>
+                )}
+                {product.location && (
+                  <p className="text-gray-600">
+                    <span className="font-medium">Location:</span> {highlightSearchTerm(product.location, query || '')}
+                  </p>
+                )}
+                {(product.width || product.height) && (
+                  <p className="text-gray-600">
+                    <span className="font-medium">Dimensions:</span> {' '}
+                    {product.width && product.height 
+                      ? `${product.width} × ${product.height}${product.depth ? ` × ${product.depth}` : ''} ${product.measurement_unit || 'cm'}`
+                      : product.width 
+                        ? `${product.width} ${product.measurement_unit || 'cm'} (width)`
+                        : `${product.height} ${product.measurement_unit || 'cm'} (height)`
+                    }
+                  </p>
+                )}
+                {product.provenance && (
+                  <p className="text-gray-600 md:col-span-2">
+                    <span className="font-medium">Provenance:</span> {highlightSearchTerm(product.provenance, query || '')}
+                  </p>
+                )}
+              </div>
+              
               <p className="text-green-600 font-bold text-lg mb-4">£{product.price?.toLocaleString()}</p>
               
               <p className="text-gray-700 mb-6 line-clamp-3">
-                {product.description || "No description available for this artwork."}
+                {product.description 
+                  ? highlightSearchTerm(product.description, query || '') 
+                  : "No description available for this artwork."
+                }
               </p>
               
               <div className="mt-auto">
