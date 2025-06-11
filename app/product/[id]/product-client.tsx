@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase-client';
 import { SupabaseImage } from '@/components/ui/supabase-image';
 import { useRouter } from 'next/navigation';
 import { formatSupabaseUrl } from '@/lib/utils';
+import { formatPrice } from '@/lib/currency-utils';
 
 interface ProductProps {
   productId: string;
@@ -18,6 +19,7 @@ interface Artwork {
   title: string;
   description: string;
   price: number;
+  currency?: string;
   artist_name: string;
   location: string;
   year: number;
@@ -265,7 +267,7 @@ export default function ProductClient({ productId }: ProductProps) {
           {/* Product Info */}
           <div className="space-y-6">
             <h1 className="text-4xl font-bold">{product.title}</h1>
-            <p className="text-xl text-green-600 font-bold">£{product.price.toLocaleString()}</p>
+            <p className="text-xl text-green-600 font-bold">{formatPrice(product.price, product.currency)}</p>
             <p className="text-gray-600">{product.description}</p>
 
             <div className="flex items-center space-x-4">
@@ -288,15 +290,15 @@ export default function ProductClient({ productId }: ProductProps) {
             <div className="grid grid-cols-3 gap-4 py-4">
               <div className="text-center p-4 bg-white rounded-lg">
                 <div className="text-sm text-gray-500">Original Price:</div>
-                <div className="font-bold">£{product.price.toLocaleString()}</div>
+                <div className="font-bold">{formatPrice(product.price, product.currency)}</div>
               </div>
               <div className="text-center p-4 bg-white rounded-lg">
                 <div className="text-sm text-gray-500">Current Price:</div>
-                <div className="font-bold">£{currentPrice.toLocaleString()}</div>
+                <div className="font-bold">{formatPrice(currentPrice, product.currency)}</div>
               </div>
               <div className="text-center p-4 bg-white rounded-lg">
                 <div className="text-sm text-gray-500">Estimated Future Value</div>
-                <div className="font-bold">£{predictedPrice.toLocaleString()}</div>
+                <div className="font-bold">{formatPrice(predictedPrice, product.currency)}</div>
               </div>
             </div>
 

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useDataContext } from '@/lib/data-context';
 import Image from 'next/image';
 import { SupabaseImage } from '@/components/ui/supabase-image';
+import { formatPrice } from '@/lib/currency-utils';
 import { formatSupabaseUrl } from '@/lib/utils';
 
 // Add a function to get a valid image URL
@@ -44,6 +45,7 @@ interface Product {
   title: string;
   artist_name: string;
   price: number;
+  currency?: string;
   images: ArtworkImage[];
 }
 
@@ -206,7 +208,7 @@ export default function TrendingProducts() {
                   </h3>
                   <p className="text-sm text-gray-600 mt-1">By {product.artist_name}</p>
                   <p className="text-lg font-bold text-primary mt-2">
-                    ${product.price?.toLocaleString() || 'Price on request'}
+                    {product.price ? formatPrice(product.price, product.currency) : 'Price on request'}
                   </p>
                 </div>
               </div>

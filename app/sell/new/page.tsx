@@ -558,6 +558,7 @@ export default function NewItemPage() {
             title: formData.title,
             description: formData.description,
             price: price,
+            currency: formData.currency,
             category: formData.category,
             artist_name: formData.artistName,
             location: formData.location,

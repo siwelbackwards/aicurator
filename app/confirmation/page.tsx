@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase-client';
 import { SupabaseImage } from '@/components/ui/supabase-image';
 import { formatSupabaseUrl } from '@/lib/utils';
+import { formatPrice } from '@/lib/currency-utils';
 
 interface TrendingProduct {
   id: string;
   title: string;
   price: number;
+  currency?: string;
   artist_name: string;
   images: Array<{
     file_path: string;
@@ -70,6 +72,7 @@ export default function ConfirmationPage() {
             id,
             title,
             price,
+            currency,
             artist_name,
             images:artwork_images(file_path, is_primary)
           `)
@@ -209,7 +212,7 @@ export default function ConfirmationPage() {
                   </div>
                   <h3 className="font-medium text-lg mb-1">{product.title}</h3>
                   <p className="text-sm text-gray-600 mb-2">By: {product.artist_name}</p>
-                  <p className="text-green-600 font-bold">${product.price}</p>
+                  <p className="text-green-600 font-bold">{formatPrice(product.price, product.currency)}</p>
                 </div>
               ))}
             </div>

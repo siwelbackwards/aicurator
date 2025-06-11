@@ -56,7 +56,13 @@ export function DataProvider({ children }: DataProviderProps) {
         () => supabase
           .from('artworks')
           .select(`
-            *,
+            id,
+            title,
+            artist_name,
+            price,
+            currency,
+            category,
+            description,
             images:artwork_images(file_path, is_primary)
           `)
           .eq('status', 'approved')

@@ -6,7 +6,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 // We'll keep this extremely minimal to avoid any schema errors
 const CORE_FIELDS = [
   'user_id', 'title', 'category', 'status', 
-  'price', 'description', 'artist_name'
+  'price', 'currency', 'description', 'artist_name'
 ];
 
 // Helper to create a minimal object with only known fields

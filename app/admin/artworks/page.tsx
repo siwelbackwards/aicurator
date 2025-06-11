@@ -21,12 +21,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
 import { SupabaseImage } from '@/components/ui/supabase-image';
+import { formatPrice } from '@/lib/currency-utils';
 
 interface Artwork {
   id: string;
   title: string;
   description: string;
   price: number;
+  currency?: string;
   category: string;
   user_id: string;
   status: string;
@@ -343,7 +345,7 @@ export default function AdminArtworksPage() {
                   <CardContent>
                     <div className="space-y-3">
                       <p className="text-sm line-clamp-2">{artwork.description}</p>
-                      <p className="font-medium">£{artwork.price.toLocaleString()}</p>
+                      <p className="font-medium">{formatPrice(artwork.price, artwork.currency)}</p>
                       <p className="text-sm text-gray-500">Category: {artwork.category}</p>
                       <p className="text-sm text-gray-500">
                         Artist: {artwork.profiles?.full_name || 'Unknown'}
@@ -415,7 +417,7 @@ export default function AdminArtworksPage() {
                         {artwork.title}
                       </Link>
                     </h3>
-                    <p className="text-sm">£{artwork.price.toLocaleString()}</p>
+                    <p className="text-sm">{formatPrice(artwork.price, artwork.currency)}</p>
                     <div className="mt-2">
                       <Button 
                         variant="outline" 
@@ -473,7 +475,7 @@ export default function AdminArtworksPage() {
                         {artwork.title}
                       </Link>
                     </h3>
-                    <p className="text-sm">£{artwork.price.toLocaleString()}</p>
+                    <p className="text-sm">{formatPrice(artwork.price, artwork.currency)}</p>
                     <div className="mt-2">
                       <Button 
                         variant="outline" 

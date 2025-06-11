@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase-client';
 import { withSupabaseRetry } from '@/lib/with-auth-retry';
+import { formatPrice } from '@/lib/currency-utils';
 import { SupabaseImage } from '@/components/ui/supabase-image';
 
 interface ArtworkImage {
@@ -17,6 +18,7 @@ interface Product {
   title: string;
   artist_name: string;
   price: number;
+  currency?: string;
   images: ArtworkImage[];
   description?: string;
   category?: string;
@@ -58,7 +60,21 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
             let supabaseQuery = supabase
               .from('artworks')
               .select(`
-                *,
+                id,
+                title,
+                artist_name,
+                price,
+                currency,
+                category,
+                description,
+                materials,
+                location,
+                provenance,
+                width,
+                height,
+                depth,
+                measurement_unit,
+                year,
                 images:artwork_images(file_path, is_primary)
               `)
               .eq('status', 'approved');
@@ -284,7 +300,7 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
                 )}
               </div>
               
-              <p className="text-green-600 font-bold text-lg mb-4">£{product.price?.toLocaleString()}</p>
+              <p className="text-green-600 font-bold text-lg mb-4">{formatPrice(product.price || 0, product.currency)}</p>
               
               <p className="text-gray-700 mb-6 line-clamp-3">
                 {product.description 

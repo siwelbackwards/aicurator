@@ -8,12 +8,14 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabase-client';
 import { generateEmbedding } from '@/lib/openai';
 import Image from 'next/image';
+import { formatPrice } from '@/lib/currency-utils';
 
 interface SearchResult {
   id: string;
   title: string;
   artist_name: string;
   price: number;
+  currency?: string;
   category: string;
   images: { url: string; is_primary: boolean; }[];
 }
@@ -61,7 +63,13 @@ export default function SearchResults({ query, category }: SearchProps) {
         let queryBuilder = supabase
           .from('artworks')
           .select(`
-            *,
+            id,
+            title,
+            artist_name,
+            price,
+            currency,
+            category,
+            description,
             images:artwork_images(url, is_primary)
           `)
           .eq('status', 'approved');
@@ -208,7 +216,7 @@ export default function SearchResults({ query, category }: SearchProps) {
             <h3 className="font-medium text-lg mb-2">{product.title}</h3>
             <p className="text-sm text-gray-600 mb-2">By: {product.artist_name}</p>
             <p className="text-sm text-gray-500 mb-2">Category: {product.category}</p>
-            <p className="text-green-600 font-bold">£{product.price.toLocaleString()}</p>
+            <p className="text-green-600 font-bold">{formatPrice(product.price, product.currency)}</p>
             <div className="flex flex-col items-end justify-between">
               {isAuthenticated ? (
                 <Button 

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase-client';
 import { SupabaseImage } from '@/components/ui/supabase-image';
 import { useRouter } from 'next/navigation';
+import { formatPrice } from '@/lib/currency-utils';
 
 interface ArtworkDetailProps {
   artworkId: string;
@@ -16,6 +17,7 @@ interface Artwork {
   title: string;
   description: string;
   price: number;
+  currency?: string;
   artist_name: string;
   location: string;
   year: number;
@@ -187,7 +189,7 @@ export default function ArtworkDetailClient({ artworkId }: ArtworkDetailProps) {
           {/* Artwork Info */}
           <div className="space-y-6">
             <h1 className="text-4xl font-bold">{artwork.title}</h1>
-            <p className="text-xl text-green-600 font-bold">£{artwork.price.toLocaleString()}</p>
+            <p className="text-xl text-green-600 font-bold">{formatPrice(artwork.price, artwork.currency)}</p>
             <p className="text-gray-600">{artwork.description}</p>
 
             <div className="space-y-2">

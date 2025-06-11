@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
+import { formatPrice } from '@/lib/currency-utils';
 
 interface Profile {
   id: string;
@@ -25,6 +26,7 @@ interface Artwork {
   id: string;
   title?: string;
   price?: number;
+  currency?: string;
   status?: string;
   artwork_images?: ArtworkImage[];
 }
@@ -154,7 +156,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="p-4">
                     <h3 className="font-semibold text-lg">{artwork.title || 'Untitled'}</h3>
-                    <p className="text-gray-600">£{(artwork.price || 0).toLocaleString()}</p>
+                    <p className="text-gray-600">{formatPrice(artwork.price || 0, artwork.currency)}</p>
                     <div className="flex justify-between items-center mt-4">
                       <span className={`px-2 py-1 rounded-full text-sm ${
                         artwork.status === 'approved' ? 'bg-green-100 text-green-800' :

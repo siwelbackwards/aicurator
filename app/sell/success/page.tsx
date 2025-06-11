@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import { Check, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase-client';
+import { formatPrice } from '@/lib/currency-utils';
 
 interface Artwork {
   id: string;
   title: string;
   price: number;
+  currency?: string;
   artist_name: string;
   images: { url: string; is_primary: boolean; }[];
 }
@@ -160,7 +162,7 @@ export default function SuccessPage() {
                     </div>
                     <h3 className="font-medium text-lg mb-1">{item.title}</h3>
                     <p className="text-sm text-gray-600 mb-2">By: {item.artist_name}</p>
-                    <p className="text-green-600 font-bold">£{item.price.toLocaleString()}</p>
+                    <p className="text-green-600 font-bold">{formatPrice(item.price, item.currency)}</p>
                   </div>
                 );
               })}
