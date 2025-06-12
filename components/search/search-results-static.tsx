@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase-client';
 import { withSupabaseRetry } from '@/lib/with-auth-retry';
 import { formatPrice } from '@/lib/currency-utils';
 import { SupabaseImage } from '@/components/ui/supabase-image';
+import { generateTypoVariations } from '@/lib/fuzzy-search';
 
 interface ArtworkImage {
   file_path: string;
@@ -40,6 +41,11 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
   const [error, setError] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
 
+  // Debug: Log products state changes
+  useEffect(() => {
+    console.log(`🎯 Products state changed:`, products.length, products);
+  }, [products]);
+
   // Set client-side flag to prevent hydration issues
   useEffect(() => {
     setIsClient(true);
@@ -56,7 +62,7 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
         
         // Use the retry wrapper for reliable data fetching
         const { data: artworks, error } = await withSupabaseRetry(
-          () => {
+          async () => {
             let supabaseQuery = supabase
               .from('artworks')
               .select(`
@@ -81,9 +87,11 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
             
             // Apply comprehensive search filters if provided
             if (query && query.trim()) {
-              // Search across all relevant text fields
               const searchTerm = query.trim();
-              supabaseQuery = supabaseQuery.or(
+              console.log(`🔍 Static search for: "${searchTerm}"`);
+              
+              // First try exact matches
+              const exactQuery = supabaseQuery.or(
                 `title.ilike.%${searchTerm}%,` +
                 `artist_name.ilike.%${searchTerm}%,` +
                 `description.ilike.%${searchTerm}%,` +
@@ -92,17 +100,98 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
                 `provenance.ilike.%${searchTerm}%,` +
                 `category.ilike.%${searchTerm}%`
               );
-            }
-            
-            // Apply category filter if provided
-            if (category && category !== 'all') {
-              supabaseQuery = supabaseQuery.eq('category', category);
-            }
 
-            // Order by relevance and recency
-            supabaseQuery = supabaseQuery.order('created_at', { ascending: false });
+              // Apply category filter to exact search
+              if (category && category !== 'all') {
+                exactQuery.eq('category', category);
+              }
 
-            return supabaseQuery;
+              // Order by relevance and recency
+              exactQuery.order('created_at', { ascending: false });
+
+              const { data: exactResults, error: exactError } = await exactQuery;
+              
+              if (exactError) {
+                return { data: null, error: exactError };
+              }
+              
+              if (exactResults && exactResults.length > 0) {
+                console.log(`✅ Found ${exactResults.length} exact results`);
+                return { data: exactResults, error: null };
+              } else {
+                console.log(`🔍 No exact results, trying fuzzy search...`);
+                
+                // If no exact results, try fuzzy search
+                let fuzzyResults: any[] = [];
+                const fullQueryVariations = generateTypoVariations(searchTerm);
+                console.log(`🔍 Generated ${fullQueryVariations.length} fuzzy variations`);
+                
+                // Test variations (limit to first 50 to avoid too many queries)
+                for (const variation of fullQueryVariations.slice(0, 50)) {
+                  const fuzzyQuery = supabase
+                    .from('artworks')
+                    .select(`
+                      id,
+                      title,
+                      artist_name,
+                      price,
+                      currency,
+                      category,
+                      description,
+                      materials,
+                      location,
+                      provenance,
+                      width,
+                      height,
+                      depth,
+                      measurement_unit,
+                      year,
+                      images:artwork_images(file_path, is_primary)
+                    `)
+                    .eq('status', 'approved')
+                    .or(
+                      `title.ilike.%${variation}%,` +
+                      `artist_name.ilike.%${variation}%,` +
+                      `description.ilike.%${variation}%,` +
+                      `materials.ilike.%${variation}%,` +
+                      `location.ilike.%${variation}%,` +
+                      `provenance.ilike.%${variation}%,` +
+                      `category.ilike.%${variation}%`
+                    );
+
+                  // Apply category filter to fuzzy search too
+                  if (category && category !== 'all') {
+                    fuzzyQuery.eq('category', category);
+                  }
+
+                  const { data: fuzzyData, error: fuzzyError } = await fuzzyQuery;
+                  if (fuzzyError) {
+                    console.error(`❌ Error with variation "${variation}":`, fuzzyError);
+                    continue;
+                  }
+                  if (fuzzyData && fuzzyData.length > 0) {
+                    console.log(`✅ Found ${fuzzyData.length} results for variation "${variation}"`);
+                    fuzzyResults = [...fuzzyResults, ...fuzzyData];
+                  }
+                }
+
+                // Remove duplicates based on ID
+                const uniqueResults = fuzzyResults.filter((item: any, index: number, self: any[]) => 
+                  index === self.findIndex((t: any) => t.id === item.id)
+                );
+
+                console.log(`🎯 Final fuzzy search results: ${uniqueResults.length} items found`);
+                return { data: uniqueResults, error: null };
+              }
+            } else {
+              // No query, just apply category filter and return all
+              if (category && category !== 'all') {
+                supabaseQuery = supabaseQuery.eq('category', category);
+              }
+              supabaseQuery = supabaseQuery.order('created_at', { ascending: false });
+              const { data, error } = await supabaseQuery;
+              return { data, error };
+            }
           },
           'Search artworks with comprehensive filters'
         );
@@ -113,9 +202,12 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
           return;
         }
 
-        if (artworks) {
+        let finalArtworks = artworks;
+        console.log(`📊 Final artworks before processing:`, Array.isArray(finalArtworks) ? finalArtworks.length : 'not array', finalArtworks);
+
+        if (finalArtworks && Array.isArray(finalArtworks)) {
           // Get public URLs for all images
-          const artworksWithUrls = (artworks as any[]).map((artwork: any) => ({
+          const artworksWithUrls = (finalArtworks as any[]).map((artwork: any) => ({
             ...artwork,
             images: artwork.images?.map((image: ArtworkImage) => ({
               ...image,
@@ -123,7 +215,11 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
             }))
           }));
           
+          console.log(`📊 Artworks with URLs:`, artworksWithUrls.length, artworksWithUrls);
           setProducts(artworksWithUrls);
+        } else {
+          console.log(`❌ No finalArtworks to process or not array:`, finalArtworks);
+          setProducts([]);
         }
       } catch (error) {
         console.error('Error:', error);
@@ -197,6 +293,11 @@ export default function SearchResultsStatic({ query, category }: { query?: strin
           <p className="text-xs text-gray-400">
             Try searching for artist names, artwork titles, materials, locations, or descriptions
           </p>
+          {query && (
+            <p className="text-xs text-gray-400">
+              Our search includes typo tolerance - we checked for variations but didn't find matches
+            </p>
+          )}
         </div>
         <Button 
           onClick={() => window.location.href = '/'} 

@@ -6,7 +6,7 @@ import { Heart, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabase-client';
-import { generateEmbedding } from '@/lib/openai';
+import { generateTypoVariations } from '@/lib/fuzzy-search';
 import Image from 'next/image';
 import { formatPrice } from '@/lib/currency-utils';
 
@@ -24,6 +24,8 @@ interface SearchProps {
   query: string;
   category?: string;
 }
+
+
 
 export default function SearchResults({ query, category }: SearchProps) {
   const router = useRouter();
@@ -46,7 +48,7 @@ export default function SearchResults({ query, category }: SearchProps) {
           .eq('user_id', user.id);
         
         if (data) {
-          setWishlist(new Set(data.map(item => item.artwork_id)));
+          setWishlist(new Set(data.map((item: any) => item.artwork_id)));
         }
       }
     };
@@ -70,6 +72,7 @@ export default function SearchResults({ query, category }: SearchProps) {
             currency,
             category,
             description,
+            materials,
             images:artwork_images(url, is_primary)
           `)
           .eq('status', 'approved');
@@ -79,14 +82,107 @@ export default function SearchResults({ query, category }: SearchProps) {
           queryBuilder = queryBuilder.eq('category', category);
         }
 
+        let data = null;
+        let searchError = null;
+
         // Handle text search if query exists
         if (query) {
-          queryBuilder = queryBuilder.or(
-            `title.ilike.%${query}%,artist_name.ilike.%${query}%,description.ilike.%${query}%`
+          const searchTerm = query.trim();
+          
+          // Debug: Log what we're searching for and what's in the database
+          console.log(`🔍 Searching for: "${searchTerm}"`);
+          
+          // First, let's see what's actually in the database
+          const { data: allItems, error: debugError } = await supabase
+            .from('artworks')
+            .select('id, title, artist_name, description')
+            .eq('status', 'approved')
+            .limit(10);
+          
+          if (allItems && allItems.length > 0) {
+            console.log(`📦 Sample database items:`, allItems.map((item: any) => item.title));
+          } else {
+            console.log(`📦 No approved items found in database`);
+          }
+          
+          // First try exact and partial matches
+          const exactQuery = queryBuilder.or(
+            `title.ilike.%${searchTerm}%,artist_name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,materials.ilike.%${searchTerm}%`
           );
-        }
 
-        const { data, error: searchError } = await queryBuilder;
+          const { data: exactResults, error: exactError } = await exactQuery;
+          
+          if (exactError) {
+            throw exactError;
+          }
+
+          // If we have results, use them
+          if (exactResults && exactResults.length > 0) {
+            data = exactResults;
+          } else {
+            // If no exact results, try fuzzy search
+            let fuzzyResults: any[] = [];
+
+            // First, try variations of the entire search term (for cases like "G700" vs "G 700")
+            const fullQueryVariations = generateTypoVariations(searchTerm);
+            console.log(`🔍 Fuzzy search for "${searchTerm}" generated ${fullQueryVariations.length} variations:`, fullQueryVariations.slice(0, 20));
+            
+            // Let's specifically check if "whiskey" is in our variations when searching for "wiskey"
+            if (searchTerm.toLowerCase().includes('wiskey')) {
+              const whiskeyVariations = fullQueryVariations.filter(v => v.includes('whiskey'));
+              console.log(`🥃 Found whiskey variations:`, whiskeyVariations);
+            }
+            
+            for (const variation of fullQueryVariations.slice(0, 50)) { // Limit to first 50 to avoid too many queries
+              console.log(`🔍 Testing variation: "${variation}"`);
+              
+              const fuzzyQuery = supabase
+                .from('artworks')
+                .select(`
+                  id,
+                  title,
+                  artist_name,
+                  price,
+                  currency,
+                  category,
+                  description,
+                  materials,
+                  images:artwork_images(url, is_primary)
+                `)
+                .eq('status', 'approved')
+                .or(
+                  `title.ilike.%${variation}%,artist_name.ilike.%${variation}%,description.ilike.%${variation}%,category.ilike.%${variation}%,materials.ilike.%${variation}%`
+                );
+
+              // Apply category filter to fuzzy search too
+              if (category && category !== 'all') {
+                fuzzyQuery.eq('category', category);
+              }
+
+              const { data: fuzzyData, error: fuzzyError } = await fuzzyQuery;
+              if (fuzzyError) {
+                console.error(`❌ Error testing variation "${variation}":`, fuzzyError);
+              } else if (fuzzyData && fuzzyData.length > 0) {
+                console.log(`✅ Found ${fuzzyData.length} results for variation "${variation}"`);
+                console.log(`📋 Results:`, fuzzyData.map((item: any) => item.title));
+                fuzzyResults = [...fuzzyResults, ...fuzzyData];
+              }
+            }
+
+            // Remove duplicates based on ID
+            const uniqueResults = fuzzyResults.filter((item: any, index: number, self: any[]) => 
+              index === self.findIndex((t: any) => t.id === item.id)
+            );
+
+            console.log(`🎯 Final fuzzy search results: ${uniqueResults.length} items found`);
+            data = uniqueResults;
+          }
+        } else {
+          // No query, just apply category filter
+          const { data: allResults, error: allError } = await queryBuilder;
+          data = allResults;
+          searchError = allError;
+        }
 
         if (searchError) {
           throw searchError;
