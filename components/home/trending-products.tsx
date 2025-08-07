@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDataContext } from '@/lib/data-context';
+import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
 import { SupabaseImage } from '@/components/ui/supabase-image';
 import { formatPrice } from '@/lib/currency-utils';
@@ -12,7 +13,9 @@ import { formatSupabaseUrl } from '@/lib/utils';
 
 // Add a function to get a valid image URL
 const getValidImageUrl = (image: any) => {
-  if (!image) return 'https://source.unsplash.com/random/800x800/?art';
+  if (!image) {
+    return 'https://source.unsplash.com/random/800x800/?art';
+  }
   
   // If we have a valid URL, use it
   if (image.url && image.url.includes('http')) {
@@ -63,6 +66,7 @@ const PLACEHOLDER_PRODUCTS: Product[] = Array(4).fill(null).map((_, i) => ({
 export default function TrendingProducts() {
   const router = useRouter();
   const { trendingProducts, isLoading, error, refreshTrendingProducts } = useDataContext();
+  const { isAuthenticated } = useAuth();
   const [startIndex, setStartIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -80,19 +84,25 @@ export default function TrendingProducts() {
   }, [isClient, trendingProducts.length, isLoading, refreshTrendingProducts]);
 
   const handleProductClick = (id: string) => {
-    if (id.startsWith('placeholder-')) return;
+    if (id.startsWith('placeholder-')) {
+      return;
+    }
     router.push(`/product/${id}`);
   };
 
   const slideNext = () => {
-    if (isAnimating || startIndex >= trendingProducts.length - VISIBLE_ITEMS) return;
+    if (isAnimating || startIndex >= trendingProducts.length - VISIBLE_ITEMS) {
+      return;
+    }
     setIsAnimating(true);
     setStartIndex(prev => prev + 1);
     setTimeout(() => setIsAnimating(false), 500);
   };
 
   const slidePrevious = () => {
-    if (isAnimating || startIndex <= 0) return;
+    if (isAnimating || startIndex <= 0) {
+      return;
+    }
     setIsAnimating(true);
     setStartIndex(prev => prev - 1);
     setTimeout(() => setIsAnimating(false), 500);
@@ -206,15 +216,40 @@ export default function TrendingProducts() {
                   <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary transition-colors">
                     {product.title}
                   </h3>
-                  <p className="text-sm text-gray-600 mt-1">By {product.artist_name}</p>
-                  <p className="text-lg font-bold text-primary mt-2">
-                    {product.price ? formatPrice(product.price, product.currency) : 'Price on request'}
-                  </p>
+                  {isAuthenticated ? (
+                    <>
+                      <p className="text-sm text-gray-600 mt-1">By {product.artist_name}</p>
+                      <p className="text-lg font-bold text-primary mt-2">
+                        {product.price ? formatPrice(product.price, product.currency) : 'Price on request'}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-400 mt-1 flex items-center gap-1">
+                        <Lock className="h-3 w-3" />
+                        Artist name hidden
+                      </p>
+                      <p className="text-lg font-medium text-gray-400 mt-2 flex items-center gap-1">
+                        <Lock className="h-3 w-3" />
+                        Sign in to see price
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
+
+        {/* Auth prompt for unauthenticated users */}
+        {!isAuthenticated && displayProducts.length > 0 && (
+          <div className="mt-8 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm">
+              <Lock className="h-4 w-4" />
+              <span>Sign in to see artist names, prices, and more details</span>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
