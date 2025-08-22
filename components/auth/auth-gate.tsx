@@ -25,8 +25,7 @@ export default function AuthGate({ children }: AuthGateProps) {
     '/assets',
     '/favicon.ico',
     '/auth',
-    '/_next',
-    '/future-masters'
+    '/_next'
   ];
   const isPublicPath = publicPaths.some(path => 
     pathname === path || 
