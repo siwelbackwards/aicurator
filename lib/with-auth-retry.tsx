@@ -97,7 +97,7 @@ class SupabaseRetryWrapper {
             return {
               data: null as T,
               error: { 
-                message: 'Authentication session expired. Please sign in again.',
+                message: 'Authentication session expired. Please member log in again.',
                 code: 'SESSION_EXPIRED'
               }
             };

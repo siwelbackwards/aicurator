@@ -45,7 +45,7 @@ function MyComponent() {
 
   if (loading) return <div>Loading...</div>;
   
-  if (!isAuthenticated) return <div>Please sign in</div>;
+  if (!isAuthenticated) return <div>Please member log in</div>;
 
   return (
     <div>
@@ -262,7 +262,7 @@ The system provides detailed console logging:
 ## 🚦 Testing Multi-Tab Behavior
 
 1. Open your app in multiple tabs
-2. Sign in from one tab
+2. Member log in from one tab
 3. Verify other tabs automatically update
 4. Sign out from one tab
 5. Confirm all tabs update to signed-out state

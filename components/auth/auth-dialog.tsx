@@ -84,7 +84,7 @@ export default function AuthDialog({
   const getTitle = () => {
     switch (mode) {
       case "signIn":
-        return "Sign In";
+        return "Member Log In";
       case "signUp":
         return "Get Started";
       case "buyerOnboarding":

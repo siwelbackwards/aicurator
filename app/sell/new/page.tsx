@@ -438,7 +438,7 @@ export default function NewItemPage() {
     }
   };
 
-  // Function to sign out and redirect to sign in
+  // Function to sign out and redirect to member log in
   const signOutAndRedirect = async () => {
     try {
       await supabase.auth.signOut();
@@ -479,7 +479,7 @@ export default function NewItemPage() {
       const { data, error } = await supabase.auth.getSession();
       if (error || !data.session) {
         console.error('🔍 Auth error:', error);
-        toast.error('Authentication error. Please sign in again.');
+        toast.error('Authentication error. Please member log in again.');
         router.push('/auth?redirect=/sell/new');
         setLoading(false);
         return;
@@ -782,7 +782,7 @@ export default function NewItemPage() {
       
       if (!session) {
         console.error('No session found, redirecting to login');
-        toast.error('Please sign in to submit an item');
+        toast.error('Please member log in to submit an item');
         router.push('/auth?redirect=/sell/new');
         setLoading(false);
         return;

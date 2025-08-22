@@ -222,7 +222,7 @@ export default function SignUp({
             onClick={onModeChange}
             className="text-blue-600 hover:underline font-medium"
           >
-            Sign In
+            Member Log In
           </button>
         </div>
       </form>

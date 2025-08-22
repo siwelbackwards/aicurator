@@ -113,30 +113,61 @@ export default function AdminArtworksPage() {
       console.log(`⭐ Fetching artworks with status: "${status}"`);
       
       // Determine environment based on window location for more reliable client-side detection
-      const isLocalhost = typeof window !== 'undefined' && 
+      const isLocalhost = typeof window !== 'undefined' &&
         (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-      const baseUrl = isLocalhost
-        ? 'http://localhost:9000'
-        : '';
-      
-      console.log(`⭐ Environment detected: ${isLocalhost ? 'development' : 'production'}, using baseUrl: ${baseUrl || 'relative'}`);
-      
-      // Use our admin API endpoint that bypasses RLS
-      const response = await fetch(`${baseUrl}/.netlify/functions/admin-artworks`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+
+      console.log(`⭐ Environment detected: ${isLocalhost ? 'development' : 'production'}`);
+
+      let allArtworks = [];
+
+      if (isLocalhost) {
+        // In development, skip Netlify function and go straight to Supabase
+        console.log('🔧 Development mode: Using direct Supabase connection');
+      } else {
+        // In production, try Netlify function first
+        console.log('🔧 Production mode: Trying Netlify function first');
+        const response = await fetch('/.netlify/functions/admin-artworks', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+
+        if (response.ok) {
+          allArtworks = await response.json();
+          console.log('✅ Fetched artworks from Netlify function');
         }
-      });
-      
-      if (!response.ok) {
-        console.error('⭐ Admin API call failed:', await response.text());
-        throw new Error('Failed to fetch artworks');
       }
-      
-      const allArtworks = await response.json();
-      console.log('⭐ ALL ARTWORKS via admin API:', allArtworks);
+
+      // If we don't have artworks yet (either development mode or function failed), use Supabase
+      if (allArtworks.length === 0) {
+        if (!isLocalhost) {
+          console.log('❌ Netlify function failed, trying direct Supabase...');
+        }
+
+        // Fallback to direct Supabase call
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        const { data, error } = await supabase
+          .from('artworks')
+          .select(`
+            *,
+            artwork_images(file_path, is_primary)
+          `);
+
+        if (error) {
+          console.error('❌ Supabase query error:', error);
+          throw error;
+        }
+
+        allArtworks = data || [];
+        console.log('✅ Fetched artworks directly from Supabase:', allArtworks.length);
+      }
       
       // Filter artworks based on status
       const filteredArtworks = allArtworks.filter((artwork: Artwork) => 
@@ -234,32 +265,62 @@ export default function AdminArtworksPage() {
 
   const handleUpdateStatus = async (artworkId: string, newStatus: string) => {
     if (!isClient || !accessToken) return;
-    
+
     try {
       // Determine environment based on window location for more reliable client-side detection
-      const isLocalhost = typeof window !== 'undefined' && 
+      const isLocalhost = typeof window !== 'undefined' &&
         (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-      const baseUrl = isLocalhost
-        ? 'http://localhost:9000'
-        : '';
-      
-      console.log(`⭐ Status update - Environment detected: ${isLocalhost ? 'development' : 'production'}, using baseUrl: ${baseUrl || 'relative'}`);
-      
-      // Use our admin API endpoint to update status
-      const response = await fetch(`${baseUrl}/.netlify/functions/admin-artwork-status`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ id: artworkId, status: newStatus })
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('⭐ Admin status update failed:', errorText);
-        throw new Error('Failed to update artwork status');
+
+      console.log(`⭐ Status update - Environment detected: ${isLocalhost ? 'development' : 'production'}`);
+
+      if (isLocalhost) {
+        // In development, skip Netlify function and go straight to Supabase
+        console.log('🔧 Development mode: Using direct Supabase connection for status update');
+      } else {
+        // In production, try Netlify function first
+        console.log('🔧 Production mode: Trying Netlify function first for status update');
+        const response = await fetch('/.netlify/functions/admin-artwork-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({ id: artworkId, status: newStatus })
+        });
+
+        if (response.ok) {
+          console.log('✅ Updated artwork status via Netlify function');
+          // Update local state to remove the artwork from current view
+          setArtworks(artworks.filter(artwork => artwork.id !== artworkId));
+
+          toast.success(`Artwork ${newStatus === 'approved' ? 'approved' : 'rejected'} successfully`);
+          return;
+        }
       }
+
+      // If we get here, either we're in development mode or the function failed
+      if (!isLocalhost) {
+        console.log('❌ Netlify function failed, trying direct Supabase...');
+      }
+
+      // Fallback to direct Supabase call
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      const { error } = await supabase
+        .from('artworks')
+        .update({ status: newStatus })
+        .eq('id', artworkId);
+
+      if (error) {
+        console.error('❌ Supabase update error:', error);
+        throw error;
+      }
+
+      console.log('✅ Updated artwork status directly in Supabase');
       
       // Update local state to remove the artwork from current view
       setArtworks(artworks.filter(artwork => artwork.id !== artworkId));

@@ -231,7 +231,7 @@ export default function TrendingProducts() {
                       </p>
                       <p className="text-lg font-medium text-gray-400 mt-2 flex items-center gap-1">
                         <Lock className="h-3 w-3" />
-                        Sign in to see price
+                        Member log in to see price
                       </p>
                     </>
                   )}
@@ -246,7 +246,7 @@ export default function TrendingProducts() {
           <div className="mt-8 text-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm">
               <Lock className="h-4 w-4" />
-              <span>Sign in to see artist names, prices, and more details</span>
+              <span>Member log in to see artist names, prices, and more details</span>
             </div>
           </div>
         )}

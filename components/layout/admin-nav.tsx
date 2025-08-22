@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  Users, 
-  Paintbrush, 
-  Home, 
-  Settings 
+import {
+  Users,
+  Paintbrush,
+  Home,
+  Settings,
+  Star,
+  TrendingUp
 } from 'lucide-react';
 
 export default function AdminNav() {
@@ -22,6 +24,16 @@ export default function AdminNav() {
       name: 'Artworks',
       href: '/admin/artworks',
       icon: <Paintbrush className="h-4 w-4" />
+    },
+    {
+      name: 'Future Masters',
+      href: '/admin/future-masters-artists',
+      icon: <Star className="h-4 w-4" />
+    },
+    {
+      name: 'Trending Products',
+      href: '/admin/trending-products',
+      icon: <TrendingUp className="h-4 w-4" />
     },
     {
       name: 'Users',

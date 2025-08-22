@@ -200,7 +200,7 @@ export default function BuyerOnboarding({ userId: initialUserId, userEmail, onCo
       console.error('Error during registration:', error);
       if (error instanceof Error) {
         if (error.message.includes('Email already registered')) {
-          setError('This email is already registered. Please sign in instead.');
+          setError('This email is already registered. Please member log in instead.');
         } else {
           setError(error.message);
         }

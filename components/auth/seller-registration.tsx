@@ -134,7 +134,7 @@ export default function SellerRegistration({ onComplete, onAuthSuccess, redirect
 
         toast.success('Seller account created successfully!');
         
-        // Sign in the user
+        // Member log in the user
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
@@ -142,7 +142,7 @@ export default function SellerRegistration({ onComplete, onAuthSuccess, redirect
 
         if (signInError) {
           console.error('Error signing in after registration:', signInError);
-          toast.error('Account created but sign-in failed. Please sign in manually.');
+          toast.error('Account created but member log in failed. Please member log in manually.');
         }
 
         onComplete();

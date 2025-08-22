@@ -144,7 +144,7 @@ export default function SignIn({ onModeChange, onClose, onAuthSuccess, redirectP
   return (
     <div className="px-6 pb-6">
       <p className="mb-6 text-gray-700">
-        Sign in to continue exploring our collection of unique artworks.
+        Member log in to continue exploring our collection of unique artworks.
       </p>
       
       {connectionError && (

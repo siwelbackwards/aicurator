@@ -25,7 +25,7 @@ export default function SupabaseDataFetcher({ tableName, title }: ExampleDataFet
 
   const fetchData = async () => {
     if (!isAuthenticated) {
-      setError('Please sign in to view this data');
+      setError('Please member log in to view this data');
       return;
     }
 
@@ -62,7 +62,7 @@ export default function SupabaseDataFetcher({ tableName, title }: ExampleDataFet
       fetchData();
     } else if (!authLoading && !isAuthenticated) {
       setData([]);
-      setError('Please sign in to view this data');
+      setError('Please member log in to view this data');
     }
   }, [isAuthenticated, authLoading, tableName]);
 
@@ -82,7 +82,7 @@ export default function SupabaseDataFetcher({ tableName, title }: ExampleDataFet
     return (
       <div className="p-4 border rounded-lg bg-yellow-50">
         <h3 className="text-lg font-semibold mb-2">{title}</h3>
-        <p className="text-sm text-yellow-700">Please sign in to view this data.</p>
+        <p className="text-sm text-yellow-700">Please member log in to view this data.</p>
       </div>
     );
   }

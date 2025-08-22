@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Heart, ShoppingCart } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, ShoppingCart, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ConfirmationDialog from '@/components/product/confirmation-dialog';
 import { supabase } from '@/lib/supabase-client';
@@ -205,6 +205,32 @@ export default function ProductClient({ productId }: ProductProps) {
     setCurrentImage((prev) => (prev - 1 + (product.images?.length || 1)) % (product.images?.length || 1));
   };
 
+  const handleContactSpecialist = () => {
+    const subject = `Inquiry about "${product.title}" (Product ID: ${productId})`;
+    const body = `Hello AI Curator Team,
+
+I'm interested in learning more about this artwork:
+
+Product: ${product.title}
+Artist: ${product.artist_name}
+Price: ${formatPrice(product.price, product.currency)}
+Product ID: ${productId}
+
+Please provide more information about this piece, including:
+- Detailed condition report
+- Authentication and provenance
+- Shipping and delivery options
+- Payment terms
+
+Thank you!
+
+Best regards,
+[Your Name]`;
+
+    const mailtoLink = `mailto:aicuratorinfo@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoLink;
+  };
+
   // Placeholder values for data we don't have
   const currentPrice = Math.round(product.price * 1.2);
   const predictedPrice = Math.round(product.price * 2);
@@ -303,7 +329,7 @@ export default function ProductClient({ productId }: ProductProps) {
             </div>
 
             <div className="flex space-x-4">
-              <Button 
+              <Button
                 className="flex-1 gap-2"
                 onClick={() => setShowConfirmation(true)}
               >
@@ -315,6 +341,15 @@ export default function ProductClient({ productId }: ProductProps) {
                 Add to wishlist
               </Button>
             </div>
+
+            <Button
+              variant="secondary"
+              className="w-full gap-2 mt-4"
+              onClick={handleContactSpecialist}
+            >
+              <Mail className="w-5 h-5" />
+              Ask a Product Specialist
+            </Button>
           </div>
         </div>
 

@@ -205,13 +205,33 @@ export default function AdminDashboard() {
               </div>
             </Link>
             
-            <Link 
-              href="/admin/settings" 
+            <Link
+              href="/admin/future-masters-artists"
+              className="block p-3 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors"
+            >
+              <div className="font-medium">Future Masters Artists</div>
+              <div className="text-sm text-gray-600">
+                Manage artists shown on Future Masters page
+              </div>
+            </Link>
+
+            <Link
+              href="/admin/trending-products"
+              className="block p-3 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
+            >
+              <div className="font-medium">Trending Products</div>
+              <div className="text-sm text-gray-600">
+                Manage homepage trending products
+              </div>
+            </Link>
+
+            <Link
+              href="/admin/settings"
               className="block p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
             >
               <div className="font-medium">Platform Settings</div>
               <div className="text-sm text-gray-600">
-                Configure system settings
+                Configure system settings and platform options
               </div>
             </Link>
           </CardContent>

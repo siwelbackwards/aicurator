@@ -19,13 +19,14 @@ export default function AuthGate({ children }: AuthGateProps) {
   
   // Paths that don't require authentication
   const publicPaths = [
-    '/', 
+    '/',
     '/api',
     '/images',
     '/assets',
     '/favicon.ico',
     '/auth',
-    '/_next'
+    '/_next',
+    '/future-masters'
   ];
   const isPublicPath = publicPaths.some(path => 
     pathname === path || 
@@ -106,7 +107,7 @@ export default function AuthGate({ children }: AuthGateProps) {
           </div>
           <h2 className="text-2xl font-bold mb-3">Content Locked</h2>
           <p className="text-gray-600 mb-6">
-            Sign in or create an account to access this content and enjoy all features of AI Curator.
+            Member log in or create an account to access this content and enjoy all features of AI Curator.
           </p>
           <Button 
             size="lg" 

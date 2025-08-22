@@ -2,7 +2,7 @@
 
 ## Overview
 
-This feature implements conditional display of sensitive information (artist names and prices) in the trending products section based on user authentication status. Unauthenticated users will see product titles and images but not artist names or pricing information, encouraging them to sign in for full access.
+This feature implements conditional display of sensitive information (artist names and prices) in the trending products section based on user authentication status. Unauthenticated users will see product titles and images but not artist names or pricing information, encouraging them to member log in for full access.
 
 ## Implementation Details
 
@@ -25,7 +25,7 @@ This feature implements conditional display of sensitive information (artist nam
    - **For Unauthenticated Users**: Display limited information with privacy indicators:
      - Product title (always visible)
      - "Artist name hidden" with lock icon
-     - "Sign in to see price" with lock icon
+     - "Member log in to see price" with lock icon
 
 3. **User Experience Enhancements**
    - Added visual lock icons to indicate hidden content
@@ -58,7 +58,7 @@ const { isAuthenticated } = useAuth();
     </p>
     <p className="text-lg font-medium text-gray-400 mt-2 flex items-center gap-1">
       <Lock className="h-3 w-3" />
-      Sign in to see price
+      Member log in to see price
     </p>
   </>
 )}
@@ -77,7 +77,7 @@ The feature leverages the existing authentication system:
    - Visits homepage
    - Sees trending products with titles and images
    - Artist names and prices are hidden with lock icons
-   - Sees call-to-action to sign in for full details
+   - Sees call-to-action to member log in for full details
 
 2. **Authenticated User**:
    - Visits homepage
@@ -128,7 +128,7 @@ To test this feature:
    - Check that the auth prompt banner appears
 
 2. **Authenticated State**:
-   - Sign in to the application
+   - Member log in to the application
    - Verify full product information is displayed
    - Confirm no auth prompts are shown
    - Test authentication state persistence across page refreshes
