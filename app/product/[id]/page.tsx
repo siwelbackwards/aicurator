@@ -5,6 +5,12 @@ import { supabase } from '@/lib/supabase-client';
 // Add static params for build time generation
 export async function generateStaticParams() {
   try {
+    // Check if supabase client is properly initialized
+    if (!supabase || typeof supabase.from !== 'function') {
+      console.warn('Supabase client not available during static generation, using fallback');
+      return [{ id: 'placeholder' }];
+    }
+
     // Get approved artworks to pre-generate - increased to cover more products
     const { data, error } = await supabase
       .from('artworks')
