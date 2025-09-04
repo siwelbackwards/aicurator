@@ -301,6 +301,7 @@ export default function BuyerOnboarding({ userId: initialUserId, userEmail, onCo
         user_type: 'buyer',
         role: 'buyer',
         onboarding_completed: true,
+        user_status: 'pending', // Set as pending for admin approval
         updated_at: new Date().toISOString(),
       };
       
@@ -423,17 +424,13 @@ export default function BuyerOnboarding({ userId: initialUserId, userEmail, onCo
       
       console.log('Profile created/updated successfully');
       
-      // If we have a callback, run it
-      if (onComplete) {
-        onComplete();
-      } else if (onAuthSuccess) {
-        onAuthSuccess();
-      } else if (redirectPath) {
-        router.push(redirectPath);
-      } else {
-        // Default redirect to dashboard
-        router.push('/dashboard');
-      }
+      // Show waitlist message instead of giving immediate access
+      // The user will be redirected to a pending approval page
+      toast.success('Registration submitted successfully! You will be notified once your account is approved.');
+
+      // Don't call onComplete/onAuthSuccess to prevent immediate access
+      // Instead, redirect to a pending approval page or show waitlist
+      router.push('/auth/pending-approval');
 
       // After updating the profile, try to store additional preferences
       // But make it completely non-blocking and simple

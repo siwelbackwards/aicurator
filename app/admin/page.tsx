@@ -44,7 +44,7 @@ export default function AdminDashboard() {
         // Check if user has admin role
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, user_status')
           .eq('id', session.user.id)
           .single();
 
@@ -57,6 +57,9 @@ export default function AdminDashboard() {
           }
           return;
         }
+
+        // For admins, we allow access regardless of user_status
+        // This gives admins full access even if their account is pending
 
         if (!abortController.signal.aborted) {
           setIsAdmin(true);
@@ -127,6 +130,24 @@ export default function AdminDashboard() {
           </Card>
         </Link>
 
+        <Link href="/admin/approvals">
+          <Card className="hover:shadow-md transition-shadow border-yellow-200 bg-yellow-50/50">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+              <UserCheck className="h-4 w-4 text-yellow-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-700">
+                {/* This would ideally show the actual count from the database */}
+                --
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Users awaiting approval
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
         <Link href="/admin/artworks">
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -185,8 +206,18 @@ export default function AdminDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Link 
-              href="/admin/artworks?tab=pending" 
+            <Link
+              href="/admin/approvals"
+              className="block p-3 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors"
+            >
+              <div className="font-medium">Review User Applications</div>
+              <div className="text-sm text-gray-600">
+                Approve or reject new user registrations
+              </div>
+            </Link>
+
+            <Link
+              href="/admin/artworks?tab=pending"
               className="block p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
             >
               <div className="font-medium">Review Pending Artworks</div>

@@ -84,7 +84,7 @@ export default function AdminUsersPage() {
         // Check if user has admin role
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, user_status')
           .eq('id', session.user.id)
           .single();
 
@@ -95,6 +95,8 @@ export default function AdminUsersPage() {
           toast.error('You do not have permission to access the admin area');
           return;
         }
+
+        // For admins, we allow access regardless of user_status
 
         setIsAdmin(true);
         setInitialized(true);

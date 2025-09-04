@@ -1,186 +1,116 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase-client';
 
 export default function DebugPage() {
-  const [debugInfo, setDebugInfo] = useState<Record<string, any>>({
-    windowEnv: {},
-    windowENV: {},
-    processEnv: {},
-    hostname: '',
-    supabaseTest: 'Not tested',
-    netlifyVars: {}
-  });
+  const [sessionInfo, setSessionInfo] = useState<any>(null);
+  const [profileInfo, setProfileInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Gather debug information
-    const windowEnv = typeof window !== 'undefined' ? (window as any).env || {} : {};
-    const windowENV = typeof window !== 'undefined' ? (window as any).ENV || {} : {};
-    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-    const isNetlify = hostname.includes('netlify.app');
-    const netlifyVars = typeof window !== 'undefined' ? (window as any)._env || {} : {};
-
-    // Only collect partial key info for security
-    const sanitizeKey = (key: string) => {
-      if (!key) return 'Not set';
-      if (key.length < 10) return 'Invalid (too short)';
-      return `${key.substring(0, 10)}...`;
-    };
-
-    const info = {
-      windowEnv: {
-        exists: Boolean(windowEnv),
-        NEXT_PUBLIC_SUPABASE_URL: windowEnv.NEXT_PUBLIC_SUPABASE_URL || 'Not set',
-        NEXT_PUBLIC_SUPABASE_ANON_KEY_partial: sanitizeKey(windowEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-        isValidUrl: validateUrl(windowEnv.NEXT_PUBLIC_SUPABASE_URL),
-      },
-      windowENV: {
-        exists: Boolean(windowENV),
-        NEXT_PUBLIC_SUPABASE_URL: windowENV.NEXT_PUBLIC_SUPABASE_URL || 'Not set',
-        NEXT_PUBLIC_SUPABASE_ANON_KEY_partial: sanitizeKey(windowENV.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-        isValidUrl: validateUrl(windowENV.NEXT_PUBLIC_SUPABASE_URL),
-      },
-      processEnv: {
-        exists: Boolean(process.env),
-        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'Not set',
-        NEXT_PUBLIC_SUPABASE_ANON_KEY_partial: sanitizeKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string),
-        isValidUrl: validateUrl(process.env.NEXT_PUBLIC_SUPABASE_URL),
-      },
-      netlifyVars: {
-        isNetlify,
-        netlifyEnvExists: Boolean(netlifyVars),
-        NEXT_PUBLIC_SUPABASE_URL: netlifyVars.NEXT_PUBLIC_SUPABASE_URL || 'Not set',
-        NEXT_PUBLIC_SUPABASE_ANON_KEY_partial: sanitizeKey(netlifyVars.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-        isValidUrl: validateUrl(netlifyVars.NEXT_PUBLIC_SUPABASE_URL),
-      },
-      hostname,
-      supabaseTest: 'Running test...',
-    };
-
-    setDebugInfo(info);
-
-    // Test Supabase connection
-    const testSupabase = async () => {
-      try {
-        const { supabase } = await import('@/lib/supabase');
-        const { error } = await supabase.from('profiles').select('count').limit(1);
-        
-        if (error) {
-          setDebugInfo(prev => ({
-            ...prev,
-            supabaseTest: `Error: ${error.message}`,
-          }));
-        } else {
-          setDebugInfo(prev => ({
-            ...prev,
-            supabaseTest: 'Connection successful',
-          }));
-        }
-      } catch (error) {
-        setDebugInfo(prev => ({
-          ...prev,
-          supabaseTest: `Exception: ${error instanceof Error ? error.message : String(error)}`,
-        }));
-      }
-    };
-
-    testSupabase();
+    checkSessionAndProfile();
   }, []);
 
-  // Simple URL validator
-  function validateUrl(url: string | undefined): boolean {
-    if (!url) return false;
+  const checkSessionAndProfile = async () => {
     try {
-      new URL(url);
-      return true;
-    } catch (e) {
-      return false;
+      console.log('🔍 Debug Page: Starting session check...');
+
+      // Check session
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      console.log('🔍 Debug Page: Session result:', sessionData);
+      setSessionInfo({
+        session: sessionData?.session ? 'EXISTS' : 'NULL',
+        user: sessionData?.session?.user ? {
+          id: sessionData.session.user.id,
+          email: sessionData.session.user.email,
+          created_at: sessionData.session.user.created_at
+        } : null,
+        error: sessionError
+      });
+
+      // Check profile if we have a user
+      if (sessionData?.session?.user?.id) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, user_status, email')
+          .eq('id', sessionData.session.user.id)
+          .single();
+
+        console.log('🔍 Debug Page: Profile result:', profile);
+        setProfileInfo({
+          profile: profile,
+          error: profileError
+        });
+      }
+    } catch (error) {
+      console.error('💥 Debug Page: Error:', error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-4">Debug Page</h1>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <p>Loading session information...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="container py-8">
-      <h1 className="text-2xl font-bold mb-4">Environment Debug</h1>
-      
-      <div className="bg-white p-4 rounded-lg shadow mb-4">
-        <h2 className="text-lg font-semibold mb-2">Hostname</h2>
-        <p className="font-mono">{debugInfo.hostname}</p>
-        <p className="text-sm mt-1">
-          {debugInfo.hostname.includes('netlify.app') 
-            ? '✅ Running on Netlify' 
-            : '❌ Not running on Netlify'}
-        </p>
-      </div>
+    <div className="container mx-auto py-8">
+      <h1 className="text-2xl font-bold mb-4">Debug Page</h1>
+      <p className="text-gray-600 mb-6">This page helps debug authentication and admin access issues.</p>
 
-      <div className="bg-white p-4 rounded-lg shadow mb-4">
-        <h2 className="text-lg font-semibold mb-2">Supabase Connection Test</h2>
-        <p className={`font-mono ${debugInfo.supabaseTest === 'Connection successful' ? 'text-green-600' : 'text-red-600'}`}>
-          {debugInfo.supabaseTest}
-        </p>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-2">window.env</h2>
-          <div className="text-xs mb-2">
-            {debugInfo.windowEnv.isValidUrl 
-              ? <span className="text-green-600">✅ Valid URL</span> 
-              : <span className="text-red-600">❌ Invalid URL</span>}
-          </div>
-          <pre className="whitespace-pre-wrap text-sm">
-            {JSON.stringify(debugInfo.windowEnv, null, 2)}
-          </pre>
-        </div>
-        
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-2">window.ENV (Netlify)</h2>
-          <div className="text-xs mb-2">
-            {debugInfo.windowENV.isValidUrl 
-              ? <span className="text-green-600">✅ Valid URL</span> 
-              : <span className="text-red-600">❌ Invalid URL</span>}
-          </div>
-          <pre className="whitespace-pre-wrap text-sm">
-            {JSON.stringify(debugInfo.windowENV, null, 2)}
-          </pre>
-        </div>
-        
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-2">process.env</h2>
-          <div className="text-xs mb-2">
-            {debugInfo.processEnv.isValidUrl 
-              ? <span className="text-green-600">✅ Valid URL</span> 
-              : <span className="text-red-600">❌ Invalid URL</span>}
-          </div>
-          <pre className="whitespace-pre-wrap text-sm">
-            {JSON.stringify(debugInfo.processEnv, null, 2)}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-blue-50 p-6 rounded-lg">
+          <h2 className="text-xl font-semibold mb-4 text-blue-900">Session Information</h2>
+          <pre className="text-sm bg-white p-4 rounded border overflow-auto">
+            {JSON.stringify(sessionInfo, null, 2)}
           </pre>
         </div>
 
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-2">Netlify _env</h2>
-          <div className="text-xs mb-2">
-            {debugInfo.netlifyVars.isValidUrl 
-              ? <span className="text-green-600">✅ Valid URL</span> 
-              : <span className="text-red-600">❌ Invalid URL</span>}
-          </div>
-          <pre className="whitespace-pre-wrap text-sm">
-            {JSON.stringify(debugInfo.netlifyVars, null, 2)}
+        <div className="bg-green-50 p-6 rounded-lg">
+          <h2 className="text-xl font-semibold mb-4 text-green-900">Profile Information</h2>
+          <pre className="text-sm bg-white p-4 rounded border overflow-auto">
+            {JSON.stringify(profileInfo, null, 2)}
           </pre>
         </div>
       </div>
-      
-      <div className="bg-white p-4 rounded-lg shadow">
-        <h2 className="text-lg font-semibold mb-2">Troubleshooting</h2>
-        <ul className="list-disc ml-5 space-y-2">
-          <li className="font-semibold">Set your environment variables in Netlify:</li>
-          <li className="ml-5">Go to Netlify dashboard → Site settings → Environment variables</li>
-          <li className="ml-5">Add <code className="bg-gray-100 px-1 rounded">NEXT_PUBLIC_SUPABASE_URL</code> with value <code className="bg-gray-100 px-1 rounded">https://cpzzmpgbyzcqbwkaaqdy.supabase.co</code></li>
-          <li className="ml-5">Add <code className="bg-gray-100 px-1 rounded">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> with the correct anon key from your Supabase project</li>
-          <li className="font-semibold mt-3">After setting variables:</li>
-          <li className="ml-5">Trigger a new deployment from the Netlify dashboard</li>
-          <li className="ml-5">Or push a new commit to your repository</li>
-        </ul>
+
+      <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <h3 className="font-semibold text-yellow-900 mb-2">Quick Actions:</h3>
+        <div className="space-y-2">
+          <button
+            onClick={checkSessionAndProfile}
+            className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+          >
+            Refresh Session Info
+          </button>
+          <a
+            href="/admin"
+            className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ml-2"
+          >
+            Try Admin Access
+          </a>
+          <a
+            href="/admin/approvals"
+            className="inline-block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 ml-2"
+          >
+            Try Approvals Page
+          </a>
+        </div>
+      </div>
+
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <h3 className="font-semibold mb-2">Console Debug Info:</h3>
+        <p className="text-sm text-gray-600">
+          Check your browser's developer console (F12) for detailed debug logs from the AuthGate and admin pages.
+        </p>
       </div>
     </div>
   );
-} 
+}
